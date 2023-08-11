@@ -1,0 +1,248 @@
+<linkset>
+  <html:link rel="localization" href="__addonRef__-preferences.ftl" />
+</linkset>
+
+<vbox
+  id="zotero-prefpane-__addonRef__"
+  onload="Zotero.__addonInstance__.hooks.onPrefsEvent('load', {window})"
+>
+  <label>
+    <html:h2 data-l10n-id="pref-title"></html:h2>
+  </label>
+  <label>
+    <html:h3 data-l10n-id="pref-descript"></html:h3>
+  </label>
+
+  <groupbox>
+    <vbox>
+      <checkbox
+        id="__addonRef__-bilingualContrast"
+        native="true"
+        preference="extensions.zotero.__addonRef__.bilingualContrast"
+        data-l10n-id="pref-bilingualContrast"
+      />
+      <checkbox
+        id="__addonRef__-isSourceFirst"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isSourceFirst"
+        data-l10n-id="pref-isSourceFirst"
+      />
+      <checkbox
+        id="__addonRef__-isPay"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isPay"
+        data-l10n-id="pref-isPay"
+      />
+      <checkbox
+        id="__addonRef__-isPreferredSameService"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isPreferredSameService"
+        data-l10n-id="pref-isPreferredSameService"
+      />
+      <checkbox
+        id="__addonRef__-isPreferredHasSecretKey"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isPreferredHasSecretKey"
+        data-l10n-id="pref-isPreferredHasSecretKey"
+      />
+      <checkbox
+        id="__addonRef__-isPriority"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isPriority"
+        data-l10n-id="pref-isPriority"
+      />
+
+      <checkbox
+        id="__addonRef__-isSkipLocal"
+        native="true"
+        preference="extensions.zotero.__addonRef__.isSkipLocal"
+        data-l10n-id="pref-isSkipLocal"
+      />
+
+      <hbox>
+        <label data-l10n-id="pref-untranslatedLanguage"></label>
+        <html:input
+          size="30"
+          type="text"
+          id="__addonRef__-untranslatedLanguage"
+          preference="extensions.zotero.__addonRef__.untranslatedLanguage"
+        ></html:input>
+      </hbox>
+      <label data-l10n-id="pref-descript-untranslatedLanguage"></label>
+    </vbox>
+  </groupbox>
+</vbox>
+<separator class="groove" />
+<hbox>
+  <label data-l10n-id="pref-underUse"></label>
+
+  <spacer width="10px" />
+
+  <textbox id="__addonRef__-serviceIDUnderUse" readonly="true" />
+
+  <spacer width="10px" />
+
+  <textbox id="__addonRef__-secretKeyUnderUse" readonly="true" />
+</hbox>
+<separator class="groove" />
+<!--腾讯交互，百度修改-->
+<!--多账户管理-->
+<vbox>
+  <label>
+    <html:h3 data-l10n-id="pref-multi-account-manage"></html:h3>
+  </label>
+  <hbox>
+    <label data-l10n-id="pref-multi-service"></label>
+    <!-- Replace -->
+    <box id="__addonRef__-serviceID-placeholder"></box>
+    <button
+      id="__addonRef__-switchService"
+      data-l10n-id="pref-switchService"
+    ></button>
+    <button
+      id="__addonRef__-deleteService"
+      data-l10n-id="pref-deleteService"
+    ></button>
+  </hbox>
+
+  <hbox>
+    <label data-l10n-id="pref-QPS"></label>
+    <html:input
+      size="10"
+      value=""
+      type="text"
+      id="__addonRef__-QPS"
+    ></html:input>
+
+    <label data-l10n-id="pref-charasPerTime"></label>
+    <html:input
+      size="10"
+      type="text"
+      value=""
+      id="__addonRef__-charasPerTime"
+    ></html:input>
+    <checkbox
+      id="__addonRef__-hasSecretKey"
+      native="true"
+      data-l10n-id="pref-hasSecretKey"
+    />
+  </hbox>
+  <hbox>
+    <checkbox
+      id="__addonRef__-isMultiParas"
+      native="true"
+      data-l10n-id="pref-isMultiParas"
+    />
+    <label data-l10n-id="pref-limitMode"></label>
+    <!-- Replace -->
+    <box id="__addonRef__-limitMode-placeholder"></box>
+
+    <label data-l10n-id="pref-charasLimit"></label>
+    <html:input
+      size="10"
+      type="text"
+      id="__addonRef__-charasLimit"
+    ></html:input>
+  </hbox>
+  <hbox>
+    <label data-l10n-id="pref-charasLimitFactor"></label>
+    <html:input
+      size="5"
+      type="text"
+      id="__addonRef__-charasLimitFactor"
+      preference="extensions.zotero.__addonRef__.charasLimitFactor"
+    ></html:input>
+    <button
+      id="__addonRef__-saveLimitParam"
+      data-l10n-id="pref-saveLimitParam"
+    ></button>
+  </hbox>
+  <separator class="groove" />
+
+  <vbox>
+    <hbox>
+      <label data-l10n-id="pref-secretKey"></label>
+      <html:input
+        size="60"
+        type="text"
+        id="__addonRef__-secretKey"
+      ></html:input>
+    </hbox>
+
+    <hbox>
+      <!-- data-l10n-id=""在这里作为label的内容，其ftl格式应当为 -->
+      <!--       pref-secretKeyUsable = 
+              .label = isUsable -->
+      <label data-l10n-id="pref-secretKey-charConsum"></label>
+      <html:input
+        type="text"
+        id="__addonRef__-secretKey-charConsum"
+      ></html:input>
+      <checkbox
+        id="__addonRef__-secretKeyUsable"
+        native="true"
+        preference="extensions.zotero.__addonRef__.secretKeyUsable"
+        data-l10n-id="pref-secretKeyUsable"
+        class="checkbox-secretKeyUsable"
+      />
+
+      <button
+        id="__addonRef__-saveSecretKey"
+        data-l10n-id="pref-saveSecretKey"
+      ></button>
+      <button
+        id="__addonRef__-saveSecretKeyBulk"
+        data-l10n-id="pref-saveSecretKeyBulk"
+      ></button>
+    </hbox>
+  </vbox>
+
+  <separator class="groove" />
+  <html:div id="__addonRef__-table-container" />
+  <separator class="groove" />
+
+  <description data-l10n-id="pref-secretKey-help" />
+  <separator class="groove" />
+</vbox>
+<vbox>
+  <hbox align="center">
+    <button
+      id="__addonRef__-recoverService"
+      data-l10n-id="pref-recoverService"
+    ></button>
+  </hbox>
+  <hbox>
+    <vbox flex="1">
+      <label
+        data-l10n-id="pref-servicePriorityWithKey"
+        minWidth="350px"
+      ></label>
+
+      <html:div id="__addonRef__-table-servicePriorityWithKey" />
+    </vbox>
+    <separator class="groove" orient="vertical" />
+    <vbox flex="1">
+      <label
+        data-l10n-id="pref-servicePriorityWithoutKey"
+        minWidth="350px"
+      ></label>
+
+      <html:div id="__addonRef__-table-servicePriorityWithoutKey" />
+    </vbox>
+  </hbox>
+  <separator class="groove" />
+  <description data-l10n-id="pref-Priority-help" />
+  <separator class="groove" />
+</vbox>
+
+<groupbox>
+  <label>
+    <html:h3 data-l10n-id="pref-help"></html:h3>
+  </label>
+  <label>
+    <html:h4
+      data-l10n-id="pref-version"
+      data-l10n-args='{"time": "__buildTime__","name": "__addonName__","version":"__buildVersion__","author":"__author__"}'
+    ></html:h4>
+  </label>
+</groupbox>

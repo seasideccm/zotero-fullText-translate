@@ -1,0 +1,17 @@
+{
+  "addons": {
+    "fullText_translate@sscc.org": {
+      "updates": [
+        {
+          "version": "1.0.1",
+          "update_link": "https://github.com/seasideccm/zotero-fullText-translate/releases/latest/download/zotero-fullText-translate.xpi",
+          "applications": {
+            "zotero": {
+              "strict_min_version": "6.999"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
