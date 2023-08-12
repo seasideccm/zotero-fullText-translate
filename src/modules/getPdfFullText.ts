@@ -1071,16 +1071,27 @@ export async function pdf2documents(itmeID: number) {
         const invalide: any[] = [];
         for (let i = 0; i < xorderByFrequency.length; i++) {
           const tableX = Number(xorderByFrequency[i]);
-          if (items.some(e => {
-            if ((e.str !== " " && e.str !== "" && (e.transform[4] + e.width) > tableX + 1 && e.transform[4] < tableX - 1)) {
+          //some不支持continue和break，false结束本次循环
+
+          if (items.some((e, i) => {
+            if (e.str == " " || e.str == "") { return false; }
+            if (((e.transform[4] + e.width) > tableX + 1 && e.transform[4] < tableX - 1)) {
               invalide.push(e);
               const rx = e.transform[4] + e.width;
               const lookk = 1;
-
               return true;
+            } else {
+              //如果前面有内容，则 x失效
+              if (i != 0 && items[i - 1].hasEOL == false && items[i - 1].str != " " && items[i - 1].width
+                && Math.round(items[i - 1].transform[5] * 10) / 10 == Math.round(e.transform[5] * 10) / 10) {
+                invalide.push(e);
+                const rx = e.transform[4] + e.width;
+                const lookk = 1;
+                return true;
+              }
+
 
             }
-
           })) {
             invalid.push(tableX);
             continue;
@@ -1093,8 +1104,7 @@ export async function pdf2documents(itmeID: number) {
 
 
       const validCell = tableXPdfItem.filter(e =>
-        !noneCell.some(e2 => Math.round(e2.transform[5] * 10 / 10) == Math.round(e.transform[5] * 10 / 10))
-      );
+        !noneCell.some(e2 => Math.round(e2.transform[5] * 10) / 10 == Math.round(e.transform[5] * 10) / 10));
       const ColumnX = findColumnX(validCell);
       const look = 1;
 
