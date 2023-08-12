@@ -40,6 +40,14 @@ declare type RowsData = {
   charConsum: number;
 };
 
+declare type CellBox = {
+  top: number;
+  bottom: number;
+  left: number;
+  //right: number;
+  items: PDFItem[];
+};
+
 
 declare type PDFItem = {
   chars: {
