@@ -2,7 +2,8 @@ import { config } from "../../package.json";
 import { fullTextTranslateService } from "../modules/serviceManage";
 
 export const fullTextTranslatedir = Zotero.Prefs.get("extensions.zotero.dataDir", true) as string + "\\storage\\" + config.addonName + "\\";
-const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
+export const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
+
 
 /**
  * Get preference value.

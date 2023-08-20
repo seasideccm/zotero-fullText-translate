@@ -722,40 +722,50 @@ const titleIdentify = (title: string, _pagePara: object) => {
   const totalPageNum = Object.keys(_pagePara).length;
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     const _para: PDFParagraph[] = _pagePara[String(pageNum) as keyof typeof _pagePara];
-    frequency((Object.values(_para).map(e => e.lineHeight)));
-    const lineHeightArr = orderByFrequency(frequency(Object.values(_para).map(e => e.lineHeight))) as number[];
-    const widthArr = orderByFrequency(frequency(Object.values(_para).map(e => e.width.toFixed(3)))) as number[];
-    const lineHeightArrByV = lineHeightArr.sort((a, b) => b - a);
-    const widthArrByV = widthArr.sort((a, b) => b - a);
+    const lineHeightArr = Object.values(_para).map(e => e.lineHeight);
+    const highModeFrequencyOrder = getModeFrequencyAndOrder(lineHeightArr);
+    const lineHeightOrderByFrequency = highModeFrequencyOrder._orderByFrequency;
+    const highMode = highModeFrequencyOrder.mode;
+    const lineHeightOrderByValue = lineHeightOrderByFrequency.sort((a, b) => b - a);
+
+    const lineWidthtArr = Object.values(_para).map(e => parseFloat(e.width.toFixed(3)));
+    const widthModeFrequencyOrder = getModeFrequencyAndOrder(lineWidthtArr);
+    const lineWidthOrderByFrequency = widthModeFrequencyOrder._orderByFrequency;
+    const lineWidthOrderByValue = lineWidthOrderByFrequency.sort((a, b) => b - a);
+
     let skip = false;
     for (const p of _para) {
-      const pwords = [...new Set(p.text.toLowerCase().split(' '))];
-      const twords = [...new Set(title.toLowerCase().split(' '))];
-      let combineNoduplicate = [...new Set(pwords.concat(twords as string[]))];
-      combineNoduplicate = combineNoduplicate.filter(e => e.match(/<[^<>]+>/g) == null);
-      const counts = (pwords.length + twords.length) / 2;
-      const factor = counts / combineNoduplicate.length;
       let isHasTitle = false;
-      if ((
-        //和标题吻合
-        p.text.toLowerCase() == title.toLowerCase()
-        || (factor > 0.8 && abs(pwords.length - twords.length) < counts * 0.5)
-      )) {
-        //又高又长且非高的众数
-        isHasTitle = true;
-      } else if ((
-        lineHeightArrByV.indexOf(p.lineHeight) == 0
-        && widthArrByV.indexOf(p.width) == 0
-        && lineHeightArr.indexOf(p.lineHeight) != 0
+      if (title !== undefined && title != "") {
+        const pwords = [...new Set(p.text.toLowerCase().split(' '))];
+        const twords = [...new Set(title.toLowerCase().split(' '))];
+        let combineNoduplicate = [...new Set(pwords.concat(twords as string[]))];
+        combineNoduplicate = combineNoduplicate.filter(e => e.match(/<[^<>]+>/g) == null);
+        const counts = (pwords.length + twords.length) / 2;
+        const factor = counts / combineNoduplicate.length;
+        if ((
+          //和标题吻合
+          p.text.toLowerCase() == title.toLowerCase()
+          || (factor > 0.8 && abs(pwords.length - twords.length) < counts * 0.5)
+        )) {
+          //又高又长且非高的众数
+          isHasTitle = true;
+        }
+      }
+
+      if ((!isHasTitle &&
+        lineHeightOrderByValue.indexOf(p.lineHeight) == 0
+        && lineWidthOrderByValue.indexOf(p.width) == 0
+        && p.lineHeight != highMode
       )) {
         isHasTitle = true;
       } else if (
         //最高或最长
-        ((lineHeightArrByV.indexOf(p.lineHeight) == 0
-          && widthArrByV.indexOf(p.width) == 1)
-          || (lineHeightArrByV.indexOf(p.lineHeight) == 1
-            && widthArrByV.indexOf(p.width) == 0))
-        && lineHeightArr.indexOf(p.lineHeight) != 0
+        ((!isHasTitle && lineHeightOrderByValue.indexOf(p.lineHeight) == 0
+          && lineWidthOrderByValue.indexOf(p.width) == 1)
+          || (lineHeightOrderByValue.indexOf(p.lineHeight) == 1
+            && lineWidthOrderByValue.indexOf(p.width) == 0))
+        && lineHeightOrderByFrequency.indexOf(p.lineHeight) != 0
       ) {
         isHasTitle = true;
       }
@@ -841,66 +851,28 @@ const propertyArr = (arr: any[], property: string) => {
   return Arr;
 };
 
-
-//计算缩进
-const getIndentation = (lines: PDFLine[], widthOrder: any[]) => {
-  const indentationOrder = [];
-  const indentationArr = [];
-  for (let i = 0; i < lines.length; i++) {
-    const indentationIndex = widthOrder.indexOf(Math.round(lines[i].width));
-    if (indentationIndex != -1) {
-      if (lines[i].width != lines[i + 1].width) {
-        if (lines[i].fontName == lines[i + 1].fontName
-          && abs(lines[i].height - lines[i + 1].height) < 0.02
-          && lines[i].isReference == lines[i + 1].isReference
-          && lines[i].pageIndex == lines[i + 1].pageIndex
-          && lines[i].x > lines[i + 1].x
-          //因为从频次排序表确定行宽，因此应当大于等于下一行的宽
-          && lines[i].x + lines[i].width >= lines[i + 1].x + lines[i + 1].width
-          && lines[i].y - lines[i + 1].y >= 0
-          && lines[i].y - lines[i + 1].y <= 5 * lines[i].height) {
-          const indentation = abs(lines[i].x - lines[i + 1].x);
-          indentationArr.push({
-            indentationIndex: indentation,
-          });
-        }
-      }
-    }
-  }
-  //依据频次排序筛选出缩进，然后取众数，之前条件应当已经除外了极端值
-  for (let i = 0; i < widthOrder.length; i++) {
-    const indentaionIArr = indentationArr.filter(e => e.indentationIndex === i).map(e => Object.values(e)[0]);
-    const indentation = getMode(indentaionIArr)[0];
-    //最终返回的数组按照频次排列行宽和缩进信息
-    indentationOrder.push({
-      width: widthOrder[i],
-      indentation: indentation,
-    });
-  }
-  return indentationOrder;
-};
-const getModeHigh = (lineHighArr: number[]) => {
+const getModeFrequencyAndOrder = (arrary: number[]) => {
   //众数可能不止一个，找到众数中较大的一个行高
-  const hieghtFrequency = frequency(lineHighArr);
-  const highOrder = orderByFrequency(hieghtFrequency) as number[];
-  let modeHigh = 0;
+  const _frequency = frequency(arrary);
+  const _orderByFrequency = orderByFrequency(_frequency) as number[];
+  let mode = 0;
   let highArr;
-  for (let i = 1; i < highOrder.length; i++) {
+  for (let i = 1; i < _orderByFrequency.length; i++) {
     //查询出频次，如果相邻频次数相差悬殊时终止
-    if (hieghtFrequency[highOrder[i - 1]] > 2 * hieghtFrequency[highOrder[i]] && hieghtFrequency[highOrder[i]] > 10) {
-      highArr = highOrder.slice(0, i - 1) as number[];
+    if (_frequency[_orderByFrequency[i - 1]] > 2 * _frequency[_orderByFrequency[i]] && _frequency[_orderByFrequency[i]] > 10) {
+      highArr = _orderByFrequency.slice(0, i - 1) as number[];
       break;
     }
   }
   if (highArr && highArr.length > 2) {
-    modeHigh = Math.max(...highArr);
+    mode = Math.max(...highArr);
   } else {
-    modeHigh = highOrder[0];
+    mode = _orderByFrequency[0];
   }
   return {
-    hieghtFrequency: hieghtFrequency,
-    highOrder: highOrder,
-    modeHigh: modeHigh,
+    _frequency: _frequency,
+    _orderByFrequency: _orderByFrequency,
+    mode: mode,
   };
 };
 
@@ -930,18 +902,30 @@ const longSpaceCounts = (pdfLine: PDFLine) => {
   return spaceCounts;
 };
 
-export async function pdf2documents(itmeID: number) {
-  /* Zotero_Tabs.selectedID;
-  Zotero.Reader.getByTabID; */
-  await Zotero.Reader.open(itmeID, undefined, { allowDuplicate: false });
-  const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
-  const tabID = reader.tabID;
+export async function pdf2document(itmeID: number) {
+  //await Zotero.Reader.open(itmeID) as _ZoteroTypes.ReaderInstance;
+  //Zotero.Promise.delay(500);
+  /* let tab =Zotero_Tabs._getTab(Zotero_Tabs.selectedID) 
+    if(tab.tab.type!="reader"){return} */
+  const tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
+  if (!tabID) { return; }
+  if (Zotero_Tabs.selectedID != tabID) {
+    Zotero_Tabs.select(tabID);
+  }
+  const reader = Zotero.Reader.getByTabID(tabID);
+  while (!reader._iframeWindow) {
+    Zotero.Promise.delay(500);
+  }
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
   await PDFViewerApplication.pdfLoadingTask.promise;
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
   let totalPageNum = pages.length;
-  const title = PDFViewerApplication._title.replace(" - PDF.js viewer", '');
+  const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/g, '');
+  let title;
+  if (titleTemp.length) {
+    title = titleTemp;
+  }
   // 读取所有页面lines
   //函数内全局变量
   const pageLines: any = {};
@@ -958,14 +942,14 @@ export async function pdf2documents(itmeID: number) {
     const pdfPage = pages[pageNum].pdfPage;
     const textContent = await pdfPage.getTextContent();
     const items: PDFItem[] = textContent.items;
-    /*     items.filter(e => {
-          e.transform[5] = Math.round(e.transform[5] * 100) / 100;
-          e.transform[4] = Math.round(e.transform[4] * 100) / 100;
-          e.transform[3] = Math.round(e.transform[3] * 100) / 100;
-          e.transform[0] = Math.round(e.transform[0] * 100) / 100;
-          e.height = Math.round(e.height * 100) / 100;
-          e.width = Math.round(e.width * 100) / 100;
-        });*/
+    items.filter(e => {
+      e.transform[5] = Math.round(e.transform[5] * 1000) / 1000;
+      e.transform[4] = Math.round(e.transform[4] * 1000) / 1000;
+      e.transform[3] = Math.round(e.transform[3] * 1000) / 1000;
+      e.transform[0] = Math.round(e.transform[0] * 1000) / 1000;
+      e.height = Math.round(e.height * 1000) / 1000;
+      e.width = Math.round(e.width * 1000) / 1000;
+    });
     itemsArr.push(items);
 
   }
@@ -1158,6 +1142,7 @@ export async function pdf2documents(itmeID: number) {
         if ((/^\W*(<[^>]+>)*references(<\/[^>]+>)*\W*$/img.test(e.text))) {
           refMarker = 1;
         }
+        e.isReference = false;
       } else {
         e.isReference = true;
       }
@@ -1190,7 +1175,7 @@ export async function pdf2documents(itmeID: number) {
 
   // 获取页眉页脚信息，将信息作为行属性添加到相应行
   totalPageNum = Object.keys(pageLines).length;
-  const headerY0: number = pages[1].pdfPage._pageInfo.view[3] + 10;
+  const headerY0: number = pages[0].pdfPage._pageInfo.view[3] + 10;
   const footerY0 = 0;
   const headFooterY: number[] = [];
   const removeLines = new Set();
@@ -1344,7 +1329,7 @@ export async function pdf2documents(itmeID: number) {
       const widthOrder = orderByFrequency(widthFrequency);
       const spaceFrequency = frequency(lineSpace(lines));
       const spaceOrder = orderByFrequency(spaceFrequency);
-      const indentation = getIndentation(lines, widthOrder);
+
       const font = fontInfo(lines, true);
       const infoParas = {
         xFrequency: xFrequency,
@@ -1357,7 +1342,6 @@ export async function pdf2documents(itmeID: number) {
         widthOrder: widthOrder,
         spaceFrequency: spaceFrequency,
         spaceOrder: spaceOrder,
-        indentation: indentation,
         font: font,
       };
 
@@ -1413,7 +1397,7 @@ export async function pdf2documents(itmeID: number) {
     heightOrder.sort((a, b) => b - a);
   }
   //众数可能不止一个，找到众数中较大的一个行高
-  const modeHigh = getModeHigh(contentLineHighArr).modeHigh;
+  const modeHigh = getModeFrequencyAndOrder(contentLineHighArr).mode;
 
   //找页中顺序要调整的到段落
   //找到页间需要合并的段落
@@ -1705,11 +1689,6 @@ export async function pdf2documents(itmeID: number) {
   if (pdfTitle == undefined) {
     const pdfTitle = "<h1>" + title + "</h1>" + "\n";
     docs.unshift(pdfTitle);
-  }
-  //任务完成关闭 pdf
-  while (Zotero_Tabs.selectedID == tabID) {
-    Zotero_Tabs.close(tabID);
-    await Zotero.Promise.delay(1000);
   }
   return docs;
 }
