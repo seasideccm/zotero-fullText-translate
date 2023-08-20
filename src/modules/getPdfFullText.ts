@@ -1,4 +1,5 @@
 import { Decimal } from 'decimal.js';
+import { ColumnOptions } from 'zotero-plugin-toolkit/dist/helpers/virtualizedTable';
 /* eslint-disable no-useless-escape */
 
 
@@ -902,6 +903,67 @@ const longSpaceCounts = (pdfLine: PDFLine) => {
   return spaceCounts;
 };
 
+
+/**
+ * 查找列x，该x不穿透任何单元格，排除空格和空字符
+ * @param items 
+ * @returns 
+ */
+const findColumnX = (items: PDFItem[]) => {
+  const xfrequency = frequency(items.map(e => Math.round(e.transform[4] * 10) / 10));
+  const xorderByFrequency = orderByFrequency(xfrequency);
+  const valid: number[] = [];
+  const invalid: number[] = [];
+  for (let i = 0; i < xorderByFrequency.length; i++) {
+    const value = Number(xorderByFrequency[i]);
+    //some不支持continue和break，false结束本次循环
+    //||e.str == ")"
+    if (items.some((e, i) => {
+      if (e.str == " " || e.str == "") { return false; }
+      if ((Math.round((e.transform[4] + e.width) * 10) / 10 > value + 0.2 && Math.round(e.transform[4] * 10) / 10 < value - 0.2)) {
+        return true;
+      } else {
+        //如果前面有内容，则 x取前一个元素来比较
+        if (i == 0) { return false; }
+        if (items[i - 1].str == " " && items[i - 1].width > 4 || items[i - 1].str == "" || items[i - 1].hasEOL) { return false; }
+        if (Math.round(items[i - 1].transform[5] * 10) / 10 != Math.round(e.transform[5] * 10) / 10) { return false; }
+        if ((Math.round((e.transform[4] + e.width) * 10) / 10 > value + 0.2 && Math.round(items[i - 1].transform[4] * 10) / 10 < value - 0.2)) {
+          return true;
+        }
+      }
+    })) {
+      invalid.push(value);
+      continue;
+    } else {
+      valid.push(value);
+    }
+  };
+  return valid;
+};
+
+
+const findRowY = (items: CellBox[]) => {
+  const rowYfrequency = frequency(items.map(e => e.bottom));
+  const rowYorderByFrequency = orderByFrequency(rowYfrequency);
+  const valid: number[] = [];
+  const invalid: number[] = [];
+  for (let i = 0; i < rowYorderByFrequency.length; i++) {
+    const value = Number(rowYorderByFrequency[i]);
+    if (items.some(e => {
+
+      if (e.bottom < value && e.top > value) {
+        return true;
+      }
+    })) {
+      invalid.push(value);
+      continue;
+    } else {
+      valid.push(value);
+    }
+  };
+  return valid;
+};
+
 export async function pdf2document(itmeID: number) {
   //await Zotero.Reader.open(itmeID) as _ZoteroTypes.ReaderInstance;
   //Zotero.Promise.delay(500);
@@ -996,16 +1058,18 @@ export async function pdf2document(itmeID: number) {
           return num3;
         }
       }).filter(e => e !== undefined);
+
+      if (!spaceRightXs.length) { return; }
       //const spaceRightXs = spaceArr.map(e => e.width + e.transform[4]);
       const spaceRightXsfrequency = frequency(spaceRightXs);
       const spaceRightXsOrder = orderByFrequency(spaceRightXsfrequency) as number[];
-      const spaceRightXsOrderByValue = spaceRightXsOrder.map(e => e as number).sort((a, b) => b - a);
+      const spaceRightXsOrderByValue = spaceRightXsOrder.map(e => e as number).sort((a, b) => a - b);
 
       //过滤单元格内容
       //定位列的位置，即长空格x+width，
-      const tableXPdfItem: PDFItem[] = [];
+      const valuePdfItem: PDFItem[] = [];
       const noneCell: PDFItem[] = [];
-      const tableXExcluded: any = [];
+      const valueExcluded: any = [];
 
       //各列的长空格数目不一定相等
       //某一个单元格的定位长空格可能不止一个，也可能该单元无内容也就没有长空格      
@@ -1014,7 +1078,7 @@ export async function pdf2document(itmeID: number) {
         const valid = [];
         const discard = [];
         for (let i = 0; i < spaceRightXsOrder.length; i++) {
-          const tableX = Number(spaceRightXsOrder[i]);
+          const value = Number(spaceRightXsOrder[i]);
           if (e.str == " "
             && e.width > 6
             //除外表格内的长空格
@@ -1022,104 +1086,119 @@ export async function pdf2document(itmeID: number) {
             //valid = [];
             valid.push(e);
           } else if
-            ((e.transform[4] > tableX - 1
-              || (e.transform[4] + e.width) < tableX + 0.5)
-            && !tableXExcluded.includes(tableX)) {
-            //tableX 不穿透 PdfItem
+            ((e.transform[4] > value - 1
+              || (e.transform[4] + e.width) < value + 0.5)
+            && !valueExcluded.includes(value)) {
+            //value 不穿透 PdfItem
             //valid = [];
             valid.push(e);
           }
-          else if ((e.transform[4] + e.width) > tableX + 1
-            && e.transform[4] < tableX - 1
-            && !tableXExcluded.includes(tableX)
+          else if ((e.transform[4] + e.width) > value + 1
+            && e.transform[4] < value - 1
+            && !valueExcluded.includes(value)
           ) {
-            //tableX 穿透 PdfItem,应当舍弃
+            //value 穿透 PdfItem,应当舍弃
             //如果单元格不齐呢？
             discard.push(e);
           }
         }
         if (valid.length && !discard.length) {
-          tableXPdfItem.push(valid[0]);
+          valuePdfItem.push(valid[0]);
         }
         if (discard.length) {
           noneCell.push(discard[0]);
         }
       });
 
-      //查找列x，该x不穿透任何单元格，排除空格和空字符
-      const findColumnX = (items: PDFItem[]) => {
-        const xfrequency = frequency(items.map(e => Math.round(e.transform[4] * 10) / 10));
-        const xorderByFrequency = orderByFrequency(xfrequency);
-        const valid: number[] = [];
-        const invalid: number[] = [];
-        const invalide: any[] = [];
-        for (let i = 0; i < xorderByFrequency.length; i++) {
-          const tableX = Number(xorderByFrequency[i]);
-          //some不支持continue和break，false结束本次循环
 
-          if (items.some((e, i) => {
-            if (e.str == " " || e.str == "") { return false; }
-            if (((e.transform[4] + e.width) > tableX + 1 && e.transform[4] < tableX - 1)) {
-              invalide.push(e);
-              const rx = e.transform[4] + e.width;
-              const lookk = 1;
-              return true;
-            } else {
-              //如果前面有内容，则 x失效
-              if (i != 0 && items[i - 1].hasEOL == false && items[i - 1].str != " " && items[i - 1].width
-                && Math.round(items[i - 1].transform[5] * 10) / 10 == Math.round(e.transform[5] * 10) / 10) {
-                invalide.push(e);
-                const rx = e.transform[4] + e.width;
-                const lookk = 1;
-                return true;
+      const validCell = valuePdfItem.filter(e =>
+        !noneCell.some(e2 => Math.round(e2.transform[5] * 10) / 10 == Math.round(e.transform[5] * 10) / 10));
+      const ColumnX = findColumnX(validCell).sort((a, b) => a - b);
+
+      const tableCellArr: any = {};
+      if (ColumnX[0] < spaceRightXsOrderByValue[0]) {
+        if (spaceRightXsOrderByValue.every(e => ColumnX.includes(e))) {
+          validCell.filter((e, j) => {
+            for (let i = 0; i < ColumnX.length; i++) {
+              if (i != ColumnX.length - 1) {
+                if (Math.round(e.transform[4] * 10 + e.width * 10) / 10 < ColumnX[i + 1]
+                  && Math.round(e.transform[4] * 10) / 10 >= ColumnX[i]) {
+                  const obj = {
+                    index: j,
+                    colum: i,
+                    cell: e,
+                  };
+                  if (tableCellArr[i]) {
+                    tableCellArr[i].push(obj);
+                  } else {
+                    tableCellArr[i] = [obj];
+                  }
+                  continue;
+                }
+              } else {
+                if (Math.round(e.transform[4] * 10) / 10 >= ColumnX[i]) {
+                  const obj = {
+                    index: j,
+                    colum: i,
+                    cell: e,
+                  };
+                  if (tableCellArr[i]) {
+                    tableCellArr[i].push(obj);
+                  } else {
+                    tableCellArr[i] = [obj];
+                  }
+                  continue;
+                }
               }
 
-
             }
-          })) {
-            invalid.push(tableX);
-            continue;
+          });
+        }
+      }
+
+      const cellBox: CellBox[] = [];
+      const tableCellArr2: any = {};
+      const ColumNumArr = Object.keys(tableCellArr);
+      for (const i of ColumNumArr) {
+        tableCellArr2[i] = [[tableCellArr[i][0]]];
+        for (let j = 1; j < tableCellArr[i].length; j++) {
+          if (tableCellArr[i][j].index - tableCellArr[i][j - 1].index == 1) {
+            tableCellArr2[i].slice(-1)[0].push(tableCellArr[i][j]);
           } else {
-            valid.push(tableX);
+            const top = Math.round(tableCellArr2[i].slice(-1)[0][0].cell.transform[5] * 10 + tableCellArr2[i].slice(-1)[0][0].cell.height * 10) / 10;
+            const bottom = Math.round(tableCellArr[i][j - 1].cell.transform[5] * 10) / 10;
+            cellBox.push({
+              top: top,
+              bottom: bottom,
+              left: ColumnX[Number(i)],
+              /* right: ColumnX[Number(i)+1]? ColumnX[Number(i)+1]:undefined, */
+              items: tableCellArr2[i].slice(-1)[0]
+            });
+            tableCellArr2[i].push([tableCellArr[i][j]]);
+
           }
-        };
-        return valid;
-      };
-
-
-      const validCell = tableXPdfItem.filter(e =>
-        !noneCell.some(e2 => Math.round(e2.transform[5] * 10) / 10 == Math.round(e.transform[5] * 10) / 10));
-      const ColumnX = findColumnX(validCell);
+          if (j == tableCellArr[i].length - 1) {
+            const top = Math.round(tableCellArr2[i].slice(-1)[0][0].cell.transform[5] * 10 + tableCellArr2[i].slice(-1)[0][0].cell.height * 10) / 10;
+            const bottom = Math.round(tableCellArr[i][j].cell.transform[5] * 10) / 10;
+            cellBox.push({
+              top: top,
+              bottom: bottom,
+              left: ColumnX[Number(i)],
+              //right: ColumnX[Number(i)],
+              items: tableCellArr2[i].slice(-1)[0]
+            });
+          }
+        }
+      }
+      const rowY = [...new Set(findRowY(cellBox))].sort((a, b) => b - a);
       const look = 1;
-
-      /*  const tableArr: any[] = [];
-       let lastSpaceCount = 0;
-       let currentSpaceCount = 0;
-       let lastIndex = 0;
-       lines.filter((e, i) => {
-         currentSpaceCount = longSpaceCounts(e);
-         if (currentSpaceCount >= 1) {
-           if (!tableArr.length) {
-             tableArr.push([e]);
-           } else {
-             if (lastIndex + 1 == i) {
-               tableArr.slice(-1).push(e);
-             } else {
-               //如果序号不连续，最后元素进一个元素，可能为有序或无需列表
-               if (tableArr.slice(-1).length <= 1)
-                 tableArr.splice(-1);
-               tableArr.push([e]);
-             }
-           }
-           lastSpaceCount = currentSpaceCount;
-           lastIndex = i;
-         }
-       });
-       const check = tableArr; */
-
     };
+
+
+    //首列x
+
     makeTable(items, maxWidth, maxHeight);
-  }
+  };
   //测试
   //return;
 
