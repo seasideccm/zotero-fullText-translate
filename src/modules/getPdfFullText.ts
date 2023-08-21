@@ -285,11 +285,10 @@ const strByFont = (strArr: any[], fontName: string, isRetrunObj: boolean, isSkip
  * @returns 
  */
 const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
-  /*   if (!allItem.length) { return; } */
+  if (!allItem.length) { return; }
   if (Array.isArray(allItem[0])) {
     allItem = allItem.flat(Infinity);
   }
-  const check = allItem;
   let arrTemp;
   if (isSkipClearCharaters) {
     if (Object.prototype.hasOwnProperty.call(allItem[0], 'text')) {
@@ -392,6 +391,65 @@ const clearCharactersDisplay = (pdfItem: PDFItem) => {
   }
 };
 
+
+const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
+  if (!items.length) { return; }
+  const lineArr: PDFItem[][] = [];
+  let lines: PDFItem[] = [];
+  for (let i = 0; i < items.length; i++) {
+    //特殊字符转换，避免加减号等重要信息弄不清
+    clearCharactersDisplay(items[i]);
+    //总是判断下一个元素是否换行，所以把当前元素先放入行数组中
+    lines.push(items[i]);
+    //通过？和 ||false 减低复杂度
+    //isNewLineAdjacent指下一个元素是否新起一行，高于顶低于底则换行
+    let bottomi = 0, topNext = 0, topi = 0, bottomNext = 0, righti = 0, leftNext = 0;
+    //定义页面方向，后续补充
+    const ltrAndUp = true;
+    if (ltrAndUp) {
+      bottomi = items[i].transform[5];
+      topNext = items[i + 1]?.transform[5] + items[i + 1]?.transform[3];
+      topi = items[i].transform[5] + items[i].transform[3];
+      bottomNext = items[i + 1]?.transform[5];
+    }
+    const isNewLineAdjacent = (bottomi - topNext > 0 || topi - bottomNext < 0) || false;
+    let isNewLine = false;
+    if (isNewLineAdjacent) {
+      isNewLine = true;
+    } else if (items[i + 1] && items[i].str != "" && !items[i].str.includes("❓") && items[i + 1].str.match(/[\u0000-\u001f]/) == null) {
+      //根据页面方向定义，后续完善
+      righti = items[i].transform[4] + items[i].width;
+      leftNext = items[i + 1]?.transform[4];
+      let hasGap = false;
+      if (items[i].chars) {
+        hasGap = leftNext - righti > 2 * (items[i].width / items[i].chars.length)
+          || false;
+      } else if (items[i + 1].chars) {
+        //空格可以很长 str: " ", dir: "ltr", width: 27.381
+        hasGap = leftNext - righti > 2 * (items[i + 1].width / items[i + 1].chars.length) || false;
+      } else if (items[i - 1] && items[i - 1].chars) {
+        hasGap = leftNext - righti > 2 * (items[i - 1].width / items[i - 1].chars.length) || false;
+      } else {
+        hasGap = leftNext - righti > 6;
+      }
+
+      const fontLines = fontInfo(lines, true)?.fontOrderByFrequency[0] || undefined;
+      //下一个非空非空格元素和该行字体不同，且有2个字符以上的间隔
+      if (fontLines && fontLines != items[i + 1].fontName && hasGap) {
+        isNewLine = true;
+      }
+    }
+    if (isNewLine) {
+      lineArr.push(lines);
+      lines = [];
+    }
+  }
+  if (lines.length) {
+    lineArr.push(lines);
+  }
+  return lineArr;
+};
+
 /**
  * 转为一个整行
  * 属性含原信息
@@ -400,25 +458,32 @@ const clearCharactersDisplay = (pdfItem: PDFItem) => {
  */
 const mergePDFItemsToPDFLineByHasEOL = (items: PDFItem[]) => {
   if (!items.length) { return; }
-  if (!Object.prototype.hasOwnProperty.call(items[0], 'hasEOL')) { return; }
   const lineArr: PDFItem[][] = [];
   let lines: PDFItem[] = [];
   for (let i = 0; i < items.length; i++) {
     //特殊字符转换
     clearCharactersDisplay(items[i]);
     //通过？和 ||false 减低复杂度
-    const heightDifferent = abs(items[i].transform[5] - items[i + 1]?.transform[5]) > items[i + 1]?.transform[3] || false;
-    const heightDifferentAround = abs(items[i - 1]?.transform[5] - items[i + 1]?.transform[5]) > items[i].transform[3] || false;
-    if (heightDifferent) {
+    //需要考虑到向上折行
+    const isNewLineAdjacent = (items[i].transform[5] - (items[i + 1]?.transform[5] + items[i + 1]?.transform[3]) > 0 || items[i].transform[5] + items[i].transform[3] - items[i + 1]?.transform[5] < 0)
+      || false;
+    /*     const isNewLineAround = items[i - 1]?.transform[5] > items[i].transform[3] + items[i + 1]?.transform[5] || false; */
+
+
+    if (isNewLineAdjacent) {
       lines.push(items[i]);
       lineArr.push(lines);
       lines = [];
-    } else if (items[i].str == '' && heightDifferentAround && items[i].hasEOL) {
-      if (lines.length) {
-        lineArr.push(lines);
-        lines = [];
+    } else if (items[i].str == '' && items[i].hasEOL) {
+      const longSpace = items[i].transform[4] - items[i - 1]?.transform[4] - items[i - 1]?.width > 2 * (items[i - 1]?.width / items[i - 1]?.chars.length) || false;
+      //如果是空字符串，且间距很大，可能为表格的单元格，分开吗？
+      if (longSpace) {
+        if (lines.length) {
+          lineArr.push(lines);
+          lines = [];
+        }
+        lines.push(items[i]);
       }
-      lines.push(items[i]);
     } else {
       //即便hasEOL为true，但在一行，也不换行
       //可能是斜体上下标等
@@ -430,7 +495,7 @@ const mergePDFItemsToPDFLineByHasEOL = (items: PDFItem[]) => {
   }
   return lineArr;
 };
-function mergeSameLineNoHasEOL(items: PDFItem[]) {
+const mergePDFItemsToPDFLineNoHasEOL = (items: PDFItem[]) => {
   if (!items.length) { return; }
   let j = 0;
   const lines: PDFItem[][] = [];
@@ -445,8 +510,6 @@ function mergeSameLineNoHasEOL(items: PDFItem[]) {
     const lasty = parseFloat(lastPdfItem.transform[5].toFixed(3));
     const itemy = parseFloat(pdfItem.transform[5].toFixed(3));
     const lastHeight = parseFloat(lastPdfItem.transform[3].toFixed(3));
-    const itemHeight = parseFloat(pdfItem.transform[3].toFixed(3));
-
     if (abs(lasty - itemy) > lastHeight + 0.5) {
       lines.push([pdfItem]);
       continue;
@@ -455,7 +518,7 @@ function mergeSameLineNoHasEOL(items: PDFItem[]) {
     }
   }
   return lines;
-}
+};
 
 const makeLine = (lineArr: PDFItem[][]) => {
   // 行数组中的元素合并成行，判断上下标，粗斜体
@@ -724,40 +787,50 @@ const titleIdentify = (title: string, _pagePara: object) => {
   const totalPageNum = Object.keys(_pagePara).length;
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     const _para: PDFParagraph[] = _pagePara[String(pageNum) as keyof typeof _pagePara];
-    frequency((Object.values(_para).map(e => e.lineHeight)));
-    const lineHeightArr = orderByFrequency(frequency(Object.values(_para).map(e => e.lineHeight))) as number[];
-    const widthArr = orderByFrequency(frequency(Object.values(_para).map(e => e.width.toFixed(3)))) as number[];
-    const lineHeightArrByV = lineHeightArr.sort((a, b) => b - a);
-    const widthArrByV = widthArr.sort((a, b) => b - a);
+    const lineHeightArr = Object.values(_para).map(e => e.lineHeight);
+    const highModeFrequencyOrder = getModeFrequencyAndOrder(lineHeightArr);
+    const lineHeightOrderByFrequency = highModeFrequencyOrder._orderByFrequency;
+    const highMode = highModeFrequencyOrder.mode;
+    const lineHeightOrderByValue = lineHeightOrderByFrequency.sort((a, b) => b - a);
+
+    const lineWidthtArr = Object.values(_para).map(e => parseFloat(e.width.toFixed(3)));
+    const widthModeFrequencyOrder = getModeFrequencyAndOrder(lineWidthtArr);
+    const lineWidthOrderByFrequency = widthModeFrequencyOrder._orderByFrequency;
+    const lineWidthOrderByValue = lineWidthOrderByFrequency.sort((a, b) => b - a);
+
     let skip = false;
     for (const p of _para) {
-      const pwords = [...new Set(p.text.toLowerCase().split(' '))];
-      const twords = [...new Set(title.toLowerCase().split(' '))];
-      let combineNoduplicate = [...new Set(pwords.concat(twords as string[]))];
-      combineNoduplicate = combineNoduplicate.filter(e => e.match(/<[^<>]+>/g) == null);
-      const counts = (pwords.length + twords.length) / 2;
-      const factor = counts / combineNoduplicate.length;
       let isHasTitle = false;
-      if ((
-        //和标题吻合
-        p.text.toLowerCase() == title.toLowerCase()
-        || (factor > 0.8 && abs(pwords.length - twords.length) < counts * 0.5)
-      )) {
-        //又高又长且非高的众数
-        isHasTitle = true;
-      } else if ((
-        lineHeightArrByV.indexOf(p.lineHeight) == 0
-        && widthArrByV.indexOf(p.width) == 0
-        && lineHeightArr.indexOf(p.lineHeight) != 0
+      if (title !== undefined && title != "") {
+        const pwords = [...new Set(p.text.toLowerCase().split(' '))];
+        const twords = [...new Set(title.toLowerCase().split(' '))];
+        let combineNoduplicate = [...new Set(pwords.concat(twords as string[]))];
+        combineNoduplicate = combineNoduplicate.filter(e => e.match(/<[^<>]+>/g) == null);
+        const counts = (pwords.length + twords.length) / 2;
+        const factor = counts / combineNoduplicate.length;
+        if ((
+          //和标题吻合
+          p.text.toLowerCase() == title.toLowerCase()
+          || (factor > 0.8 && abs(pwords.length - twords.length) < counts * 0.5)
+        )) {
+          //又高又长且非高的众数
+          isHasTitle = true;
+        }
+      }
+
+      if ((!isHasTitle &&
+        lineHeightOrderByValue.indexOf(p.lineHeight) == 0
+        && lineWidthOrderByValue.indexOf(p.width) == 0
+        && p.lineHeight != highMode
       )) {
         isHasTitle = true;
       } else if (
         //最高或最长
-        ((lineHeightArrByV.indexOf(p.lineHeight) == 0
-          && widthArrByV.indexOf(p.width) == 1)
-          || (lineHeightArrByV.indexOf(p.lineHeight) == 1
-            && widthArrByV.indexOf(p.width) == 0))
-        && lineHeightArr.indexOf(p.lineHeight) != 0
+        ((!isHasTitle && lineHeightOrderByValue.indexOf(p.lineHeight) == 0
+          && lineWidthOrderByValue.indexOf(p.width) == 1)
+          || (lineHeightOrderByValue.indexOf(p.lineHeight) == 1
+            && lineWidthOrderByValue.indexOf(p.width) == 0))
+        && lineHeightOrderByFrequency.indexOf(p.lineHeight) != 0
       ) {
         isHasTitle = true;
       }
@@ -843,70 +916,33 @@ const propertyArr = (arr: any[], property: string) => {
   return Arr;
 };
 
-
-//计算缩进
-const getIndentation = (lines: PDFLine[], widthOrder: any[]) => {
-  const indentationOrder = [];
-  const indentationArr = [];
-  for (let i = 0; i < lines.length; i++) {
-    const indentationIndex = widthOrder.indexOf(Math.round(lines[i].width));
-    if (indentationIndex != -1) {
-      if (lines[i].width != lines[i + 1].width) {
-        if (lines[i].fontName == lines[i + 1].fontName
-          && abs(lines[i].height - lines[i + 1].height) < 0.02
-          && lines[i].isReference == lines[i + 1].isReference
-          && lines[i].pageIndex == lines[i + 1].pageIndex
-          && lines[i].x > lines[i + 1].x
-          //因为从频次排序表确定行宽，因此应当大于等于下一行的宽
-          && lines[i].x + lines[i].width >= lines[i + 1].x + lines[i + 1].width
-          && lines[i].y - lines[i + 1].y >= 0
-          && lines[i].y - lines[i + 1].y <= 5 * lines[i].height) {
-          const indentation = abs(lines[i].x - lines[i + 1].x);
-          indentationArr.push({
-            indentationIndex: indentation,
-          });
-        }
-      }
-    }
-  }
-  //依据频次排序筛选出缩进，然后取众数，之前条件应当已经除外了极端值
-  for (let i = 0; i < widthOrder.length; i++) {
-    const indentaionIArr = indentationArr.filter(e => e.indentationIndex === i).map(e => Object.values(e)[0]);
-    const indentation = getMode(indentaionIArr)[0];
-    //最终返回的数组按照频次排列行宽和缩进信息
-    indentationOrder.push({
-      width: widthOrder[i],
-      indentation: indentation,
-    });
-  }
-  return indentationOrder;
-};
-const getModeHigh = (lineHighArr: number[]) => {
+const getModeFrequencyAndOrder = (arrary: number[]) => {
   //众数可能不止一个，找到众数中较大的一个行高
-  const hieghtFrequency = frequency(lineHighArr);
-  const highOrder = orderByFrequency(hieghtFrequency) as number[];
-  let modeHigh = 0;
+  const _frequency = frequency(arrary);
+  const _orderByFrequency = orderByFrequency(_frequency) as number[];
+  let mode = 0;
   let highArr;
-  for (let i = 1; i < highOrder.length; i++) {
+  for (let i = 1; i < _orderByFrequency.length; i++) {
     //查询出频次，如果相邻频次数相差悬殊时终止
-    if (hieghtFrequency[highOrder[i - 1]] > 2 * hieghtFrequency[highOrder[i]] && hieghtFrequency[highOrder[i]] > 10) {
-      highArr = highOrder.slice(0, i - 1) as number[];
+    if (_frequency[_orderByFrequency[i - 1]] > 2 * _frequency[_orderByFrequency[i]] && _frequency[_orderByFrequency[i]] > 10) {
+      highArr = _orderByFrequency.slice(0, i - 1) as number[];
       break;
     }
   }
   if (highArr && highArr.length > 2) {
-    modeHigh = Math.max(...highArr);
+    mode = Math.max(...highArr);
   } else {
-    modeHigh = highOrder[0];
+    mode = _orderByFrequency[0];
   }
   return {
-    hieghtFrequency: hieghtFrequency,
-    highOrder: highOrder,
-    modeHigh: modeHigh,
+    _frequency: _frequency,
+    _orderByFrequency: _orderByFrequency,
+    mode: mode,
   };
 };
 
 const longSpaceCounts = (pdfLine: PDFLine) => {
+  if (!pdfLine) { return; }
   let spaceCounts = 0;
   if (pdfLine.sourceLine.length > 1) {
     let widthChara = 0;
@@ -993,18 +1029,31 @@ const findRowY = (items: CellBox[]) => {
   return valid;
 };
 
-export async function pdf2documents(itmeID: number) {
-  /* Zotero_Tabs.selectedID;
-  Zotero.Reader.getByTabID; */
-  await Zotero.Reader.open(itmeID, undefined, { allowDuplicate: false });
-  const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
-  const tabID = reader.tabID;
+export async function pdf2document(itmeID: number) {
+  //await Zotero.Reader.open(itmeID) as _ZoteroTypes.ReaderInstance;
+  //Zotero.Promise.delay(500);
+  /* let tab =Zotero_Tabs._getTab(Zotero_Tabs.selectedID) 
+    if(tab.tab.type!="reader"){return} */
+  const tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
+  if (!tabID) { return; }
+  if (Zotero_Tabs.selectedID != tabID) {
+    Zotero_Tabs.select(tabID);
+  }
+  const reader = Zotero.Reader.getByTabID(tabID);
+  while (!reader._iframeWindow) {
+    Zotero.Promise.delay(500);
+  }
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
   await PDFViewerApplication.pdfLoadingTask.promise;
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
   let totalPageNum = pages.length;
-  const title = PDFViewerApplication._title.replace(" - PDF.js viewer", '');
+  let isHasEOL: boolean;
+  const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/g, '');
+  let title;
+  if (titleTemp.length) {
+    title = titleTemp;
+  }
   // 读取所有页面lines
   //函数内全局变量
   const pageLines: any = {};
@@ -1021,292 +1070,31 @@ export async function pdf2documents(itmeID: number) {
     const pdfPage = pages[pageNum].pdfPage;
     const textContent = await pdfPage.getTextContent();
     const items: PDFItem[] = textContent.items;
-    /*     items.filter(e => {
-          e.transform[5] = Math.round(e.transform[5] * 100) / 100;
-          e.transform[4] = Math.round(e.transform[4] * 100) / 100;
-          e.transform[3] = Math.round(e.transform[3] * 100) / 100;
-          e.transform[0] = Math.round(e.transform[0] * 100) / 100;
-          e.height = Math.round(e.height * 100) / 100;
-          e.width = Math.round(e.width * 100) / 100;
-        });*/
+    items.filter(e => {
+      e.transform[5] = Math.round(e.transform[5] * 1000) / 1000;
+      e.transform[4] = Math.round(e.transform[4] * 1000) / 1000;
+      e.transform[3] = Math.round(e.transform[3] * 1000) / 1000;
+      e.transform[0] = Math.round(e.transform[0] * 1000) / 1000;
+      e.height = Math.round(e.height * 1000) / 1000;
+      e.width = Math.round(e.width * 1000) / 1000;
+    });
     itemsArr.push(items);
-
   }
 
-
-  for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
-
-    const pdfPage = pages[pageNum].pdfPage;
-    const maxWidth = pdfPage._pageInfo.view[2];
-    const maxHeight = pdfPage._pageInfo.view[3];
-    const items = itemsArr[pageNum];
-    const makeTable = (items: PDFItem[], maxWidth: number, maxHeight: number) => {
-      //首先聚类判断是否有表格
-      const spaceArr: PDFItem[] = [];
-      const noneSpace: PDFItem[] = [];
-      const xArr: number[] = [];
-      const yArr: number[] = [];
-      items.filter(e => {
-        if (e.str == " " && e.width > 6) {
-          spaceArr.push(e);
-        }
-        if (e.str != " ") {
-          noneSpace.push(e);
-          xArr.push(Number(new Decimal(e.transform[4]).toFixed(1, Decimal.ROUND_HALF_UP)));
-          yArr.push(Number(new Decimal(e.transform[5]).toFixed(1, Decimal.ROUND_HALF_UP)));
-        }
-      });
-
-      xArr.sort((a, b) => b - a);
-      //const xArr = noneSpace.map(e => e.transform[4]).sort((a, b) => b - a);
-      const xfrequency = frequency(xArr);
-      const xfrequencyOrder = orderByFrequency(xfrequency) as number[];
-      yArr.sort((a, b) => b - a);
-      //const yArr = noneSpace.map(e => e.transform[5]).sort((a, b) => b - a);
-      const yfrequency = frequency(yArr);
-      const yfrequencyOrder = orderByFrequency(yfrequency);
-      //必须使用Decimal，否则还会出现很长的小数
-      //将y值等于本页最大最小y值的长空格排除掉？
-      const spaceRightXs = spaceArr.map(e => {
-        if (Math.round(e.transform[5] * 10) / 10 != yArr[0] && Math.round(e.transform[5] * 10) / 10 != yArr.slice(-1)[0]) {
-          const num1 = new Decimal(e.width);
-          const num2 = new Decimal(e.transform[4]);
-          const num3 = (num1.add(num2)).toFixed(1, Decimal.ROUND_HALF_UP);
-          return num3;
-        }
-      }).filter(e => e !== undefined);
-
-      if (!spaceRightXs.length) { return; }
-      //const spaceRightXs = spaceArr.map(e => e.width + e.transform[4]);
-      const spaceRightXsfrequency = frequency(spaceRightXs);
-      const spaceRightXsOrder = orderByFrequency(spaceRightXsfrequency) as number[];
-      const spaceRightXsOrderByValue = spaceRightXsOrder.map(e => e as number).sort((a, b) => a - b);
-
-      //过滤单元格内容
-      //定位列的位置，即长空格x+width，
-      const valuePdfItem: PDFItem[] = [];
-      const noneCell: PDFItem[] = [];
-      const valueExcluded: any = [];
-
-
-      //特别注意，长空格x加宽可能不等于单元格的x？？？？？？？？？？？
-      //各列的长空格数目不一定相等
-      //某一个单元格的定位长空格可能不止一个，也可能该单元无内容也就没有长空格      
-      //长空格x加width定位的待验证单元格x
-      items.filter(e => {
-        const valid = [];
-        const discard = [];
-        for (let i = 0; i < spaceRightXsOrder.length; i++) {
-          const value = Number(spaceRightXsOrder[i]);
-          if (e.str == " "
-            && e.width > 6
-            //除外表格内的长空格
-            && spaceRightXsOrder.includes(Math.round((e.transform[4] + e.width) * 10) / 10)) {
-            //valid = [];
-            valid.push(e);
-          } else if
-            ((e.transform[4] > value - 1
-              || (e.transform[4] + e.width) < value + 0.5)
-            && !valueExcluded.includes(value)) {
-            //value 不穿透 PdfItem
-            //valid = [];
-            valid.push(e);
-          }
-          else if ((e.transform[4] + e.width) > value + 1
-            && e.transform[4] < value - 1
-            && !valueExcluded.includes(value)
-          ) {
-            //value 穿透 PdfItem,应当舍弃
-            //如果单元格不齐呢？
-            discard.push(e);
-          }
-        }
-        if (valid.length && !discard.length) {
-          valuePdfItem.push(valid[0]);
-        }
-        if (discard.length) {
-          noneCell.push(discard[0]);
-        }
-      });
-
-
-      const validCell = valuePdfItem.filter(e =>
-        !noneCell.some(e2 => Math.round(e2.transform[5] * 10) / 10 == Math.round(e.transform[5] * 10) / 10));
-      const columnX = findColumnX(validCell).sort((a, b) => a - b);
-
-
-      type CellObj = {
-        index: number;
-        colum: number;
-        cell: PDFItem;
-      };
-
-      //if (spaceRightXsOrderByValue.every(e => columnX.includes(e))) 
-      const tableCellArr: any = {};
-      if (columnX[0] < spaceRightXsOrderByValue[0]) {
-
-        validCell.filter((e, j) => {
-          for (let i = 0; i < columnX.length; i++) {
-            if (i != columnX.length - 1) {
-              if (Math.round(e.transform[4] * 10 + e.width * 10) / 10 < columnX[i + 1]
-                && Math.round(e.transform[4] * 10) / 10 >= columnX[i]) {
-                const obj = {
-                  index: j,
-                  colum: i,
-                  cell: e,
-                };
-                if (tableCellArr[i]) {
-                  tableCellArr[i].push(obj);
-                } else {
-                  tableCellArr[i] = [obj];
-                }
-                continue;
-              }
-            } else {
-              if (Math.round(e.transform[4] * 10) / 10 >= columnX[i]) {
-                const obj: CellObj = {
-                  index: j,
-                  colum: i,
-                  cell: e,
-                };
-                if (tableCellArr[i]) {
-                  tableCellArr[i].push(obj);
-                } else {
-                  tableCellArr[i] = [obj];
-                }
-                continue;
-              }
-            }
-
-          }
-        });
-
-      }
-
-      const cellBox: CellBox[] = [];
-      const tableCellArr2: any = {};
-      const ColumNumArr = Object.keys(tableCellArr);
-      for (const i of ColumNumArr) {
-        //合并单元格中的元素为数组
-        tableCellArr2[i] = [[tableCellArr[i][0]]];
-        for (let j = 1; j < tableCellArr[i].length; j++) {
-          if (tableCellArr[i][j].index - tableCellArr[i][j - 1].index == 1) {
-            tableCellArr2[i].slice(-1)[0].push(tableCellArr[i][j]);
-          } else {
-            const top = Math.round(tableCellArr2[i].slice(-1)[0][0].cell.transform[5] * 10 + tableCellArr2[i].slice(-1)[0][0].cell.transform[3] * 10) / 10;
-            const bottom = Math.round(tableCellArr[i][j - 1].cell.transform[5] * 10) / 10;
-            cellBox.push({
-              columnIndex: Number(i),
-              top: top,
-              bottom: bottom,
-              left: columnX[Number(i)],
-              /* right: columnX[Number(i)+1]? columnX[Number(i)+1]:undefined, */
-              items: tableCellArr2[i].slice(-1)[0]
-            });
-            tableCellArr2[i].push([tableCellArr[i][j]]);
-
-          }
-          if (j == tableCellArr[i].length - 1) {
-            const top = Math.round(tableCellArr2[i].slice(-1)[0][0].cell.transform[5] * 10 + tableCellArr2[i].slice(-1)[0][0].cell.transform[3] * 10) / 10;
-            const bottom = Math.round(tableCellArr[i][j].cell.transform[5] * 10) / 10;
-            cellBox.push({
-              columnIndex: Number(i),
-              top: top,
-              bottom: bottom,
-              left: columnX[Number(i)],
-              //right: columnX[Number(i)],
-              items: tableCellArr2[i].slice(-1)[0]
-            });
-          }
-        }
-      }
-      const rowY = [...new Set(findRowY(cellBox))].sort((a, b) => b - a);
-
-      const toTableHtml = (columnX: number[], rowY: number[], cellBox: CellBox[]) => {
-        //首先生成空表格数组，行为数组，每行元素数等于列数，每个单元格也为数组
-        const rowColumnXList: any[] = [];
-        for (let i = 0; i < rowY.length; i++) {
-          rowColumnXList.push([]);
-          for (let j = 0; j < columnX.length; j++) {
-            rowColumnXList[i].push([]);
-          }
-        }
-
-
-        cellBox.filter((e: CellBox) => {
-          for (let i = 0; i < rowY.length; i++) {
-            if (i == 0 && e.bottom == rowY[i]) {
-              //测试
-              //bottom数值从大到小
-              e.rowIndex = i;
-              rowColumnXList[i][e.columnIndex].push(...e.items);
-              //rowColumnXList[i][e.columnIndex].push(e);
-            } else {
-              if (e.bottom < rowY[i - 1] && e.bottom >= rowY[i]) {
-                e.rowIndex = i;
-                rowColumnXList[i][e.columnIndex].push(...e.items);
-                //rowColumnXList[i][e.columnIndex].push(e);
-              }
-            }
-          }
-        }
-        );
-
-
-
-
-        const rowTextArr = rowColumnXList.map((e: CellObj[][], i) => {
-          const rowCellTextArr = e.map((e2: CellObj[]) => {
-            let cellText;
-            if (e2.length) {
-              const pdfItems = e2.map((e3: CellObj) => e3.cell).filter(e => e !== undefined);
-              const cellTextArr = makeLine(mergePDFItemsToPDFLineByHasEOL(pdfItems) as PDFItem[][]);
-              //所有同行单元格文本              
-              cellText = cellTextArr.map(e => "<p>" + e.text + "<\/p>\n").join('');
-              //如果为首行设为标题行
-              if (i == 0) {
-                cellText = "<th>\n" + cellText + "<\/th>\n";
-              } else {
-                cellText = "<td>\n" + cellText + "<\/td>\n";
-              }
-            } else {
-              if (i == 0) {
-                cellText = "<td>\n<p><\/p>\n<\/td>\n";
-              } else {
-                cellText = "<td>\n<p><\/p>\n<\/td>\n";
-              }
-            }
-            return cellText;
-          });
-          return "<tr>\n" + rowCellTextArr.join('') + "<\/tr>\n";
-        });
-        const tableHtmltext = "<table>" + rowTextArr.join('') + "<\/table>";
-        return tableHtmltext;
-      };
-
-      const tableHtml = toTableHtml(columnX, rowY, cellBox);
-
-      const look = 1;
-    };
-
-
-    //首列x
-
-    makeTable(items, maxWidth, maxHeight);
-  };
-  //测试
-  //return;
-
-
-
-
+  let mergePDFItems = mergePDFItemsToPDFLineByHasEOL;
+  if (Object.prototype.hasOwnProperty.call(itemsArr[0][0], 'hasEOL')) {
+    isHasEOL = true;
+  } else {
+    isHasEOL = false;
+    mergePDFItems = mergePDFItemsToPDFLineNoHasEOL;
+  }
 
 
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
   let refMarker = 0;
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
-    const lines1 = mergePDFItemsToPDFLineByHasEOL(itemsArr[pageNum])!;
+    const lines1 = mergePDFItemsToPDFLine(itemsArr[pageNum])!;
     const lines = makeLine(lines1);
     linesArr.push(lines);
     lineSpace(lines);
@@ -1316,6 +1104,7 @@ export async function pdf2documents(itmeID: number) {
         if ((/^\W*(<[^>]+>)*references(<\/[^>]+>)*\W*$/img.test(e.text))) {
           refMarker = 1;
         }
+        e.isReference = false;
       } else {
         e.isReference = true;
       }
@@ -1348,7 +1137,7 @@ export async function pdf2documents(itmeID: number) {
 
   // 获取页眉页脚信息，将信息作为行属性添加到相应行
   totalPageNum = Object.keys(pageLines).length;
-  const headerY0: number = pages[1].pdfPage._pageInfo.view[3] + 10;
+  const headerY0: number = pages[0].pdfPage._pageInfo.view[3] + 10;
   const footerY0 = 0;
   const headFooterY: number[] = [];
   const removeLines = new Set();
@@ -1502,7 +1291,7 @@ export async function pdf2documents(itmeID: number) {
       const widthOrder = orderByFrequency(widthFrequency);
       const spaceFrequency = frequency(lineSpace(lines));
       const spaceOrder = orderByFrequency(spaceFrequency);
-      const indentation = getIndentation(lines, widthOrder);
+
       const font = fontInfo(lines, true);
       const infoParas = {
         xFrequency: xFrequency,
@@ -1515,7 +1304,6 @@ export async function pdf2documents(itmeID: number) {
         widthOrder: widthOrder,
         spaceFrequency: spaceFrequency,
         spaceOrder: spaceOrder,
-        indentation: indentation,
         font: font,
       };
 
@@ -1571,14 +1359,14 @@ export async function pdf2documents(itmeID: number) {
     heightOrder.sort((a, b) => b - a);
   }
   //众数可能不止一个，找到众数中较大的一个行高
-  const modeHigh = getModeHigh(contentLineHighArr).modeHigh;
+  const modeHigh = getModeFrequencyAndOrder(contentLineHighArr).mode;
 
   //找页中顺序要调整的到段落
   //找到页间需要合并的段落
   for (const pageNum of Object.keys(recordCombine)) {
     const lines: PDFLine[] = recordCombine[pageNum];
     //每页颠倒顺序的段落可能为多处
-    if (!lines || !lines.length) { continue; }
+    if (!lines || lines.length == 0) { continue; }
     for (const line of lines) {
       //line是定位行，通过行序号索引所在段落，跳过下一个段落，定位间隔后的段落是否需要合并
       /*       const lineIndex = line.lineIndex! + 1;
@@ -1596,7 +1384,9 @@ export async function pdf2documents(itmeID: number) {
                 let skip = 0;
                 for (let m = 0; m < pagePara[pageNum2].length; m++) {
                   //页、段、段的第一行
+                  //本来每页每段都有内容，但在该阶段段落调整后，则页面段落可能为空
                   const targetLine = pagePara[pageNum2][m][0];
+                  if (!targetLine) { continue; }
                   if (longSpaceCounts(targetLine) == 1) {
                     //如果为悬挂缩进则无需合并
                     skip = 1;
@@ -1621,7 +1411,7 @@ export async function pdf2documents(itmeID: number) {
               //页面有图片等内容导致正文位置在下但序号在前
               //跳过本页中位置高于定位行序号在其后的段落，如果本页还有内容则判断是否合并，否则需要换页判断
               //比较 y 值  
-              let nextPage = 1;
+              let findNextPage = 1;
               for (let t = i + 1; t < pageParaArr.length; t++) {
                 if (pageParaArr[i][j].y > pageParaArr[t][0].y) {
                   //找到后判断是否需要合并
@@ -1630,15 +1420,16 @@ export async function pdf2documents(itmeID: number) {
                     pageParaArr[i].push(...pageParaArr[t]);
                     pageParaArr[t] = [];
                   }
-                  nextPage = 0;
+                  findNextPage = 0;
                   break;
                 }
-                if (nextPage) {
+                if (findNextPage) {
                   //如果没有则跨页比对
                   for (let pageNum2 = Number(pageNum) + 1; pageNum2 < totalPageNum; pageNum2++) {
                     let skip = 0;
                     for (let m = 0; m < pagePara[pageNum2].length; m++) {
                       const targetLine = pagePara[pageNum2][m][0];
+                      if (!targetLine) { continue; }
                       if (line.fontName == targetLine.fontName
                         && abs(line.height - targetLine.height) < 0.1) {
                         pageParaArr[i].push(...pagePara[pageNum2][m]);
@@ -1863,11 +1654,6 @@ export async function pdf2documents(itmeID: number) {
   if (pdfTitle == undefined) {
     const pdfTitle = "<h1>" + title + "</h1>" + "\n";
     docs.unshift(pdfTitle);
-  }
-  //任务完成关闭 pdf
-  while (Zotero_Tabs.selectedID == tabID) {
-    Zotero_Tabs.close(tabID);
-    await Zotero.Promise.delay(1000);
   }
   return docs;
 }

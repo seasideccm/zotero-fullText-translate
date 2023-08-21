@@ -1,7 +1,7 @@
 import { config } from "../../package.json";
-import { getPref, getSingleServiceUnderUse, saveJsonToDisk, setPref } from "../utils/prefs";
+import { getPref, getSingleServiceUnderUse } from "../utils/prefs";
 import { getString } from "../utils/locale";
-import { pdf2documents } from './getPdfFullText';
+import { pdf2document } from './getPdfFullText';
 import { serviceManage, updatecharConsum, recoverDefaultLimit, services } from "./serviceManage";
 import { tencentTransmart } from "./tencentTransmart";
 import { baiduModify } from "./baiduModify";
@@ -31,6 +31,12 @@ function example(
 
 let charConsumRecoder = 0;
 
+export async function onOpenPdf(id: number) {
+  //@ts-ignore
+  //await Zotero.getActiveZoteroPane().viewPDF(id);
+  await Zotero.Reader.open(id);
+  ztoolkit.log("open pdf");
+}
 
 export class fullTextTranslate {
   @example
@@ -59,9 +65,22 @@ export class fullTextTranslate {
     });
     ztoolkit.Menu.register("item", {
       tag: "menuitem",
+      label: getString("menuitem-openPdfs"),
+      commandListener: (async (ev) => {
+        const ids = fullTextTranslate.getPDFs();
+        for (const id of ids) {
+          await onOpenPdf(id);
+        }
+        Zotero_Tabs.select('zotero-pane');
+
+      }),
+      icon: menuIcon,
+    });
+    ztoolkit.Menu.register("item", {
+      tag: "menuitem",
       label: getString("menuitem-pdf2Note"),
-      commandListener: ((ev) => {
-        fullTextTranslate.pdf2Note();
+      commandListener: (async (ev) => {
+        await this.pdf2Note();        //fullTextTranslate.pdf2Note();
 
       }),
       icon: menuIcon,
@@ -104,47 +123,19 @@ export class fullTextTranslate {
 
   /**
    * 
+   * @param pdfItem 
+   * @param isSavePDTtoNote 
    * @returns 
    */
-  static async getPdfContent(pdfItem?: Zotero.Item, isSavePDTtoNote?: boolean) {
-    if (pdfItem === undefined) {
-      //如果未传，则获取所选择的
-      const itemID = this.getPDFs()[0];
-      pdfItem = Zotero.Items.get(itemID);
-    }
+  static async getPdfContent(pdfItem: Zotero.Item, isSavePDTtoNote?: boolean) {
     if (!pdfItem.isPDFAttachment()) {
       fullTextTranslate.fullTextTranslateInfo(getString("info-notPdf"));
       return;
     }
-    // open pdf
-    //const zp = Zotero.getActiveZoteroPane();
-    //const pdfItemID = pdfItem.id;
-    /* const location = { forceAlternateWindowBehavior: false };
-    await zp.viewPDF(pdfItemID, location);
-    const tabID = Zotero_Tabs.selectedID; */
-
-    //fullTextTranslate.fullTextTranslateInfo("openPdf");
-    //const key = pdfItem.key;
-    const docs = await pdf2documents(pdfItem.id);
-    //测试hasEOL
-
-
-    /* while (Zotero_Tabs.selectedID == tabID) {
-      Zotero_Tabs.close(tabID);
-      await Zotero.Promise.delay(1000);
-    } */
-    /*     if (!docs) {
-          fullTextTranslate.fullTextTranslateInfo("没有hasEOL属性", 2000);
-          return;
-        } else {
-          return true;
-        } */
-
-    //
-
-    Zotero_Tabs.select('zotero-pane');
+    const docs = await pdf2document(pdfItem.id);
+    if (!docs) { return; }
     const noteTxt = docs.join('');
-
+    //保存笔记
     if (isSavePDTtoNote) {
       const note = new Zotero.Item('note');
       note.libraryID = pdfItem.libraryID;
@@ -154,6 +145,11 @@ export class fullTextTranslate {
     }
     return noteTxt;
   }
+
+  /**
+   * 
+   * @returns 
+   */
   static getPDFs() {
     const items = Zotero.getActiveZoteroPane().getSelectedItems();
     if (!items.length) {
@@ -188,10 +184,64 @@ export class fullTextTranslate {
     const pdfIDs = this.getPDFs();
     for (const id of pdfIDs) {
       const item = Zotero.Items.get(id);
-      if (item.isPDFAttachment()) {
-        this.getPdfContent(item, true);
+      let tabID = Zotero_Tabs.getTabIDByItemID(item.id);
+      let counter = 0;
+      while (!tabID) {
+        Zotero.Promise.delay(500);
+        tabID = Zotero_Tabs.getTabIDByItemID(item.id);
+        counter += 500;
+        if (counter > 50000) { break; }
       }
+      Zotero_Tabs.select(tabID);
+      let reader = Zotero.Reader.getByTabID(tabID);
+      let hasIf = reader._iframeWindow;
+      while (!hasIf) {
+        Zotero.Promise.delay(500);
+        reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID);
+        hasIf = reader._iframeWindow;
+      }
+      fullTextTranslate.fullTextTranslateInfo("启动");
+      //const reader = Zotero.Reader.open(item.id, undefined, { allowDuplicate: false }) as _ZoteroTypes.ReaderInstance;
+      /*         while (!reader._iframeWindow) {
+                Zotero.Promise.delay(500);
+              } */
+      await this.getPdfContent(item, true);
+
+      //任务完成关闭 pdf
+
+      while (tabID) {
+        Zotero_Tabs.close(tabID);
+        await Zotero.Promise.delay(200);
+        tabID = Zotero_Tabs.getTabIDByItemID(item.id);
+      }
+      Zotero_Tabs.select('zotero-pane');
+
     }
+  }
+
+  static async onePdf2Note() {
+    const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID);
+    if (!reader) { return; }
+    const item = reader._item;
+    await this.getPdfContent(item, true);
+  }
+
+
+  static async translateOnePdf() {
+    const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID);
+    if (!reader) { return; }
+    const itemID = reader._item.id;
+    const contentObj = await fullTextTranslate.contentPrepare(itemID);
+    if (!contentObj) { return; }
+    const docItem = await fullTextTranslate.translateDoc(contentObj);
+    await fullTextTranslate.makeTranslation(docItem);
+    const serviceID = getSingleServiceUnderUse().serviceID as string;
+    if (services[serviceID].hasSecretKey) {
+      const service = services[serviceID];
+      updatecharConsum(charConsumRecoder, service);
+      charConsumRecoder = 0;
+    }
+    serviceManage.allkeyUsableCheck();
   }
 
   /**
@@ -572,7 +622,6 @@ export class fullTextTranslate {
     if (item.isNote()) {
       noteHtml = item.getNote();
     } else if (item.isPDFAttachment()) {
-
       noteHtml = await this.getPdfContent(item) as string;
       /*       //测试
             return noteHtml; */

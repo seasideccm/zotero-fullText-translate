@@ -19,7 +19,7 @@ const secretKeyHasSwitched: string[] = [];
 
 let services: ServiceMap = {};
 
-export const fullTextTranslatInit = async () => {
+export const serviceInit = async () => {
   //初始化参数
   services = await servicesInit();
   serviceManage.allkeyUsableCheck();
@@ -470,6 +470,7 @@ export class serviceManage {
    * @param serviceID 
    */
   static syncBaiduSecretKey(serviceID: string) {
+
     if (serviceID.includes("baidu")) {
       let serviceID2 = "";
       if (serviceID.includes("Modify")) {
@@ -477,7 +478,10 @@ export class serviceManage {
       } else {
         serviceID2 = serviceID + "Modify";
       }
-      services[serviceID2].secretKey = services[serviceID].secretKey;
+      // eslint-disable-next-line no-prototype-builtins
+      if (services.hasOwnProperty(serviceID2)) {
+        services[serviceID2].secretKey = services[serviceID].secretKey;
+      }
     }
   }
   /**

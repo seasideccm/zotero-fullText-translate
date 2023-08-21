@@ -2,8 +2,10 @@ import { config } from "../package.json";
 import { getString, initLocale } from "./utils/locale";
 import { registerPrefsScripts } from "./modules/preferenceScript";
 import { createZToolkit } from "./utils/ztoolkit";
-import { fullTextTranslate } from "./modules/fullTextTranslate";
-import { fullTextTranslatInit } from "./modules/serviceManage";
+import { fullTextTranslate, onOpenPdf } from "./modules/fullTextTranslate";
+import { serviceInit } from "./modules/serviceManage";
+import { registerNotifier } from "./modules/pdfButton";
+
 
 async function onStartup() {
   await Promise.all([
@@ -14,6 +16,8 @@ async function onStartup() {
   initLocale();
   //注册选项标签
   fullTextTranslate.registerPrefs();
+  // 注册通知
+  registerNotifier();
   await onMainWindowLoad(window);
 }
 
@@ -38,12 +42,15 @@ async function onMainWindowLoad(win: Window): Promise<void> {
     text: `[30%] ${getString("startup-begin")}`,
   });
   fullTextTranslate.registerFullTextTranslateRightClickMenuItem();
-  await fullTextTranslatInit();
+  await serviceInit();
+
+
   await Zotero.Promise.delay(1000);
   popupWin.changeLine({
     progress: 100,
     text: `[100%] ${getString("startup-finish")}`,
   });
+
   popupWin.startCloseTimer(5000);
 }
 
@@ -82,6 +89,7 @@ async function onNotify(
     return;
   }
 }
+
 
 /**
  * This function is just an example of dispatcher for Preference UI events.

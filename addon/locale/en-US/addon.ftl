@@ -3,6 +3,7 @@ startup-finish = Addon is ready
 menuitem-label = Addon Template: Helper Examples
 menupopup-label = Addon Template: Menupopup
 menuitem-pdf2Note=pdf2Note
+menuitem-openPdfs=openPdfs
 menuitem-submenulabel = Addon Template
 menuitem-filemenulabel = Addon Template: File Menuitem
 prefs-title = fullTextTranslate
