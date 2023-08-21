@@ -450,76 +450,6 @@ const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
   return lineArr;
 };
 
-/**
- * 转为一个整行
- * 属性含原信息
- * @param items 
- * @returns 
- */
-const mergePDFItemsToPDFLineByHasEOL = (items: PDFItem[]) => {
-  if (!items.length) { return; }
-  const lineArr: PDFItem[][] = [];
-  let lines: PDFItem[] = [];
-  for (let i = 0; i < items.length; i++) {
-    //特殊字符转换
-    clearCharactersDisplay(items[i]);
-    //通过？和 ||false 减低复杂度
-    //需要考虑到向上折行
-    const isNewLineAdjacent = (items[i].transform[5] - (items[i + 1]?.transform[5] + items[i + 1]?.transform[3]) > 0 || items[i].transform[5] + items[i].transform[3] - items[i + 1]?.transform[5] < 0)
-      || false;
-    /*     const isNewLineAround = items[i - 1]?.transform[5] > items[i].transform[3] + items[i + 1]?.transform[5] || false; */
-
-
-    if (isNewLineAdjacent) {
-      lines.push(items[i]);
-      lineArr.push(lines);
-      lines = [];
-    } else if (items[i].str == '' && items[i].hasEOL) {
-      const longSpace = items[i].transform[4] - items[i - 1]?.transform[4] - items[i - 1]?.width > 2 * (items[i - 1]?.width / items[i - 1]?.chars.length) || false;
-      //如果是空字符串，且间距很大，可能为表格的单元格，分开吗？
-      if (longSpace) {
-        if (lines.length) {
-          lineArr.push(lines);
-          lines = [];
-        }
-        lines.push(items[i]);
-      }
-    } else {
-      //即便hasEOL为true，但在一行，也不换行
-      //可能是斜体上下标等
-      lines.push(items[i]);
-    }
-  }
-  if (lines.length) {
-    lineArr.push(lines);
-  }
-  return lineArr;
-};
-const mergePDFItemsToPDFLineNoHasEOL = (items: PDFItem[]) => {
-  if (!items.length) { return; }
-  let j = 0;
-  const lines: PDFItem[][] = [];
-  clearCharactersDisplay(items[j]);
-  lines.push([items[j]]);
-  for (j = 1; j < items.length; j++) {
-    //将当前文本项转换为文本行对象
-    const pdfItem = items[j];
-    clearCharactersDisplay(items[j]);
-    //获取上一个文本行对象，
-    const lastPdfItem = lines.slice(-1)[0][0];
-    const lasty = parseFloat(lastPdfItem.transform[5].toFixed(3));
-    const itemy = parseFloat(pdfItem.transform[5].toFixed(3));
-    const lastHeight = parseFloat(lastPdfItem.transform[3].toFixed(3));
-    if (abs(lasty - itemy) > lastHeight + 0.5) {
-      lines.push([pdfItem]);
-      continue;
-    } else {
-      lines.slice(-1)[0].push(pdfItem);
-    }
-  }
-  return lines;
-};
-
 const makeLine = (lineArr: PDFItem[][]) => {
   // 行数组中的元素合并成行，判断上下标，粗斜体
   const linesCombined = [];
@@ -1081,15 +1011,6 @@ export async function pdf2document(itmeID: number) {
     itemsArr.push(items);
   }
 
-  let mergePDFItems = mergePDFItemsToPDFLineByHasEOL;
-  if (Object.prototype.hasOwnProperty.call(itemsArr[0][0], 'hasEOL')) {
-    isHasEOL = true;
-  } else {
-    isHasEOL = false;
-    mergePDFItems = mergePDFItemsToPDFLineNoHasEOL;
-  }
-
-
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
   let refMarker = 0;
@@ -1495,7 +1416,7 @@ export async function pdf2document(itmeID: number) {
         isReference: false,
         lineSpace: 0,
       };
-      for (let j = 0; j < pagePara[pageNum].length; j++) {
+      for (let j = 0; j < pagePara[pageNum][i].length; j++) {
 
         line = pagePara[pageNum][i][j];
         //定义上一行和下一行，考虑跨越现有段落，段落为之前定义的数组     
