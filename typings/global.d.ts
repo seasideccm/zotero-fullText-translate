@@ -41,6 +41,8 @@ declare type RowsData = {
 };
 
 declare type CellBox = {
+  columnIndex: number;
+  rowIndex?: number;
   top: number;
   bottom: number;
   left: number;

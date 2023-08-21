@@ -1,5 +1,6 @@
 import { Decimal } from 'decimal.js';
 import { ColumnOptions } from 'zotero-plugin-toolkit/dist/helpers/virtualizedTable';
+import { langCode_franVsZotero } from '../utils/config';
 /* eslint-disable no-useless-escape */
 
 
@@ -938,7 +939,7 @@ const longSpaceCounts = (pdfLine: PDFLine) => {
  * @returns 
  */
 const findColumnX = (items: PDFItem[]) => {
-  const xfrequency = frequency(items.map(e => Math.round(e.transform[4] * 10) / 10));
+  const xfrequency = frequency(items.filter(e => e.str != "" && e.str != " ").map(e => Math.round(e.transform[4] * 10) / 10));
   const xorderByFrequency = orderByFrequency(xfrequency);
   const valid: number[] = [];
   const invalid: number[] = [];
@@ -1087,6 +1088,8 @@ export async function pdf2documents(itmeID: number) {
       const noneCell: PDFItem[] = [];
       const valueExcluded: any = [];
 
+
+      //特别注意，长空格x加宽可能不等于单元格的x？？？？？？？？？？？
       //各列的长空格数目不一定相等
       //某一个单元格的定位长空格可能不止一个，也可能该单元无内容也就没有长空格      
       //长空格x加width定位的待验证单元格x
@@ -1129,84 +1132,160 @@ export async function pdf2documents(itmeID: number) {
 
       const validCell = valuePdfItem.filter(e =>
         !noneCell.some(e2 => Math.round(e2.transform[5] * 10) / 10 == Math.round(e.transform[5] * 10) / 10));
-      const ColumnX = findColumnX(validCell).sort((a, b) => a - b);
+      const columnX = findColumnX(validCell).sort((a, b) => a - b);
 
+
+      type CellObj = {
+        index: number;
+        colum: number;
+        cell: PDFItem;
+      };
+
+      //if (spaceRightXsOrderByValue.every(e => columnX.includes(e))) 
       const tableCellArr: any = {};
-      if (ColumnX[0] < spaceRightXsOrderByValue[0]) {
-        if (spaceRightXsOrderByValue.every(e => ColumnX.includes(e))) {
-          validCell.filter((e, j) => {
-            for (let i = 0; i < ColumnX.length; i++) {
-              if (i != ColumnX.length - 1) {
-                if (Math.round(e.transform[4] * 10 + e.width * 10) / 10 < ColumnX[i + 1]
-                  && Math.round(e.transform[4] * 10) / 10 >= ColumnX[i]) {
-                  const obj = {
-                    index: j,
-                    colum: i,
-                    cell: e,
-                  };
-                  if (tableCellArr[i]) {
-                    tableCellArr[i].push(obj);
-                  } else {
-                    tableCellArr[i] = [obj];
-                  }
-                  continue;
-                }
-              } else {
-                if (Math.round(e.transform[4] * 10) / 10 >= ColumnX[i]) {
-                  const obj = {
-                    index: j,
-                    colum: i,
-                    cell: e,
-                  };
-                  if (tableCellArr[i]) {
-                    tableCellArr[i].push(obj);
-                  } else {
-                    tableCellArr[i] = [obj];
-                  }
-                  continue;
-                }
-              }
+      if (columnX[0] < spaceRightXsOrderByValue[0]) {
 
+        validCell.filter((e, j) => {
+          for (let i = 0; i < columnX.length; i++) {
+            if (i != columnX.length - 1) {
+              if (Math.round(e.transform[4] * 10 + e.width * 10) / 10 < columnX[i + 1]
+                && Math.round(e.transform[4] * 10) / 10 >= columnX[i]) {
+                const obj = {
+                  index: j,
+                  colum: i,
+                  cell: e,
+                };
+                if (tableCellArr[i]) {
+                  tableCellArr[i].push(obj);
+                } else {
+                  tableCellArr[i] = [obj];
+                }
+                continue;
+              }
+            } else {
+              if (Math.round(e.transform[4] * 10) / 10 >= columnX[i]) {
+                const obj: CellObj = {
+                  index: j,
+                  colum: i,
+                  cell: e,
+                };
+                if (tableCellArr[i]) {
+                  tableCellArr[i].push(obj);
+                } else {
+                  tableCellArr[i] = [obj];
+                }
+                continue;
+              }
             }
-          });
-        }
+
+          }
+        });
+
       }
 
       const cellBox: CellBox[] = [];
       const tableCellArr2: any = {};
       const ColumNumArr = Object.keys(tableCellArr);
       for (const i of ColumNumArr) {
+        //合并单元格中的元素为数组
         tableCellArr2[i] = [[tableCellArr[i][0]]];
         for (let j = 1; j < tableCellArr[i].length; j++) {
           if (tableCellArr[i][j].index - tableCellArr[i][j - 1].index == 1) {
             tableCellArr2[i].slice(-1)[0].push(tableCellArr[i][j]);
           } else {
-            const top = Math.round(tableCellArr2[i].slice(-1)[0][0].cell.transform[5] * 10 + tableCellArr2[i].slice(-1)[0][0].cell.height * 10) / 10;
+            const top = Math.round(tableCellArr2[i].slice(-1)[0][0].cell.transform[5] * 10 + tableCellArr2[i].slice(-1)[0][0].cell.transform[3] * 10) / 10;
             const bottom = Math.round(tableCellArr[i][j - 1].cell.transform[5] * 10) / 10;
             cellBox.push({
+              columnIndex: Number(i),
               top: top,
               bottom: bottom,
-              left: ColumnX[Number(i)],
-              /* right: ColumnX[Number(i)+1]? ColumnX[Number(i)+1]:undefined, */
+              left: columnX[Number(i)],
+              /* right: columnX[Number(i)+1]? columnX[Number(i)+1]:undefined, */
               items: tableCellArr2[i].slice(-1)[0]
             });
             tableCellArr2[i].push([tableCellArr[i][j]]);
 
           }
           if (j == tableCellArr[i].length - 1) {
-            const top = Math.round(tableCellArr2[i].slice(-1)[0][0].cell.transform[5] * 10 + tableCellArr2[i].slice(-1)[0][0].cell.height * 10) / 10;
+            const top = Math.round(tableCellArr2[i].slice(-1)[0][0].cell.transform[5] * 10 + tableCellArr2[i].slice(-1)[0][0].cell.transform[3] * 10) / 10;
             const bottom = Math.round(tableCellArr[i][j].cell.transform[5] * 10) / 10;
             cellBox.push({
+              columnIndex: Number(i),
               top: top,
               bottom: bottom,
-              left: ColumnX[Number(i)],
-              //right: ColumnX[Number(i)],
+              left: columnX[Number(i)],
+              //right: columnX[Number(i)],
               items: tableCellArr2[i].slice(-1)[0]
             });
           }
         }
       }
       const rowY = [...new Set(findRowY(cellBox))].sort((a, b) => b - a);
+
+      const toTableHtml = (columnX: number[], rowY: number[], cellBox: CellBox[]) => {
+        //首先生成空表格数组，行为数组，每行元素数等于列数，每个单元格也为数组
+        const rowColumnXList: any[] = [];
+        for (let i = 0; i < rowY.length; i++) {
+          rowColumnXList.push([]);
+          for (let j = 0; j < columnX.length; j++) {
+            rowColumnXList[i].push([]);
+          }
+        }
+
+
+        cellBox.filter((e: CellBox) => {
+          for (let i = 0; i < rowY.length; i++) {
+            if (i == 0 && e.bottom == rowY[i]) {
+              //测试
+              //bottom数值从大到小
+              e.rowIndex = i;
+              rowColumnXList[i][e.columnIndex].push(...e.items);
+              //rowColumnXList[i][e.columnIndex].push(e);
+            } else {
+              if (e.bottom < rowY[i - 1] && e.bottom >= rowY[i]) {
+                e.rowIndex = i;
+                rowColumnXList[i][e.columnIndex].push(...e.items);
+                //rowColumnXList[i][e.columnIndex].push(e);
+              }
+            }
+          }
+        }
+        );
+
+
+
+
+        const rowTextArr = rowColumnXList.map((e: CellObj[][], i) => {
+          const rowCellTextArr = e.map((e2: CellObj[]) => {
+            let cellText;
+            if (e2.length) {
+              const pdfItems = e2.map((e3: CellObj) => e3.cell).filter(e => e !== undefined);
+              const cellTextArr = makeLine(mergePDFItemsToPDFLineByHasEOL(pdfItems) as PDFItem[][]);
+              //所有同行单元格文本              
+              cellText = cellTextArr.map(e => "<p>" + e.text + "<\/p>\n").join('');
+              //如果为首行设为标题行
+              if (i == 0) {
+                cellText = "<th>\n" + cellText + "<\/th>\n";
+              } else {
+                cellText = "<td>\n" + cellText + "<\/td>\n";
+              }
+            } else {
+              if (i == 0) {
+                cellText = "<td>\n<p><\/p>\n<\/td>\n";
+              } else {
+                cellText = "<td>\n<p><\/p>\n<\/td>\n";
+              }
+            }
+            return cellText;
+          });
+          return "<tr>\n" + rowCellTextArr.join('') + "<\/tr>\n";
+        });
+        const tableHtmltext = "<table>" + rowTextArr.join('') + "<\/table>";
+        return tableHtmltext;
+      };
+
+      const tableHtml = toTableHtml(columnX, rowY, cellBox);
+
       const look = 1;
     };
 
