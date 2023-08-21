@@ -284,11 +284,10 @@ const strByFont = (strArr: any[], fontName: string, isRetrunObj: boolean, isSkip
  * @returns 
  */
 const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
-  /*   if (!allItem.length) { return; } */
+  if (!allItem.length) { return; }
   if (Array.isArray(allItem[0])) {
     allItem = allItem.flat(Infinity);
   }
-  const check = allItem;
   let arrTemp;
   if (isSkipClearCharaters) {
     if (Object.prototype.hasOwnProperty.call(allItem[0], 'text')) {
@@ -397,24 +396,51 @@ const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
   const lineArr: PDFItem[][] = [];
   let lines: PDFItem[] = [];
   for (let i = 0; i < items.length; i++) {
-    //特殊字符转换
+    //特殊字符转换，避免加减号等重要信息弄不清
     clearCharactersDisplay(items[i]);
+    //总是判断下一个元素是否换行，所以把当前元素先放入行数组中
+    lines.push(items[i]);
     //通过？和 ||false 减低复杂度
-    const isNewLineAdjacent = items[i].transform[5] > items[i + 1]?.transform[5] + items[i + 1]?.transform[3] || false;
-    /*     let hasGap = false;
-        if (items[i].width > 0) {
-          if (items[i].chars) {
-            hasGap = items[i].transform[4] + items[i].width - items[i - 1]?.transform[4] > 2 * (items[i].width / items[i].chars.length) || false;
-          } else {
-            hasGap = items[i].transform[4] + items[i].width - items[i - 1]?.transform[4] > 2 * items[i].width || false;
-          }
-        } */
+    //isNewLineAdjacent指下一个元素是否新起一行，高于顶低于底则换行
+    let bottomi = 0, topNext = 0, topi = 0, bottomNext = 0, righti = 0, leftNext = 0;
+    //定义页面方向，后续补充
+    const ltrAndUp = true;
+    if (ltrAndUp) {
+      bottomi = items[i].transform[5];
+      topNext = items[i + 1]?.transform[5] + items[i + 1]?.transform[3];
+      topi = items[i].transform[5] + items[i].transform[3];
+      bottomNext = items[i + 1]?.transform[5];
+    }
+    const isNewLineAdjacent = (bottomi - topNext > 0 || topi - bottomNext < 0) || false;
+    let isNewLine = false;
     if (isNewLineAdjacent) {
-      lines.push(items[i]);
+      isNewLine = true;
+    } else if (items[i + 1] && items[i].str != "" && !items[i].str.includes("❓") && items[i + 1].str.match(/[\u0000-\u001f]/) == null) {
+      //根据页面方向定义，后续完善
+      righti = items[i].transform[4] + items[i].width;
+      leftNext = items[i + 1]?.transform[4];
+      let hasGap = false;
+      if (items[i].chars) {
+        hasGap = leftNext - righti > 2 * (items[i].width / items[i].chars.length)
+          || false;
+      } else if (items[i + 1].chars) {
+        //空格可以很长 str: " ", dir: "ltr", width: 27.381
+        hasGap = leftNext - righti > 2 * (items[i + 1].width / items[i + 1].chars.length) || false;
+      } else if (items[i - 1] && items[i - 1].chars) {
+        hasGap = leftNext - righti > 2 * (items[i - 1].width / items[i - 1].chars.length) || false;
+      } else {
+        hasGap = leftNext - righti > 6;
+      }
+
+      const fontLines = fontInfo(lines, true)?.fontOrderByFrequency[0] || undefined;
+      //下一个非空非空格元素和该行字体不同，且有2个字符以上的间隔
+      if (fontLines && fontLines != items[i + 1].fontName && hasGap) {
+        isNewLine = true;
+      }
+    }
+    if (isNewLine) {
       lineArr.push(lines);
       lines = [];
-    } else {
-      lines.push(items[i]);
     }
   }
   if (lines.length) {
