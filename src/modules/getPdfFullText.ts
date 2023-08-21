@@ -391,6 +391,38 @@ const clearCharactersDisplay = (pdfItem: PDFItem) => {
   }
 };
 
+
+const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
+  if (!items.length) { return; }
+  const lineArr: PDFItem[][] = [];
+  let lines: PDFItem[] = [];
+  for (let i = 0; i < items.length; i++) {
+    //特殊字符转换
+    clearCharactersDisplay(items[i]);
+    //通过？和 ||false 减低复杂度
+    const isNewLineAdjacent = items[i].transform[5] > items[i + 1]?.transform[5] + items[i + 1]?.transform[3] || false;
+    /*     let hasGap = false;
+        if (items[i].width > 0) {
+          if (items[i].chars) {
+            hasGap = items[i].transform[4] + items[i].width - items[i - 1]?.transform[4] > 2 * (items[i].width / items[i].chars.length) || false;
+          } else {
+            hasGap = items[i].transform[4] + items[i].width - items[i - 1]?.transform[4] > 2 * items[i].width || false;
+          }
+        } */
+    if (isNewLineAdjacent) {
+      lines.push(items[i]);
+      lineArr.push(lines);
+      lines = [];
+    } else {
+      lines.push(items[i]);
+    }
+  }
+  if (lines.length) {
+    lineArr.push(lines);
+  }
+  return lineArr;
+};
+
 /**
  * 转为一个整行
  * 属性含原信息
@@ -399,25 +431,32 @@ const clearCharactersDisplay = (pdfItem: PDFItem) => {
  */
 const mergePDFItemsToPDFLineByHasEOL = (items: PDFItem[]) => {
   if (!items.length) { return; }
-  if (!Object.prototype.hasOwnProperty.call(items[0], 'hasEOL')) { return; }
   const lineArr: PDFItem[][] = [];
   let lines: PDFItem[] = [];
   for (let i = 0; i < items.length; i++) {
     //特殊字符转换
     clearCharactersDisplay(items[i]);
     //通过？和 ||false 减低复杂度
-    const heightDifferent = abs(items[i].transform[5] - items[i + 1]?.transform[5]) > items[i + 1]?.transform[3] || false;
-    const heightDifferentAround = abs(items[i - 1]?.transform[5] - items[i + 1]?.transform[5]) > items[i].transform[3] || false;
-    if (heightDifferent) {
+    //需要考虑到向上折行
+    const isNewLineAdjacent = (items[i].transform[5] - (items[i + 1]?.transform[5] + items[i + 1]?.transform[3]) > 0 || items[i].transform[5] + items[i].transform[3] - items[i + 1]?.transform[5] < 0)
+      || false;
+    /*     const isNewLineAround = items[i - 1]?.transform[5] > items[i].transform[3] + items[i + 1]?.transform[5] || false; */
+
+
+    if (isNewLineAdjacent) {
       lines.push(items[i]);
       lineArr.push(lines);
       lines = [];
-    } else if (items[i].str == '' && heightDifferentAround && items[i].hasEOL) {
-      if (lines.length) {
-        lineArr.push(lines);
-        lines = [];
+    } else if (items[i].str == '' && items[i].hasEOL) {
+      const longSpace = items[i].transform[4] - items[i - 1]?.transform[4] - items[i - 1]?.width > 2 * (items[i - 1]?.width / items[i - 1]?.chars.length) || false;
+      //如果是空字符串，且间距很大，可能为表格的单元格，分开吗？
+      if (longSpace) {
+        if (lines.length) {
+          lineArr.push(lines);
+          lines = [];
+        }
+        lines.push(items[i]);
       }
-      lines.push(items[i]);
     } else {
       //即便hasEOL为true，但在一行，也不换行
       //可能是斜体上下标等
@@ -429,7 +468,7 @@ const mergePDFItemsToPDFLineByHasEOL = (items: PDFItem[]) => {
   }
   return lineArr;
 };
-function mergeSameLineNoHasEOL(items: PDFItem[]) {
+const mergePDFItemsToPDFLineNoHasEOL = (items: PDFItem[]) => {
   if (!items.length) { return; }
   let j = 0;
   const lines: PDFItem[][] = [];
@@ -444,8 +483,6 @@ function mergeSameLineNoHasEOL(items: PDFItem[]) {
     const lasty = parseFloat(lastPdfItem.transform[5].toFixed(3));
     const itemy = parseFloat(pdfItem.transform[5].toFixed(3));
     const lastHeight = parseFloat(lastPdfItem.transform[3].toFixed(3));
-    const itemHeight = parseFloat(pdfItem.transform[3].toFixed(3));
-
     if (abs(lasty - itemy) > lastHeight + 0.5) {
       lines.push([pdfItem]);
       continue;
@@ -454,7 +491,7 @@ function mergeSameLineNoHasEOL(items: PDFItem[]) {
     }
   }
   return lines;
-}
+};
 
 const makeLine = (lineArr: PDFItem[][]) => {
   // 行数组中的元素合并成行，判断上下标，粗斜体
@@ -878,6 +915,7 @@ const getModeFrequencyAndOrder = (arrary: number[]) => {
 };
 
 const longSpaceCounts = (pdfLine: PDFLine) => {
+  if (!pdfLine) { return; }
   let spaceCounts = 0;
   if (pdfLine.sourceLine.length > 1) {
     let widthChara = 0;
@@ -983,6 +1021,7 @@ export async function pdf2document(itmeID: number) {
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
   let totalPageNum = pages.length;
+  let isHasEOL: boolean;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/g, '');
   let title;
   if (titleTemp.length) {
@@ -1013,205 +1052,22 @@ export async function pdf2document(itmeID: number) {
       e.width = Math.round(e.width * 1000) / 1000;
     });
     itemsArr.push(items);
-
   }
 
-
-  for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
-
-    const pdfPage = pages[pageNum].pdfPage;
-    const maxWidth = pdfPage._pageInfo.view[2];
-    const maxHeight = pdfPage._pageInfo.view[3];
-    const items = itemsArr[pageNum];
-    const makeTable = (items: PDFItem[], maxWidth: number, maxHeight: number) => {
-      //首先聚类判断是否有表格
-      const spaceArr: PDFItem[] = [];
-      const noneSpace: PDFItem[] = [];
-      const xArr: number[] = [];
-      const yArr: number[] = [];
-      items.filter(e => {
-        if (e.str == " " && e.width > 6) {
-          spaceArr.push(e);
-        }
-        if (e.str != " ") {
-          noneSpace.push(e);
-          xArr.push(Number(new Decimal(e.transform[4]).toFixed(1, Decimal.ROUND_HALF_UP)));
-          yArr.push(Number(new Decimal(e.transform[5]).toFixed(1, Decimal.ROUND_HALF_UP)));
-        }
-      });
-
-      xArr.sort((a, b) => b - a);
-      //const xArr = noneSpace.map(e => e.transform[4]).sort((a, b) => b - a);
-      const xfrequency = frequency(xArr);
-      const xfrequencyOrder = orderByFrequency(xfrequency) as number[];
-      yArr.sort((a, b) => b - a);
-      //const yArr = noneSpace.map(e => e.transform[5]).sort((a, b) => b - a);
-      const yfrequency = frequency(yArr);
-      const yfrequencyOrder = orderByFrequency(yfrequency);
-      //必须使用Decimal，否则还会出现很长的小数
-      //将y值等于本页最大最小y值的长空格排除掉？
-      const spaceRightXs = spaceArr.map(e => {
-        if (Math.round(e.transform[5] * 10) / 10 != yArr[0] && Math.round(e.transform[5] * 10) / 10 != yArr.slice(-1)[0]) {
-          const num1 = new Decimal(e.width);
-          const num2 = new Decimal(e.transform[4]);
-          const num3 = (num1.add(num2)).toFixed(1, Decimal.ROUND_HALF_UP);
-          return num3;
-        }
-      }).filter(e => e !== undefined);
-
-      if (!spaceRightXs.length) { return; }
-      //const spaceRightXs = spaceArr.map(e => e.width + e.transform[4]);
-      const spaceRightXsfrequency = frequency(spaceRightXs);
-      const spaceRightXsOrder = orderByFrequency(spaceRightXsfrequency) as number[];
-      const spaceRightXsOrderByValue = spaceRightXsOrder.map(e => e as number).sort((a, b) => a - b);
-
-      //过滤单元格内容
-      //定位列的位置，即长空格x+width，
-      const valuePdfItem: PDFItem[] = [];
-      const noneCell: PDFItem[] = [];
-      const valueExcluded: any = [];
-
-      //各列的长空格数目不一定相等
-      //某一个单元格的定位长空格可能不止一个，也可能该单元无内容也就没有长空格      
-      //长空格x加width定位的待验证单元格x
-      items.filter(e => {
-        const valid = [];
-        const discard = [];
-        for (let i = 0; i < spaceRightXsOrder.length; i++) {
-          const value = Number(spaceRightXsOrder[i]);
-          if (e.str == " "
-            && e.width > 6
-            //除外表格内的长空格
-            && spaceRightXsOrder.includes(Math.round((e.transform[4] + e.width) * 10) / 10)) {
-            //valid = [];
-            valid.push(e);
-          } else if
-            ((e.transform[4] > value - 1
-              || (e.transform[4] + e.width) < value + 0.5)
-            && !valueExcluded.includes(value)) {
-            //value 不穿透 PdfItem
-            //valid = [];
-            valid.push(e);
-          }
-          else if ((e.transform[4] + e.width) > value + 1
-            && e.transform[4] < value - 1
-            && !valueExcluded.includes(value)
-          ) {
-            //value 穿透 PdfItem,应当舍弃
-            //如果单元格不齐呢？
-            discard.push(e);
-          }
-        }
-        if (valid.length && !discard.length) {
-          valuePdfItem.push(valid[0]);
-        }
-        if (discard.length) {
-          noneCell.push(discard[0]);
-        }
-      });
-
-
-      const validCell = valuePdfItem.filter(e =>
-        !noneCell.some(e2 => Math.round(e2.transform[5] * 10) / 10 == Math.round(e.transform[5] * 10) / 10));
-      const ColumnX = findColumnX(validCell).sort((a, b) => a - b);
-
-      const tableCellArr: any = {};
-      if (ColumnX[0] < spaceRightXsOrderByValue[0]) {
-        if (spaceRightXsOrderByValue.every(e => ColumnX.includes(e))) {
-          validCell.filter((e, j) => {
-            for (let i = 0; i < ColumnX.length; i++) {
-              if (i != ColumnX.length - 1) {
-                if (Math.round(e.transform[4] * 10 + e.width * 10) / 10 < ColumnX[i + 1]
-                  && Math.round(e.transform[4] * 10) / 10 >= ColumnX[i]) {
-                  const obj = {
-                    index: j,
-                    colum: i,
-                    cell: e,
-                  };
-                  if (tableCellArr[i]) {
-                    tableCellArr[i].push(obj);
-                  } else {
-                    tableCellArr[i] = [obj];
-                  }
-                  continue;
-                }
-              } else {
-                if (Math.round(e.transform[4] * 10) / 10 >= ColumnX[i]) {
-                  const obj = {
-                    index: j,
-                    colum: i,
-                    cell: e,
-                  };
-                  if (tableCellArr[i]) {
-                    tableCellArr[i].push(obj);
-                  } else {
-                    tableCellArr[i] = [obj];
-                  }
-                  continue;
-                }
-              }
-
-            }
-          });
-        }
-      }
-
-      const cellBox: CellBox[] = [];
-      const tableCellArr2: any = {};
-      const ColumNumArr = Object.keys(tableCellArr);
-      for (const i of ColumNumArr) {
-        tableCellArr2[i] = [[tableCellArr[i][0]]];
-        for (let j = 1; j < tableCellArr[i].length; j++) {
-          if (tableCellArr[i][j].index - tableCellArr[i][j - 1].index == 1) {
-            tableCellArr2[i].slice(-1)[0].push(tableCellArr[i][j]);
-          } else {
-            const top = Math.round(tableCellArr2[i].slice(-1)[0][0].cell.transform[5] * 10 + tableCellArr2[i].slice(-1)[0][0].cell.height * 10) / 10;
-            const bottom = Math.round(tableCellArr[i][j - 1].cell.transform[5] * 10) / 10;
-            cellBox.push({
-              top: top,
-              bottom: bottom,
-              left: ColumnX[Number(i)],
-              /* right: ColumnX[Number(i)+1]? ColumnX[Number(i)+1]:undefined, */
-              items: tableCellArr2[i].slice(-1)[0]
-            });
-            tableCellArr2[i].push([tableCellArr[i][j]]);
-
-          }
-          if (j == tableCellArr[i].length - 1) {
-            const top = Math.round(tableCellArr2[i].slice(-1)[0][0].cell.transform[5] * 10 + tableCellArr2[i].slice(-1)[0][0].cell.height * 10) / 10;
-            const bottom = Math.round(tableCellArr[i][j].cell.transform[5] * 10) / 10;
-            cellBox.push({
-              top: top,
-              bottom: bottom,
-              left: ColumnX[Number(i)],
-              //right: ColumnX[Number(i)],
-              items: tableCellArr2[i].slice(-1)[0]
-            });
-          }
-        }
-      }
-      const rowY = [...new Set(findRowY(cellBox))].sort((a, b) => b - a);
-      const look = 1;
-    };
-
-
-    //首列x
-
-    makeTable(items, maxWidth, maxHeight);
-  };
-  //测试
-  //return;
-
-
-
-
+  let mergePDFItems = mergePDFItemsToPDFLineByHasEOL;
+  if (Object.prototype.hasOwnProperty.call(itemsArr[0][0], 'hasEOL')) {
+    isHasEOL = true;
+  } else {
+    isHasEOL = false;
+    mergePDFItems = mergePDFItemsToPDFLineNoHasEOL;
+  }
 
 
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
   let refMarker = 0;
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
-    const lines1 = mergePDFItemsToPDFLineByHasEOL(itemsArr[pageNum])!;
+    const lines1 = mergePDFItemsToPDFLine(itemsArr[pageNum])!;
     const lines = makeLine(lines1);
     linesArr.push(lines);
     lineSpace(lines);
@@ -1483,7 +1339,7 @@ export async function pdf2document(itmeID: number) {
   for (const pageNum of Object.keys(recordCombine)) {
     const lines: PDFLine[] = recordCombine[pageNum];
     //每页颠倒顺序的段落可能为多处
-    if (!lines || !lines.length) { continue; }
+    if (!lines || lines.length == 0) { continue; }
     for (const line of lines) {
       //line是定位行，通过行序号索引所在段落，跳过下一个段落，定位间隔后的段落是否需要合并
       /*       const lineIndex = line.lineIndex! + 1;
@@ -1501,7 +1357,9 @@ export async function pdf2document(itmeID: number) {
                 let skip = 0;
                 for (let m = 0; m < pagePara[pageNum2].length; m++) {
                   //页、段、段的第一行
+                  //本来每页每段都有内容，但在该阶段段落调整后，则页面段落可能为空
                   const targetLine = pagePara[pageNum2][m][0];
+                  if (!targetLine) { continue; }
                   if (longSpaceCounts(targetLine) == 1) {
                     //如果为悬挂缩进则无需合并
                     skip = 1;
@@ -1526,7 +1384,7 @@ export async function pdf2document(itmeID: number) {
               //页面有图片等内容导致正文位置在下但序号在前
               //跳过本页中位置高于定位行序号在其后的段落，如果本页还有内容则判断是否合并，否则需要换页判断
               //比较 y 值  
-              let nextPage = 1;
+              let findNextPage = 1;
               for (let t = i + 1; t < pageParaArr.length; t++) {
                 if (pageParaArr[i][j].y > pageParaArr[t][0].y) {
                   //找到后判断是否需要合并
@@ -1535,15 +1393,16 @@ export async function pdf2document(itmeID: number) {
                     pageParaArr[i].push(...pageParaArr[t]);
                     pageParaArr[t] = [];
                   }
-                  nextPage = 0;
+                  findNextPage = 0;
                   break;
                 }
-                if (nextPage) {
+                if (findNextPage) {
                   //如果没有则跨页比对
                   for (let pageNum2 = Number(pageNum) + 1; pageNum2 < totalPageNum; pageNum2++) {
                     let skip = 0;
                     for (let m = 0; m < pagePara[pageNum2].length; m++) {
                       const targetLine = pagePara[pageNum2][m][0];
+                      if (!targetLine) { continue; }
                       if (line.fontName == targetLine.fontName
                         && abs(line.height - targetLine.height) < 0.1) {
                         pageParaArr[i].push(...pagePara[pageNum2][m]);

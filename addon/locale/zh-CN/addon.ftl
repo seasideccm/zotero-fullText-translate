@@ -3,6 +3,7 @@ startup-finish = 插件已就绪
 menuitem-label = 插件模板: 帮助工具样例
 menupopup-label = 插件模板: 弹出菜单
 menuitem-pdf2Note=翻山蚁：pdf2Note
+menuitem-openPdfs=翻山蚁：打开所有选中项的PDF
 menuitem-note = 翻山蚁：翻译所选笔记
 menuitem-pdf = 翻山蚁：翻译所选PDF
 menuitem-submenulabel = 插件模板：子菜单

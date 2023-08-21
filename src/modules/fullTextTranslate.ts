@@ -10,7 +10,6 @@ import { franc } from "franc";
 import { langCode_franVsZotero } from "../utils/config";
 
 
-
 // 装饰函数
 function example(
   target: any,
@@ -32,6 +31,12 @@ function example(
 
 let charConsumRecoder = 0;
 
+export async function onOpenPdf(id: number) {
+  //@ts-ignore
+  //await Zotero.getActiveZoteroPane().viewPDF(id);
+  await Zotero.Reader.open(id);
+  ztoolkit.log("open pdf");
+}
 
 export class fullTextTranslate {
   @example
@@ -60,17 +65,22 @@ export class fullTextTranslate {
     });
     ztoolkit.Menu.register("item", {
       tag: "menuitem",
-      label: getString("menuitem-pdf2Note"),
-      commandListener: ((ev) => {
-        const pdfIDs = this.getPDFs();
-        for (const id of pdfIDs) {
-          //@ts-ignore
-          ZoteroPane.viewPDF(id);
-          //Zotero.Reader.open(id);
+      label: getString("menuitem-openPdfs"),
+      commandListener: (async (ev) => {
+        const ids = fullTextTranslate.getPDFs();
+        for (const id of ids) {
+          await onOpenPdf(id);
         }
+        Zotero_Tabs.select('zotero-pane');
 
-
-        fullTextTranslate.pdf2Note();
+      }),
+      icon: menuIcon,
+    });
+    ztoolkit.Menu.register("item", {
+      tag: "menuitem",
+      label: getString("menuitem-pdf2Note"),
+      commandListener: (async (ev) => {
+        await this.pdf2Note();        //fullTextTranslate.pdf2Note();
 
       }),
       icon: menuIcon,
@@ -175,9 +185,12 @@ export class fullTextTranslate {
     for (const id of pdfIDs) {
       const item = Zotero.Items.get(id);
       let tabID = Zotero_Tabs.getTabIDByItemID(item.id);
+      let counter = 0;
       while (!tabID) {
         Zotero.Promise.delay(500);
         tabID = Zotero_Tabs.getTabIDByItemID(item.id);
+        counter += 500;
+        if (counter > 50000) { break; }
       }
       Zotero_Tabs.select(tabID);
       let reader = Zotero.Reader.getByTabID(tabID);

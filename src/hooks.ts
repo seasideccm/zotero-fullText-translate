@@ -2,9 +2,10 @@ import { config } from "../package.json";
 import { getString, initLocale } from "./utils/locale";
 import { registerPrefsScripts } from "./modules/preferenceScript";
 import { createZToolkit } from "./utils/ztoolkit";
-import { fullTextTranslate } from "./modules/fullTextTranslate";
+import { fullTextTranslate, onOpenPdf } from "./modules/fullTextTranslate";
 import { serviceInit } from "./modules/serviceManage";
 import { registerNotifier } from "./modules/pdfButton";
+
 
 async function onStartup() {
   await Promise.all([
@@ -88,6 +89,7 @@ async function onNotify(
     return;
   }
 }
+
 
 /**
  * This function is just an example of dispatcher for Preference UI events.
