@@ -66,7 +66,6 @@ declare type PDFItem = {
   str: string;
   transform: number[];
   width: number;
-  url?: string;
   hasEOL: boolean;
 };
 

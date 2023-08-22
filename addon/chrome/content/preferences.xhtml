@@ -27,6 +27,41 @@
         preference="extensions.zotero.__addonRef__.isSourceFirst"
         data-l10n-id="pref-isSourceFirst"
       />
+      <groupbox>
+        <caption data-l10n-id="pref-handleContentBeforeTitle" />
+        <radiogroup
+          id="__addonRef__-handleContentBeforeTitle"
+          preference="extensions.zotero.__addonRef__.handleContentBeforeTitle"
+        >
+          <hbox>
+            <radio
+              data-l10n-id="pref-moveToArticleEnd"
+              value="moveToArticleEnd"
+              selected="true"
+            />
+            <radio
+              data-l10n-id="pref-moveToPageEnd"
+              value="moveToPageEnd"
+              selected="false"
+            />
+            <radio
+              data-l10n-id="pref-moveAfterTitle"
+              value="moveAfterTitle"
+              selected="false"
+            />
+            <radio
+              data-l10n-id="pref-deleteIt"
+              value="deleteIt"
+              selected="false"
+            />
+            <radio
+              data-l10n-id="pref-nothingToDo"
+              value="nothingToDo"
+              selected="false"
+            />
+          </hbox>
+        </radiogroup>
+      </groupbox>
       <checkbox
         id="__addonRef__-isPay"
         native="true"
@@ -75,13 +110,9 @@
 <separator class="groove" />
 <hbox>
   <label data-l10n-id="pref-underUse"></label>
-
   <spacer width="10px" />
-
   <textbox id="__addonRef__-serviceIDUnderUse" readonly="true" />
-
   <spacer width="10px" />
-
   <textbox id="__addonRef__-secretKeyUnderUse" readonly="true" />
 </hbox>
 <separator class="groove" />
