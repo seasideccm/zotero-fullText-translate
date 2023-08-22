@@ -285,7 +285,7 @@ const strByFont = (strArr: any[], fontName: string, isRetrunObj: boolean, isSkip
  * @returns 
  */
 const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
-  if (!allItem.length) { return; }
+  /* if (!allItem.length) { return; } */
   if (Array.isArray(allItem[0])) {
     allItem = allItem.flat(Infinity);
   }
@@ -421,22 +421,23 @@ const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
       righti = items[i].transform[4] + items[i].width;
       leftNext = items[i + 1]?.transform[4];
       let hasGap = false;
+      //空格可以很长 str: " ", dir: "ltr", width: 27.381
+      //下一个非空非空格元素和该行字体不同，且有1个字符以上的间隔
       if (items[i].chars) {
-        hasGap = leftNext - righti > 2 * (items[i].width / items[i].chars.length)
+        hasGap = leftNext - righti > 1 * (items[i].width / items[i].chars.length)
           || false;
       } else if (items[i + 1].chars) {
-        //空格可以很长 str: " ", dir: "ltr", width: 27.381
-        hasGap = leftNext - righti > 2 * (items[i + 1].width / items[i + 1].chars.length) || false;
+        hasGap = leftNext - righti > 1 * (items[i + 1].width / items[i + 1].chars.length) || false;
       } else if (items[i - 1] && items[i - 1].chars) {
-        hasGap = leftNext - righti > 2 * (items[i - 1].width / items[i - 1].chars.length) || false;
+        hasGap = leftNext - righti > 1 * (items[i - 1].width / items[i - 1].chars.length) || false;
       } else {
         hasGap = leftNext - righti > 6;
       }
-
-      const fontLines = fontInfo(lines, true)?.fontOrderByFrequency[0] || undefined;
-      //下一个非空非空格元素和该行字体不同，且有2个字符以上的间隔
-      if (fontLines && fontLines != items[i + 1].fontName && hasGap) {
-        isNewLine = true;
+      if (hasGap) {
+        const fontLines = fontInfo(lines, true)?.fontOrderByFrequency[0] || undefined;
+        if (fontLines && fontLines != items[i + 1].fontName) {
+          isNewLine = true;
+        }
       }
     }
     if (isNewLine) {
@@ -708,11 +709,26 @@ const cleanHeadFooter = (lines: PDFLine[], totalPageNum: number, headFooderTextA
  * @param _pagePara 
  * @returns 
  */
-const titleIdentify = (title: string, _pagePara: object) => {
+const titleIdentify = (title: string,
+  _pagePara: {
+    [key: string]: PDFParagraph[];
+  },
+  contentHeightInfo: {
+    _frequency: {
+      [key: string]: number;
+    };
+    _orderByFrequency: number[];
+    mode: number;
+  }) => {
   const pdfTitle = {
     "title": '',
     "para": {} as PDFParagraph,
   };
+  let twords: string[] = [];
+  if (title) {
+    twords = [...new Set(title.toLowerCase().split(' '))];
+  }
+  const pagesHeightOrderByValue = contentHeightInfo._orderByFrequency.sort((a, b) => b - a);
 
   const totalPageNum = Object.keys(_pagePara).length;
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
@@ -723,17 +739,19 @@ const titleIdentify = (title: string, _pagePara: object) => {
     const highMode = highModeFrequencyOrder.mode;
     const lineHeightOrderByValue = lineHeightOrderByFrequency.sort((a, b) => b - a);
 
-    const lineWidthtArr = Object.values(_para).map(e => parseFloat(e.width.toFixed(3)));
-    const widthModeFrequencyOrder = getModeFrequencyAndOrder(lineWidthtArr);
-    const lineWidthOrderByFrequency = widthModeFrequencyOrder._orderByFrequency;
-    const lineWidthOrderByValue = lineWidthOrderByFrequency.sort((a, b) => b - a);
+    //const lineWidthtArr = Object.values(_para).map(e => parseFloat(e.width.toFixed(3)));
+    //const widthModeFrequencyOrder = getModeFrequencyAndOrder(lineWidthtArr);
+    //const lineWidthOrderByFrequency = widthModeFrequencyOrder._orderByFrequency;
+    //const lineWidthOrderByValue = lineWidthOrderByFrequency.sort((a, b) => b - a);
+
+    /* const lines = _para.flat(1).map(p => p.lines);
+    const pagefontOrderByFrequency = fontInfo(lines, true)?.fontOrderByFrequency; */
 
     let skip = false;
     for (const p of _para) {
       let isHasTitle = false;
       if (title !== undefined && title != "") {
         const pwords = [...new Set(p.text.toLowerCase().split(' '))];
-        const twords = [...new Set(title.toLowerCase().split(' '))];
         let combineNoduplicate = [...new Set(pwords.concat(twords as string[]))];
         combineNoduplicate = combineNoduplicate.filter(e => e.match(/<[^<>]+>/g) == null);
         const counts = (pwords.length + twords.length) / 2;
@@ -743,26 +761,36 @@ const titleIdentify = (title: string, _pagePara: object) => {
           p.text.toLowerCase() == title.toLowerCase()
           || (factor > 0.8 && abs(pwords.length - twords.length) < counts * 0.5)
         )) {
-          //又高又长且非高的众数
           isHasTitle = true;
         }
       }
-
-      if ((!isHasTitle &&
-        lineHeightOrderByValue.indexOf(p.lineHeight) == 0
-        && lineWidthOrderByValue.indexOf(p.width) == 0
+      //标题有可能是本页最短的行
+      //非高的众数
+      if (!isHasTitle
         && p.lineHeight != highMode
-      )) {
-        isHasTitle = true;
-      } else if (
-        //最高或最长
-        ((!isHasTitle && lineHeightOrderByValue.indexOf(p.lineHeight) == 0
-          && lineWidthOrderByValue.indexOf(p.width) == 1)
-          || (lineHeightOrderByValue.indexOf(p.lineHeight) == 1
-            && lineWidthOrderByValue.indexOf(p.width) == 0))
-        && lineHeightOrderByFrequency.indexOf(p.lineHeight) != 0
-      ) {
-        isHasTitle = true;
+        && p.text.split(/\b/).filter(e => e != " ").length > 1) {
+        //所有页面中最高的
+        if (pagesHeightOrderByValue.indexOf(p.lineHeight) == 0) {
+          isHasTitle = true;
+        }
+        //本页最高且非单个单词
+        else if (lineHeightOrderByValue.indexOf(p.lineHeight) == 0
+        ) {
+          isHasTitle = true;
+        } else if (
+          //所有页面中第二高
+          pagesHeightOrderByValue.indexOf(p.lineHeight) == 1
+        ) {
+          isHasTitle = true;
+        }
+        else if (
+          //找不到符合条件且最高的行
+          //第二高，且仅有这一行
+          lineHeightOrderByValue.indexOf(p.lineHeight) == 1
+          && highModeFrequencyOrder._frequency[p.lineHeight] == 1
+        ) {
+          isHasTitle = true;
+        }
       }
       if (isHasTitle) {
         pdfTitle.title = p.text;
@@ -981,7 +1009,7 @@ export async function pdf2document(itmeID: number) {
   let isHasEOL: boolean;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/g, '');
   let title;
-  if (titleTemp.length) {
+  if (titleTemp.length && !titleTemp.includes("untitled")) {
     title = titleTemp;
   }
   // 读取所有页面lines
@@ -1054,7 +1082,7 @@ export async function pdf2document(itmeID: number) {
       refLineHighArr.push(tempAllLines[i].height);
     }
   }
-  const contentFontInfo = fontInfo(contentLines, true);
+
 
   // 获取页眉页脚信息，将信息作为行属性添加到相应行
   totalPageNum = Object.keys(pageLines).length;
@@ -1280,8 +1308,8 @@ export async function pdf2document(itmeID: number) {
     heightOrder.sort((a, b) => b - a);
   }
   //众数可能不止一个，找到众数中较大的一个行高
-  const modeHigh = getModeFrequencyAndOrder(contentLineHighArr).mode;
-
+  const contentHeightInfo = getModeFrequencyAndOrder(contentLineHighArr);
+  const modeHigh = contentHeightInfo.mode;
   //找页中顺序要调整的到段落
   //找到页间需要合并的段落
   for (const pageNum of Object.keys(recordCombine)) {
@@ -1392,7 +1420,7 @@ export async function pdf2document(itmeID: number) {
   //paragraphs数组为本页段落组成的数组
   // _pagePara[pageNum]页码作为对象的属性，其值初始化为空数组
   //_pagePara同pagePara
-  const _pagePara: any = {};
+  const _pagePara: { [key: string]: PDFParagraph[]; } = {};
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     _pagePara[pageNum] = [];
     for (let i = 0; i < pagePara[pageNum].length; i++) {
@@ -1490,7 +1518,9 @@ export async function pdf2document(itmeID: number) {
 
   //确认标题，并剔除标题前无关内容。保存到变量 TitlBefore
   let TitlBefore;
-  const pdfTitle = titleIdentify(title, _pagePara);
+  const contentLines_pagePara = (Object.values(_pagePara) as PDFParagraph[][]).flat(1);
+  const contentFontInfo = fontInfo(contentLines_pagePara, true);
+  const pdfTitle = titleIdentify(title, _pagePara, contentHeightInfo);
   if (pdfTitle) {
     const pdfPage = pages[pdfTitle.para.pageIndex].pdfPage;
     const maxHeight = pdfPage._pageInfo.view[3];
@@ -1525,9 +1555,8 @@ export async function pdf2document(itmeID: number) {
 
   for (let p = 0; p < Object.keys(_pagePara).length; p++) {
     let findedTitle = 0;
-
+    let skip;
     for (let i = 0; i < _pagePara[p].length; i++) {
-      let skip;
       const para = _pagePara[p][i] as PDFParagraph;
       if (skip) {
         _pagePara[p][i].text = "<p>" + _pagePara[p][i].text + "</p>\n";
@@ -1541,17 +1570,19 @@ export async function pdf2document(itmeID: number) {
       //行高索引号
       let titleIndex: number = heightOrder.indexOf(h) + 1;
 
-      if (para.fontName && para.lineSpace) {
+      if (para.fontName && para.lineSpace && para.lines) {
         if (
-          !contentFontInfo.fontOrderByFrequency.slice(0, 2).includes(para.fontName)
-          && para.lines?.length == 1
+          //不属于最多的前两个字体
+          !contentFontInfo?.fontOrderByFrequency.slice(0, 2).includes(para.fontName)
+          //该段落仅有1-2行
+          && para.lines.length <= 2
+          //行间距大于5倍正文行间距
           && para.lineSpace! > 5 * Number(spaceOrder[0])
+          //行高大于众高
           && para.lineHeight >= modeHigh
         ) {
           if (titleIndex > 3) {
             titleIndex = 3;
-          } else {
-            titleIndex = 2;
           }
         }
       }
