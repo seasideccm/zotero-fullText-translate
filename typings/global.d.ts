@@ -74,20 +74,19 @@ declare type PDFItem = {
  */
 declare type PDFLine = {
   x: number;
-  _x?: number;
+  _x?: number[];
   y: number;
   text: string;
   height: number;
   _height: number[];
   width: number;
-  url?: string;
   pageIndex?: number;
   lineIndex?: number;
   lineSpace?: number;
   sourceLine: PDFItem[];
   fontName: string;
   _fontName: string[];
-  isReference?: boolean;
+  isReference: boolean;
 };
 
 declare type PDFParagraph = {
@@ -100,12 +99,13 @@ declare type PDFParagraph = {
   bottom: number;
   pageIndex: number;
   width: number;
-  isReference?: boolean;
+  isReference: boolean;
   sourceLines: PDFItem[][];
-  lines?: PDFLine[];
-  fontName?: string;
-  lineSpace?: number;
-  type?: string;
+  lines: PDFLine[];
+  fontName: string;
+  paraSpace: number;
+  lineSpace: number;
+  headingLevel: number;
 };
 
 
