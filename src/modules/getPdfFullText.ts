@@ -441,21 +441,26 @@ const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
       topi = items[i].transform[5] + items[i].transform[3];
       bottomNext = items[i + 1]?.transform[5];
     }
+    //底高于顶，或顶低于底
     const isNewLineAdjacent = (bottomi - topNext > 0 || topi - bottomNext < 0) || false;
     let isNewLine = false;
     if (isNewLineAdjacent) {
       isNewLine = true;
-    } else if (items[i + 1] && items[i].str != "" && !items[i].str.includes("❓") && items[i + 1].str.match(/[\u0000-\u001f]/) == null) {
+      //空格可以很长 str: " ", dir: "ltr", width: 27.381
+      //下一个非空非空格元素和该行字体不同，且有1个字符以上的间隔
+      //现有行内容没有特殊字符（COCC的方框字符是&，出现在悬挂缩进时）
+    } else if (items[i].str != "&& " && items[i].str != "& " && items[i].str != ""
+      && !items[i].str.includes("❓")
+      && items[i + 1] && items[i + 1].str.match(/[\u0000-\u001f]/) == null
+      && items[i].fontName != items[i + 1].fontName) {
       //根据页面方向定义，后续完善
       righti = items[i].transform[4] + items[i].width;
       leftNext = items[i + 1]?.transform[4];
       let hasGap = false;
-      //空格可以很长 str: " ", dir: "ltr", width: 27.381
-      //下一个非空非空格元素和该行字体不同，且有1个字符以上的间隔
       if (items[i].chars) {
         hasGap = leftNext - righti > 1 * (items[i].width / items[i].chars.length)
           || false;
-      } else if (items[i + 1].chars) {
+      } else if (items[i + 1] && items[i + 1].chars) {
         hasGap = leftNext - righti > 1 * (items[i + 1].width / items[i + 1].chars.length) || false;
       } else if (items[i - 1] && items[i - 1].chars) {
         hasGap = leftNext - righti > 1 * (items[i - 1].width / items[i - 1].chars.length) || false;
@@ -610,8 +615,8 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
   const gapCounts = gaps.gapCounts;
   const gapIndex = gaps.gapIndex;
 
-
-  if ((longSpaceCount == 1 && longSpaceIndex[0] <= 3) || (gapCounts >= 1 && gapIndex[0] <= 3)) {
+  //悬挂缩进，暂定一个长空格或一个长间隙
+  if ((longSpaceCount == 1 && longSpaceIndex[0] <= 3) || (gapCounts == 1 && gapIndex[0] <= 3)) {
     paraCondition["condition"] += `悬挂缩进 ((longSpaceCount == 1 && longSpaceIndex[0] <= 3) || (gapCounts >= 1 && gapIndex[0] <= 3))`;
     if (nextLine && currentLine.x + tolerance < nextLine.x) {
       isNewParagraph = true;
@@ -635,17 +640,13 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
     //当前行如果有很大的字，可能是新段落
     //但下一行和该行可以是一段 && currentLine._height.some((h2: number) => h2 / nextLine.height > 1.5)
     paraCondition["condition"] += `(currentLine._height.some((h2: number) => h2 / lastLine.height > 1.5)`;
-  }
-  if (/^(<[^<>]+?>)*abstract(<\/[^<>]+?>)*/im.test(currentLine.text)
+  } else if (/^(<[^<>]+?>)*abstract(<\/[^<>]+?>)*/im.test(currentLine.text)
     || /^\W*(<[^<>]+?>)*references(<\/[^<>]+?>)*\W*$/im.test(currentLine.text)) {
     isNewParagraph = true;
     paraCondition["condition"] += `if (/^abstract/im.test(currentLine.text) || /^\W+references\W+$/im.test(currentLine.text))`;
-  }
-  if (currentLine.height / lastLine.height > 1.1 || currentLine.height / lastLine.height < 0.9) {
+  } else if (currentLine.height / lastLine.height > 1.1 || currentLine.height / lastLine.height < 0.9) {
     isNewParagraph = true;
-  }
-
-  if (!nextLine) {
+  } else if (!nextLine) {
     if (lastLine.lineSpaceTop && currentLine.lineSpaceTop) {
       paraCondition["condition"] += ` if (lastLine.lineSpaceTop && currentLine.lineSpaceTop)`;
       //行间距大于上两行，但小于2倍上一行的高，可不分但不错分
@@ -666,22 +667,20 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
       paraCondition["condition"] += `非悬挂，确认缩进就换行,(currentLine.x > lastLine.x + 16 && longSpaceCount==0&&gapCounts==0)`;
     }
 
-  } else {
-    // 当前行较上下行明显缩进，且上下行没有长空格和长间隙，字体和上一行相同，避免悬挂分段时错误分段
+  } else if (nextLine) {
+    // 当前行较上下行明显缩进，，字体和上一行相同，避免悬挂分段时错误分段
+    // 有的上下行有长间隙，长空格呢？暂时不考虑
     if ((currentLine.x > lastLine.x + tolerance && currentLine.x > nextLine.x + tolerance)
-      && longSpaceCounts(lastLine).spaceCounts == 0 && longSpaceCounts(nextLine).spaceCounts == 0
-      && hasGapInline(lastLine).gapCounts == 0 && hasGapInline(nextLine).gapCounts == 0
+      /* && longSpaceCounts(lastLine).spaceCounts == 0 && longSpaceCounts(nextLine).spaceCounts == 0
+      && hasGapInline(lastLine).gapCounts == 0 && hasGapInline(nextLine).gapCounts == 0 */
       && currentLine.fontName == lastLine.fontName) {
       isNewParagraph = true;
       paraCondition["condition"] += `当前行较上下行明显缩进，且上下行没有长空格和长间隙，字体和上一行相同，避免悬挂分段时错误分段，
       (currentLine.x > lastLine.x + tolerance && currentLine.x > nextLine.x + tolerance)
-      && longSpaceCounts(lastLine).spaceCounts == 0 && longSpaceCounts(nextLine).spaceCounts == 0
-      && hasGapInline(lastLine).gapCounts == 0 && hasGapInline(nextLine).gapCounts == 0
       && currentLine.fontName == lastLine.fontName)`;
-    }
-    else if (currentLine.x > lastLine.x + 16 && longSpaceCount == 0 && gapCounts == 0) {
+    } else if (currentLine.x > lastLine.x + 16 && longSpaceCount == 0) {
       isNewParagraph = true;
-      paraCondition["condition"] += `左侧明显比上一行更靠右,(currentLine.x > lastLine.x + 16 && longSpaceCount == 0 && gapCounts == 0)`;
+      paraCondition["condition"] += `左侧明显比上一行更靠右,(currentLine.x > lastLine.x + 16 && longSpaceCount == 0)`;
     } else if (nextLine.lineSpaceTop && lastLine.lineSpaceTop && currentLine.lineSpaceTop) {
       paraCondition["condition"] += ` (nextLine.lineSpaceTop&&lastLine.lineSpaceTop && currentLine.lineSpaceTop)`;
       if (currentLine.lineSpaceTop - lastLine.lineSpaceTop > 1.5 * lastLine.height
@@ -692,16 +691,11 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
           && currentLine.lineSpaceTop - nextLine.lineSpaceTop > 1.5 * nextLine.height
           && lastLine.y > currentLine.y && currentLine.y > nextLine.y)`;
       }
+    } else if (currentLine.lineSpaceTop == 0 && currentLine.x > nextLine.x + tolerance) {
+      isNewParagraph = true;
+      paraCondition["condition"] += `(currentLine.lineSpaceTop==0&&currentLine.x>nextLine.x+tolerance)`;
     }
   }
-  const text1 = currentLine.text;
-  const text2 = lastLine.text;
-  if (nextLine !== undefined) {
-    const text3 = (nextLine as PDFLine).text;
-  }
-  const test2 = isNewParagraph;
-  const test3 = paraCondition.condition;
-  const check = infoParas;
   return {
     isNewParagraph: isNewParagraph,
     paraCondition: paraCondition
@@ -1096,7 +1090,7 @@ const tagWrapHeader = (headingLevel: number, item: string) => {
 
 const IdentifyHeadingLevel = (
   para: PDFParagraph,
-  contentFontInfo: {
+  contentCleanFontInfo: {
     fontFrequency: {
       [key: string]: number;
     };
@@ -1112,6 +1106,14 @@ const IdentifyHeadingLevel = (
   modelineSpaceTop: number[],
   level?: number,
 ) => {
+  let headingLevel: number;
+  let isheading = false;
+  const heightOrder = contentHeightInfo._orderByFrequency.sort((a, b) => b - a);
+  headingLevel = heightOrder.indexOf(para.lineHeight) + 1;
+  if (para.headingLevel == 1 || para.headingLevel == 100 && !para.isReference) { return; }
+  if (contentCleanFontInfo.fontOrderByFrequency[0].includes(para.fontName)) { return; }
+  if (para.lineHeight < contentHeightInfo.mode) { return; }
+  if (para.lines.length > 3 && para.lineHeight < contentHeightInfo.mode) { return; }
   if (!level) {
     level = 3;
   } else {
@@ -1119,25 +1121,37 @@ const IdentifyHeadingLevel = (
       level = 6;
     }
   }
-  let headingLevel: number;
-  if (para.headingLevel != 1 && para.headingLevel != 100 && !para.isReference) {
-    const heightOrder = contentHeightInfo._orderByFrequency.sort((a, b) => b - a);
-    headingLevel = heightOrder.indexOf(para.lineHeight) + 1;
-    if (
-      //不同于最多的字体
-      !contentFontInfo.fontOrderByFrequency[0].includes(para.fontName)
-      //该段落仅有1-2行
-      && para.lines.length <= 2
-      //行间距大于5倍正文行间距或无间距
-      && (para.paraSpaceTop > 2 * modelineSpaceTop[0] || para.paraSpaceBottom > 2 * modelineSpaceTop[0])
-      //行高大于众高
-      && para.lineHeight >= contentHeightInfo.mode
-    ) {
-      if (headingLevel > level) {
-        headingLevel = level;
-      }
-      para.headingLevel = headingLevel;
+  const fontTotalNumber = Object.values(contentCleanFontInfo.fontFrequency)
+    .reduce((acc: number, el: number) => {
+      acc += el;
+      return acc;
+    }, 0);
+  let fontLess;
+  for (let i = 1; i < contentCleanFontInfo.fontOrderByFrequency.length; i++) {
+    const fontNum0 = contentCleanFontInfo.fontFrequency[contentCleanFontInfo.fontOrderByFrequency[i - 1]];
+    const fontNum1 = contentCleanFontInfo.fontFrequency[contentCleanFontInfo.fontOrderByFrequency[i]];
+    if ((fontNum0 + fontNum1) / fontTotalNumber < 0.5 && fontNum1 / fontNum0 < 0.6) {
+      fontLess = i;
     }
+  }
+
+
+  if (para.lineHeight > contentHeightInfo.mode) {
+    //行高大于众高
+    isheading = true;
+  } else if ((para.paraSpaceTop > 2 * modelineSpaceTop[0] || para.paraSpaceBottom > 2 * modelineSpaceTop[0])) {
+    //行间距大于2倍正文行间距
+    isheading = true;
+  } else if (para.text.match(/[a-z]/g) == null && para.lines.length <= 3 && para.lineHeight == contentHeightInfo.mode) {
+    //均为大写
+    isheading = true;
+  }
+  if (isheading) {
+    if (headingLevel > level) {
+      headingLevel = level;
+    }
+    para.headingLevel = headingLevel;
+
   }
 };
 
@@ -1204,10 +1218,12 @@ export async function pdf2document(itmeID: number) {
     pageLines[pageNum] = lines.map((e: PDFLine) => {
       e.pageIndex = pageNum;
       if (refMarker == 0) {
-        if ((/^\W*(<[^>]+>)*references(<\/[^>]+>)*\W*$/img.test(e.text))) {
+        if ((/^\W*(<[^>]+>)*references( AND RECOMMENDED)?(<\/[^>]+>)*\W*$/img.test(e.text))) {
           refMarker = 1;
+          e.isReference = true;
+        } else {
+          e.isReference = false;
         }
-        e.isReference = false;
       } else {
         e.isReference = true;
       }
@@ -1461,13 +1477,13 @@ export async function pdf2document(itmeID: number) {
   }
 
   //高度从大到小
-  let heightOrder = [...new Set(contentLineHighArr)];
+  const heightOrder = [...new Set(contentLineHighArr)];
   if (heightOrder.length >= 2) {
     heightOrder.sort((a, b) => b - a);
   }
   //众数可能不止一个，找到众数中较大的一个行高
-  let contentHeightInfo = getModeFrequencyAndOrder(contentLineHighArr);
-  let modeHigh = contentHeightInfo.mode;
+  const contentHeightInfo = getModeFrequencyAndOrder(contentLineHighArr);
+  const modeHigh = contentHeightInfo.mode;
 
   //找页中顺序要调整的到段落
   //找到页间需要合并的段落
@@ -1683,26 +1699,12 @@ export async function pdf2document(itmeID: number) {
   }
 
   //确认标题，并剔除标题前无关内容。保存到变量 contentBeforeTitle
-  let contentBeforeTitle: PDFParagraph[];
-  const contentLines_pagePara = (Object.values(_pagePara) as PDFParagraph[][]).flat(1);
-  const contentFontInfo = fontInfo(contentLines_pagePara, true);
-  const paraLineHighArr = contentLines_pagePara.map(p => p.lineHeight).filter(e => e != undefined);
-
-
-  //高度从大到小
-  heightOrder = [...new Set(paraLineHighArr)];
-  if (heightOrder.length >= 2) {
-    heightOrder.sort((a, b) => b - a);
-  }
-  //众数可能不止一个，找到众数中较大的一个行高
-  contentHeightInfo = getModeFrequencyAndOrder(paraLineHighArr);
-  modeHigh = contentHeightInfo.mode;
-
 
   const pdfTitle = titleIdentify(title, _pagePara, contentHeightInfo);
   if (pdfTitle) {
     /*     const pdfPage = pages[pdfTitle.para.pageIndex].pdfPage;
         const maxHeight = pdfPage._pageInfo.view[3]; */
+    let contentBeforeTitle: PDFParagraph[];
     const pagePara: PDFParagraph[] = _pagePara[pdfTitle.para.pageIndex];
     for (let i = 0; i < pagePara.length; i++) {
       if (pagePara[i].text == pdfTitle.title) {
@@ -1741,15 +1743,24 @@ export async function pdf2document(itmeID: number) {
 
   let skipReference = false;
   for (let p = 0; p < Object.keys(_pagePara).length; p++) {
-    const paralineSpaceTopArr = _pagePara[p].map(p => p.lines).flat(1).map(l => l.lineSpaceTop);
+    //除外参考文献和页眉页脚的所有行,content代表正文
+    /*   const contentCleanLines = (Object.values(_pagePara) as PDFParagraph[][]).flat(1).filter(p => !p.isReference)
+      .map(p2 => p2.lines).flat(1); */
+    //考虑到字体众多增加复杂度，故而逐页进行
+    const contentCleanLines = _pagePara[p].map(p => p.lines).flat(1).filter(e => e !== undefined);
+    const paralineSpaceTopArr = contentCleanLines.map(l => l.lineSpaceTop);
     const modelineSpaceTop = getMode(paralineSpaceTopArr, "descending");
+    const contentCleanFontInfo = fontInfo(contentCleanLines, true);
+    const contentCleanLineHighArr = contentCleanLines.map(l => l.height).filter(e => e != undefined);
+    //众数可能不止一个，找到众数中较大的一个行高
+    const contentCleanHeightInfo = getModeFrequencyAndOrder(contentCleanLineHighArr);
     for (let i = 0; i < _pagePara[p].length; i++) {
       const para = _pagePara[p][i] as PDFParagraph;
       if (!skipReference) {
         if (para.isReference) {
           skipReference = true;
         }
-        IdentifyHeadingLevel(para, contentFontInfo, contentHeightInfo, modelineSpaceTop, 3);
+        IdentifyHeadingLevel(para, contentCleanFontInfo, contentCleanHeightInfo, modelineSpaceTop, 3);
       }
       para.text = tagWrapHeader(para.headingLevel, para.text) as string;
       docs.push(_pagePara[p][i].text);
@@ -1761,81 +1772,3 @@ export async function pdf2document(itmeID: number) {
   }
   return docs;
 };
-
-/*   for (let p = 0; p < Object.keys(_pagePara).length; p++) {
-
-    let findedTitle = 0;
-    let skip;
-    for (let i = 0; i < _pagePara[p].length; i++) {
-      const para = _pagePara[p][i] as PDFParagraph;
-      if (skip) {
-        _pagePara[p][i].text = "<p>" + _pagePara[p][i].text + "</p>\n";
-        docs.push(_pagePara[p][i].text);
-        continue;
-      }
-      if (para.isReference) {
-        //发现 references 后 执行完此次循环，后续不在做标题判断，
-        skip = 1;
-      }
-      const h = para.lineHeight as number;
-      //行高索引号
-      let headingLevel: number = heightOrder.indexOf(h) + 1;
-
-      if (para.fontName && para.lineSpaceTop && para.lines) {
-        if (
-          //不同于最多的字体
-          !contentFontInfo?.fontOrderByFrequency[0].includes(para.fontName)
-          //该段落仅有1-2行
-          && para.lines.length <= 2
-          //行间距大于5倍正文行间距
-          && para.lineSpaceTop! > 5 * Number(spaceOrder[0])
-          //行高大于众高
-          && para.lineHeight > modeHigh
-        ) {
-          //如果紧挨标题，则不作为标题
-          if (pdfTitle && pdfTitle.title && _pagePara[p][i - 1] && pdfTitle.title == _pagePara[p][i - 1]?.text) {
-            headingLevel = 10;
-          } else {
-            if (headingLevel > 3) {
-              headingLevel = 3;
-            }
-          }
-        }
-      } else {
-        if (para.fontName && para.lines &&
-          //不同于最多的字体
-          !contentFontInfo?.fontOrderByFrequency[0].includes(para.fontName!)
-          //该段落仅有1-2行
-          && para.lines!.length <= 2
-
-          //行高大于众高
-          && para.lineHeight > modeHigh
-        ) {
-          //如果紧挨标题，则不作为标题
-          if (pdfTitle && pdfTitle.title && _pagePara[p][i - 1] && pdfTitle.title == _pagePara[p][i - 1]?.text) {
-            headingLevel = 10;
-          } else {
-            if (headingLevel > 3) {
-              headingLevel = 3;
-            }
-          }
-        }
-      }
-
-      //如果是标题，设为1,顺序不能错
-      if (!findedTitle && pdfTitle) {
-        if (pdfTitle.title == para.text) {
-          headingLevel = 1;
-          findedTitle = 1;
-        }
-      }
-
-      if (headingLevel <= 3) {
-        _pagePara[p][i].text = tagWrapHeader(headingLevel, _pagePara[p][i].text) as string;
-      } else {
-        _pagePara[p][i].text = "<p>" + _pagePara[p][i].text + "</p>\n";
-      }
-      docs.push(_pagePara[p][i].text);
-    }
-  } */
-
