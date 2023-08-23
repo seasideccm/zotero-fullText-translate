@@ -82,7 +82,8 @@ declare type PDFLine = {
   width: number;
   pageIndex?: number;
   lineIndex?: number;
-  lineSpace?: number;
+  lineSpaceTop: number;
+  lineSpaceBottom: number;
   sourceLine: PDFItem[];
   fontName: string;
   _fontName: string[];
@@ -103,8 +104,9 @@ declare type PDFParagraph = {
   sourceLines: PDFItem[][];
   lines: PDFLine[];
   fontName: string;
-  paraSpace: number;
-  lineSpace: number;
+  paraSpaceTop: number;
+  paraSpaceBottom: number;
+  lineSpaceTop: number;
   headingLevel: number;
 };
 
