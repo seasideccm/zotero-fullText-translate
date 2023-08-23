@@ -441,6 +441,9 @@ const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
       topi = items[i].transform[5] + items[i].transform[3];
       bottomNext = items[i + 1]?.transform[5];
     }
+    const test1 = lines.some(e => /[^& ]/.test(e.str));
+    const test2 = items[i];
+    const test3 = items[i + 1];
     //底高于顶，或顶低于底
     const isNewLineAdjacent = (bottomi - topNext > 0 || topi - bottomNext < 0) || false;
     let isNewLine = false;
@@ -449,7 +452,7 @@ const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
       //空格可以很长 str: " ", dir: "ltr", width: 27.381
       //下一个非空非空格元素和该行字体不同，且有1个字符以上的间隔
       //现有行内容没有特殊字符（COCC的方框字符是&，出现在悬挂缩进时）
-    } else if (items[i].str != "&& " && items[i].str != "& " && items[i].str != ""
+    } else if (lines.some(e => /[^& ]/.test(e.str)) && items[i].str != ""
       && !items[i].str.includes("❓")
       && items[i + 1] && items[i + 1].str.match(/[\u0000-\u001f]/) == null
       && items[i].fontName != items[i + 1].fontName) {
@@ -634,8 +637,7 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
   } else if (currentLine.fontName != lastLine.fontName) {
     isNewParagraph = true;
     paraCondition["condition"] += `主字体不同 if(currentLine.fontName != lastLine.fontName)`;
-  }
-  else if (currentLine._height.filter(e => e).some((h2: number) => lastLine._height.filter(e2 => e2).every(e3 => h2 / e3 > 1.5))) {
+  } else if (currentLine._height.filter(e => e).some((h2: number) => lastLine._height.filter(e2 => e2).every(e3 => h2 / e3 > 1.5))) {
     isNewParagraph = true;
     //当前行如果有很大的字，可能是新段落
     //但下一行和该行可以是一段 && currentLine._height.some((h2: number) => h2 / nextLine.height > 1.5)
@@ -645,6 +647,9 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
     isNewParagraph = true;
     paraCondition["condition"] += `if (/^abstract/im.test(currentLine.text) || /^\W+references\W+$/im.test(currentLine.text))`;
   } else if (currentLine.height / lastLine.height > 1.1 || currentLine.height / lastLine.height < 0.9) {
+    isNewParagraph = true;
+  } else if (currentLine.sourceLine[1] && currentLine.sourceLine[0].str == '' && currentLine.sourceLine[0].hasEOL
+    && /^[& 0-9.]+$/m.test(currentLine.sourceLine[1].str)) {
     isNewParagraph = true;
   } else if (!nextLine) {
     if (lastLine.lineSpaceTop && currentLine.lineSpaceTop) {
