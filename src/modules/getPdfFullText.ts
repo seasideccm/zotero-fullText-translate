@@ -1,9 +1,9 @@
-import { Decimal } from 'decimal.js';
+/* import { Decimal } from 'decimal.js';
 import { ColumnOptions } from 'zotero-plugin-toolkit/dist/helpers/virtualizedTable';
-import { langCode_franVsZotero } from '../utils/config';
+import { langCode_franVsZotero } from '../utils/config'; */
 import { getPref } from '../utils/prefs';
-/* eslint-disable no-useless-escape */
 
+/* eslint-disable no-useless-escape */
 
 declare type Box = {
   left: number;
@@ -12,6 +12,8 @@ declare type Box = {
   bottom: number;
 };
 const tolerance = 2;
+
+
 //通过Y判断底边，Y即为行的基线，行的基线和字符的基线是一致的
 const isSameBottom = (lineA: PDFLine, lineB: PDFLine) => {
   if (abs(lineA.y - lineB.y) < 0.5) {
@@ -22,7 +24,9 @@ const isSameBottom = (lineA: PDFLine, lineB: PDFLine) => {
   }
 };
 
-// 判断lineB是否是上标(确保上标的下边界被左侧字符包裹，不得随意调整)
+
+
+// 判断lineB是否是上标(确保上标的下边界被左侧字符包裹，不得随意调整
 const isSup = (lineA: PDFLine, lineB: PDFLine) => {
   if (!isSameBottom(lineA, lineB) && lineA.height > lineB.height + tolerance) {
     if (lineA.y + lineA.height > lineB.y + tolerance && lineA.y + tolerance < lineB.y) {
@@ -34,6 +38,7 @@ const isSup = (lineA: PDFLine, lineB: PDFLine) => {
     return false;
   }
 };
+
 //判断lineB是否是下标(确保下标的上边界被左侧字符包裹，不得随意调整)
 const isSub = (lineA: PDFLine, lineB: PDFLine,) => {
   if (!isSameBottom(lineA, lineB) && lineA.height > lineB.height + tolerance) {
@@ -72,16 +77,20 @@ const isOverlapping = (lineA: PDFLine, lineB: PDFLine,) => {
 };
 
 
-/**
- * 
- * @param item 
- * @returns 
- */
-const getMode = (item: number[]) => {
-  const num: any = {};
-  if (item.length <= 2) {
+//众数，如果相同则按给定方式排序
+const getMode = (item: number[], order: "ascending" | "descending") => {
+  if (item.length == 1) {
     return item;
   }
+  if (item.length == 2) {
+    if (order == "ascending") {
+      item.sort((a, b) => a - b);
+    } else if (order == "descending") {
+      item.sort((a, b) => b - a);
+    }
+    return item;
+  }
+  const num: any = {};
   for (let i = 0; i < item.length; i++) {
     /* num[String(hh[i])] ??= 0 的作用是检查 num 对象中是否存在以
      hh[i] 的值作为属性名的属性。
@@ -94,16 +103,34 @@ const getMode = (item: number[]) => {
   const modeArr = Object.keys(num).sort((h1: string, h2: string) => {
     return num[h2] - num[h1];
   });
-  return modeArr.map(e => Number(e));
-  // 如果排序后众数对应的高（字符串，在首位）的频次与第二位相同，
-  // 则有可能未进行排序，返回去重数组
-  /*  if (num[modeArr[0]] != num[modeArr[1]]) {
-     return Number(modeArr[0]);
-   } else {
-     return Object.keys(num).map(e => Number(e));
-     //return Object.keys(num);
-   } */
+  //所有元素各不相同
+  if (modeArr.length == item.length) {
+    if (order == "ascending") {
+      item.sort((a, b) => a - b);
+    } else if (order == "descending") {
+      item.sort((a, b) => b - a);
+    }
+    return item;
+  } else if (modeArr.length == 1) {
+    return [Number(modeArr[0])];
+  } else {
+    const modeArrNum = modeArr.map(e => Number(e));
+    //前两个频数相等时根据排序规则排序前两个元素
+    if (num[modeArr[0]] == num[modeArr[1]]) {
+      if (order == "ascending") {
+        if (modeArrNum[0] > modeArrNum[1]) {
+          modeArrNum[0] = modeArrNum.splice(1, 1, modeArrNum[0])[0];
+        }
+      } else if (order == "descending") {
+        if (modeArrNum[0] < modeArrNum[1]) {
+          modeArrNum[0] = modeArrNum.splice(1, 1, modeArrNum[0])[0];
+        }
+      }
+    }
+    return modeArrNum;
+  }
 };
+
 
 /**
  * 数组元素的值和其频数
@@ -152,6 +179,8 @@ const orderByFrequency = (num: { [key: string]: number; }) => {
 
 
 };
+
+
 const toLine = (item: PDFItem) => {
   const line: PDFLine = {
     x: item.transform[4],
@@ -173,10 +202,6 @@ const toLine = (item: PDFItem) => {
   return line;
 };
 
-/**
- * @param items 
- * @returns 
- */
 
 /**
  * 合并整行
@@ -248,7 +273,6 @@ const combineLine = (lastLine: PDFLine, line: PDFLine, fontStyle?: string) => {
 };
 const abs = (x: number) => x > 0 ? x : -x;
 
-
 const strByFont = (strArr: any[], fontName: string, isRetrunObj: boolean, isSkipWhiteSpace: boolean) => {
   let strByFont;
   if (isSkipWhiteSpace) {
@@ -314,23 +338,23 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
   const fontArr = arrTemp.map((e: any) => e["fontName"]);
   const fontObj = frequency(fontArr);
   const fontOrder = orderByFrequency(fontObj) as string[];
-  /*   const arrTemp = lineArr.flat(Infinity).filter((e: any) => !e.str.includes("\\u000")); */
-  /*   const strNoDuplicateByFont: any = {};
-    for (let i = 0; i < fontOrder.length; i++) {
-      //排除特殊字符,降低字体判断复杂度    
-      const strByFontArr = strByFont(arrTemp, fontOrder[i], false, true);
-      const newArr = [...new Set(strByFontArr)];
-      if (newArr.length) {
-        strNoDuplicateByFont[fontOrder[i]] = newArr.length;
-      }
-    } */
+  //const arrTemp = lineArr.flat(Infinity).filter((e: any) => !e.str.includes("\\u000"));
+  const strNoDuplicateByFont: any = {};
+  for (let i = 0; i < fontOrder.length; i++) {
+    //排除特殊字符,降低字体判断复杂度    
+    const strByFontArr = strByFont(arrTemp, fontOrder[i], false, true);
+    const newArr = [...new Set(strByFontArr)];
+    if (newArr.length) {
+      strNoDuplicateByFont[fontOrder[i]] = newArr.length;
+    }
+  }
   //去重字符串的数量组成数组然后降序排序
-  //const strNoDuplicateOrderByFont = Object.values(strNoDuplicateByFont).sort((a, b) => (b as number) - (a as number));
+  const strNoDuplicateOrderByFont = Object.values(strNoDuplicateByFont).sort((a, b) => (b as number) - (a as number));
   return {
     fontFrequency: fontObj,
     fontOrderByFrequency: fontOrder,
-    /*     strNoDuplicateByFont: strNoDuplicateByFont,
-        strNoDuplicateOrderByFont: strNoDuplicateOrderByFont, */
+    strNoDuplicateByFont: strNoDuplicateByFont,
+    strNoDuplicateOrderByFont: strNoDuplicateOrderByFont,
   };
 };
 
@@ -1037,7 +1061,7 @@ const hasGapInline = (pdfLine: PDFLine) => {
     if (items[i].chars) {
       hasGap = leftNext - righti > 1 * (items[i].width / items[i].chars.length)
         || false;
-    } else if (items[i + 1].chars) {
+    } else if (items[i + 1] && items[i + 1].chars) {
       hasGap = leftNext - righti > 1 * (items[i + 1].width / items[i + 1].chars.length) || false;
     } else if (items[i - 1] && items[i - 1].chars) {
       hasGap = leftNext - righti > 1 * (items[i - 1].width / items[i - 1].chars.length) || false;
@@ -1057,12 +1081,60 @@ const hasGapInline = (pdfLine: PDFLine) => {
 };
 const tagWrapHeader = (headingLevel: number, item: string) => {
   if (headingLevel < 1 || headingLevel > 6) {
-    return;
+    item = "<p>" + item + "</p>\n";
+  } else {
+    const tagBegin = '<h' + headingLevel + '>';
+    const tagClose = '</h' + headingLevel + '>\n';
+    item = tagBegin + item + tagClose;
   }
-  const tagBegin = '<h' + headingLevel + '>';
-  const tagClose = '</h' + headingLevel + '>\n';
-  item = tagBegin + item + tagClose;
   return item;
+};
+
+const IdentifyHeadingLevel = (
+  para: PDFParagraph,
+  contentFontInfo: {
+    fontFrequency: {
+      [key: string]: number;
+    };
+    fontOrderByFrequency: string[];
+  },
+  contentHeightInfo: {
+    _frequency: {
+      [key: string]: number;
+    };
+    _orderByFrequency: number[];
+    mode: number;
+  },
+  modeLineSpace: number[],
+  level?: number,
+) => {
+  if (!level) {
+    level = 3;
+  } else {
+    if (level > 6) {
+      level = 6;
+    }
+  }
+  let headingLevel: number;
+  if (para.headingLevel != 1 && para.headingLevel != 100 && !para.isReference) {
+    const heightOrder = contentHeightInfo._orderByFrequency.sort((a, b) => b - a);
+    headingLevel = heightOrder.indexOf(para.lineHeight) + 1;
+    if (
+      //不同于最多的字体
+      !contentFontInfo.fontOrderByFrequency[0].includes(para.fontName)
+      //该段落仅有1-2行
+      && para.lines.length <= 2
+      //行间距大于5倍正文行间距
+      && para.paraSpace > 5 * modeLineSpace[0]
+      //行高大于众高
+      && para.lineHeight >= contentHeightInfo.mode
+    ) {
+      if (headingLevel > level) {
+        headingLevel = level;
+      }
+      para.headingLevel = headingLevel;
+    }
+  }
 };
 
 export async function pdf2document(itmeID: number) {
@@ -1588,14 +1660,12 @@ export async function pdf2document(itmeID: number) {
       }
       _paraText = _paraText.replace(/\x20+/g, " ").replace(/^\x20*\n+/g, "").replace(/\x20*\n+/g, "");
       _para.text = _paraText;
-      const temp = getMode((_para._height as number[]));
-      _para.lineHeight = typeof temp == "number" ? temp : Math.max(...temp);
+      _para.lineHeight = getMode((_para._height as number[]), "descending")[0];
       _para.fontName = fontInfo(_para.sourceLines, true)!.fontOrderByFrequency[0];
       if (_para.lines.length > 1) {
         const para_lineSpace = _para.lines.map(e => e.lineSpace).filter(e => e !== undefined) as number[];
         if (para_lineSpace !== undefined && para_lineSpace.length) {
-
-          _para.lineSpace = getMode(para_lineSpace)[0];
+          _para.lineSpace = getMode(para_lineSpace, "ascending")[0];
         }
       } else {
         _para.lineSpace = _para.lines[0].lineSpace ? _para.lines[0].lineSpace : 0;
@@ -1611,6 +1681,8 @@ export async function pdf2document(itmeID: number) {
   const contentLines_pagePara = (Object.values(_pagePara) as PDFParagraph[][]).flat(1);
   const contentFontInfo = fontInfo(contentLines_pagePara, true);
   const paraLineHighArr = contentLines_pagePara.map(p => p.lineHeight).filter(e => e != undefined);
+  const paraLineSpaceArr = contentLines_pagePara.map(p => p.lineSpace).filter(e => e != undefined);
+  const modeLineSpace = getMode(paraLineSpaceArr, "descending");
 
   //高度从大到小
   heightOrder = [...new Set(paraLineHighArr)];
@@ -1658,87 +1730,29 @@ export async function pdf2document(itmeID: number) {
     }
   }
 
-
-
-
-  /*   const spaceFrequency = frequency(lineSpace(contentLines));
-    const spaceOrder = orderByFrequency(spaceFrequency); */
-
-  const IdentifyHeadingLevel = (
-    para: PDFParagraph,
-    contentFontInfo: {
-      fontFrequency: {
-        [key: string]: number;
-      };
-      fontOrderByFrequency: string[];
-    },
-    contentHeightInfo: {
-      _frequency: {
-        [key: string]: number;
-      };
-      _orderByFrequency: number[];
-      mode: number;
-    },
-    level?: number,
-  ) => {
-    if (!level) {
-      level = 3;
-    }
-    let headingLevel: number;
-    if (para.headingLevel == 1 || para.headingLevel == 100) { return; }
-    if (para.isReference) {
-      para.headingLevel = -1;
-      return;
-    }
-    if (para.fontName
-      && contentFontInfo.fontOrderByFrequency[0].includes(para.fontName)
-      && para.lineHeight == contentHeightInfo.mode) {
-      //高频字体,高频行高
-      para.headingLevel = -1;
-      return;
-    }
-    const heightOrder = contentHeightInfo._orderByFrequency.sort((a, b) => b - a);
-    //段的行高索引号
-    headingLevel = heightOrder.indexOf(para.lineHeight) + 1;
-
-    if (
-      //不同于最多的字体
-      !contentFontInfo.fontOrderByFrequency[0].includes(para.fontName)
-      //该段落仅有1-2行
-      && para.lines.length <= 2
-      //行间距大于5倍正文行间距
-      && para.paraSpace > 5 * Number(spaceOrder[0])
-      //行高大于众高
-      && para.lineHeight > modeHigh
-    ) {
-      if (headingLevel > level) {
-        headingLevel = level;
-      }
-    }
-    else {
-      if (para.fontName && para.lines &&
-        //不同于最多的字体
-        !contentFontInfo?.fontOrderByFrequency[0].includes(para.fontName!)
-        //该段落仅有1-2行
-        && para.lines!.length <= 2
-
-        //行高大于众高
-        && para.lineHeight > modeHigh
-      ) {
-        //如果紧挨标题，则不作为标题
-        if (pdfTitle && pdfTitle.title && _pagePara[p][i - 1] && pdfTitle.title == _pagePara[p][i - 1]?.text) {
-          headingLevel = 10;
-        } else {
-          if (headingLevel > 3) {
-            headingLevel = 3;
-          }
-        }
-      }
-    }
-
-  };
-
+  let skipReference = false;
   for (let p = 0; p < Object.keys(_pagePara).length; p++) {
+    for (let i = 0; i < _pagePara[p].length; i++) {
+      const para = _pagePara[p][i] as PDFParagraph;
+      if (!skipReference) {
+        if (para.isReference) {
+          skipReference = true;
+        }
+        IdentifyHeadingLevel(para, contentFontInfo, contentHeightInfo, modeLineSpace, 3);
+      }
+      para.text = tagWrapHeader(para.headingLevel, para.text) as string;
+      docs.push(_pagePara[p][i].text);
+    }
+  }
+  if (pdfTitle == undefined && title !== undefined && title != "") {
+    const pdfTitle = "<h1>" + title + "</h1>" + "\n";
+    docs.unshift(pdfTitle);
+  }
+  return docs;
+};
+
+/*   for (let p = 0; p < Object.keys(_pagePara).length; p++) {
+
     let findedTitle = 0;
     let skip;
     for (let i = 0; i < _pagePara[p].length; i++) {
@@ -1812,10 +1826,5 @@ export async function pdf2document(itmeID: number) {
       }
       docs.push(_pagePara[p][i].text);
     }
-  }
-  if (pdfTitle == undefined) {
-    const pdfTitle = "<h1>" + title + "</h1>" + "\n";
-    docs.unshift(pdfTitle);
-  }
-  return docs;
-};
+  } */
+
