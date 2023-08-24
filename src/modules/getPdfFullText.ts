@@ -150,24 +150,108 @@ const frequency = (item: any[]) => {
     num[String(item[i])] ??= 0;
     num[String(item[i])] += 1;
   }
+  //
   //对象属性不按顺序排列
-  //属性为键转为对象数组
+  //以去重的值为键，频次为值，转为按频次排列的对象数组
   const tempArr = Object.keys(num).sort((h1: string, h2: string) =>
     num[h2] - num[h1]
   );
   const objArrOrderByFrequency: { [key: string]: number; }[] = [];
   tempArr.filter(e => {
-    objArrOrderByFrequency.push({
-      e: num[e]
-    });
+    const obj: any = {};
+    obj[e] = num[e];
+    objArrOrderByFrequency.push(obj);
   });
   const OrderByFrequency = orderByFrequency(num);
+
+  const test22 = objOrder(objArrOrderByFrequency, false);
+  const test23 = objOrder(objArrOrderByFrequency);
   //return num;
   return {
     objFrequency: num,
     objArrOrderByFrequency: objArrOrderByFrequency,
     itemOrderByFrequency: OrderByFrequency
   };
+
+};
+
+//数组中对象的属性仅有一个
+//数组中对象的属性不止一个，每个对象都有相同的属性
+//数组中对象的属性不止一个，且无相同属性
+const objOrder = (objArr: any, reverse?: boolean) => {
+  if (Array.isArray(objArr)) {
+    const sortArr: any[] = [];
+    const sortArrReverse: any[] = [];
+    /* 遍历第一个对象元素的所有属性  */
+    let objSameAttributes = [];
+    if (objArr.filter(e => Object.keys(e).length > 1).length) {
+      objSameAttributes = Object.keys(objArr[0]).filter(e => {
+        let marker = true;
+        /* 
+        遍历对象，查询有无给定属性，
+        若无，则退出循环，
+        如果有一个对象没有该属性则认为该属性不同
+        */
+        for (let i = 1; i < objArr.length; i++) {
+          if (!Object.prototype.hasOwnProperty.call(objArr[i], e)) {
+            marker = false;
+            break;
+          }
+        }
+        return marker;
+      });
+      //正反排序均组成数组，保存到数组中，先解构再排序
+      //非数值的值，不排序
+      objSameAttributes.filter(e => {
+        sortArr.push([...objArr].sort((a: any, b: any) => a.e - b.e));
+        sortArrReverse.push([...objArr].sort((a: any, b: any) => b.e - a.e));
+      });
+    } else {
+      /* 
+      值均为数字
+      对象仅有一个属性，但数组中对象属性可能各不相同，按值排序
+      先将值构成数组，排序后再排对象
+      sort()按照字符串排序，数字排序结果形如 Array(37) [ 1, 1, 10, 1129, 113, 12, 120, 142, 2, 2, … ]
+      要想按照数值排序，则需要传入回调函数
+      重复值会导致键重复，需要先去重
+  
+      值不全为数字 
+      先将数字补齐零，需要找到最大的数字
+  
+      后缀为数字
+      */
+
+
+      const valuesArr = [...new Set(objArr.map(e => Object.values(e)[0]))].sort((a, b) => a - b);
+      valuesArr.filter(e => {
+        objArr.filter(o => {
+          if (Object.values(o) == e) {
+            sortArr.push(o);
+          }
+        });
+      });
+      const valuesArr2 = valuesArr.sort((a, b) => b - a);
+      valuesArr2.filter(e => {
+        objArr.filter(o => {
+          if (Object.values(o) == e) {
+            sortArrReverse.push(o);
+          }
+        });
+      });
+    }
+    if (reverse === undefined) {
+      return {
+        sortArr: sortArr,
+        sortArrReverse: sortArrReverse,
+      };
+    } else if (reverse) {
+      return sortArrReverse;
+    } else {
+      return sortArr;
+    }
+  } else if (typeof objArr == "object") {
+    return;
+  }
 
 };
 
@@ -361,14 +445,16 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
   }
 
   const fontArr = arrTemp.map((e: any) => e["fontName"]);
-  const fontObj = frequency(fontArr).objFrequency;
-  const fontOrder = orderByFrequency(fontObj) as string[];
+  const tempObj = frequency(fontArr);
+  const fontObj = tempObj.objFrequency;
+  const fontOrder = tempObj.itemOrderByFrequency as string[];
+  const fontObjArrOrderByFrequency = tempObj.objArrOrderByFrequency;
   //const fontOrder = fontObj.map(e => Object.keys(e)[0]) as string[];
   //字体为字符串，末尾是序号，但个位的字符数少于十位的
   //截取末尾数字转为数字然后用来排序
   const reg = /.+?(\d+)$/m;
-  const test1 = Number(Object.keys(fontObj[0])[0].replace(reg, "$1"));
-  const test2 = Number(Object.keys(fontObj[1])[0].replace(reg, "$1"));
+  const test1 = Number(Object.keys(fontObjArrOrderByFrequency[0])[0].replace(reg, "$1"));
+  const test2 = Number(Object.keys(fontObjArrOrderByFrequency[1])[0].replace(reg, "$1"));
   const fontPresentOrder = [...fontOrder].sort((a, b) => Number(b.replace(reg, "$1")) - Number(a.replace(reg, "$1")));
 
   const lineHeightArr = arrTemp.map((e: PDFItem) => e.height);
@@ -1062,6 +1148,7 @@ const getModeFrequencyAndOrder = (arrary: number[]) => {
   return {
     _frequency: _frequency,
     _orderByFrequency: _orderByFrequency,
+    _objArrOrderByFrequency: _objArrOrderByFrequency,
     mode: mode,
   };
 };
@@ -1329,6 +1416,8 @@ export async function pdf2document(itmeID: number) {
     itemsArr.push(items as PDFItem[]);
   }
   const fontInfoArticle = fontInfo(itemsArr, false);
+  const heightTempArr = itemsArr.flat(1).map(e => e.height).filter(e => e != undefined);
+  const heightInfoArticle = getModeFrequencyAndOrder(heightTempArr);
 
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
