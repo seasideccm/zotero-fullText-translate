@@ -340,7 +340,13 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
   const fontArr = arrTemp.map((e: any) => e["fontName"]);
   const fontObj = frequency(fontArr);
   const fontOrder = orderByFrequency(fontObj) as string[];
-  const fontOrderByValue = fontOrder.sort() as string[];
+  //字体为字符串，末尾是序号，但个位字符数少于十位
+  //截取末尾数字转为数字然后用来排序
+  const reg = /.+?(\d+)$/m;
+  const test1 = Number(fontOrder[0].replace(reg, "$1"));
+  const test2 = Number(fontOrder[1].replace(reg, "$1"));
+  const fontOrderByValue = [...fontOrder];
+  fontOrderByValue.sort((a, b) => Number(b.replace(reg, "$1")) - Number(a.replace(reg, "$1")));
 
   const lineHeightArr = arrTemp.map((e: PDFItem) => e.height);
   const lineHeightMode = getMode(lineHeightArr, "descending");
@@ -436,7 +442,8 @@ const fontStyle = (item: PDFItem, lineItem: PDFItem[], lineArr: PDFItem[][], fon
   const strCountsLine = strNoDuplicateByFont[item.fontName];
   const linefontIndex = strNoDuplicateOrderByFont.indexOf(strCountsLine);
   //先一律设为斜体
-  if (linefontIndex == 1) {
+  if (linefontIndex >= 1) {
+    /*     if () */
     lineFontStyle = "italic";
   }
   if (linefontIndex == 2) {
