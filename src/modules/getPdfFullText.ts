@@ -340,6 +340,48 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
   const fontArr = arrTemp.map((e: any) => e["fontName"]);
   const fontObj = frequency(fontArr);
   const fontOrder = orderByFrequency(fontObj) as string[];
+  const fontOrderByValue = fontOrder.sort() as string[];
+
+  const lineHeightArr = arrTemp.map((e: PDFItem) => e.height);
+  const lineHeightMode = getMode(lineHeightArr, "descending");
+  const lineHeightOrderByValue = lineHeightMode.sort((a, b) => b - a);
+
+  let titleFont;
+  const maxLineHeight = lineHeightOrderByValue[0];
+  const yArr: number[] = [];
+  const xArr: number[] = [];
+  allItem.filter(e => {
+    yArr.push(e.transform[5]);
+    xArr.push(e.transform[4]);
+    xArr.push(e.transform[4] + e.width);
+  });
+  const maxY = Math.max(...yArr);
+  const minY = Math.min(...yArr);
+  const maxX = Math.max(...xArr);
+  const minX = Math.min(...xArr);
+  const pdfItemsMaxHeight = allItem.filter(e => e.height == maxLineHeight);
+
+  const tempFont = pdfItemsMaxHeight[0].fontName;
+  if (pdfItemsMaxHeight.length == 1) {
+    if (pdfItemsMaxHeight[0].transform[5] < maxY
+      && pdfItemsMaxHeight[0].transform[5] > minY
+      && pdfItemsMaxHeight[0].str.splic(" ").length > 1
+      && fontOrderByValue.indexOf(tempFont) < fontOrderByValue.length / 2
+      && Number(tempFont.match(/\d+$/m)[0])) {
+      titleFont = tempFont;
+    }
+  } else if (pdfItemsMaxHeight.length == 2) {
+    if (pdfItemsMaxHeight[0].fontName == pdfItemsMaxHeight[1].fontName) {
+      titleFont = tempFont;
+    } else {
+      titleFont = pdfItemsMaxHeight[0].width >= pdfItemsMaxHeight[1].width ? pdfItemsMaxHeight[0].fontName : pdfItemsMaxHeight[1].fontName;
+    }
+  } else if (pdfItemsMaxHeight.length > 2) {
+    titleFont = orderByFrequency(frequency(pdfItemsMaxHeight.map(e => e.fontName)))[0];
+  }
+
+
+
   //const arrTemp = lineArr.flat(Infinity).filter((e: any) => !e.str.includes("\\u000"));
   const strNoDuplicateByFont: any = {};
   for (let i = 0; i < fontOrder.length; i++) {
@@ -361,7 +403,7 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
 };
 
 
-const fontStyle = (item: PDFItem, lineItem: PDFItem[], fontInfoObj: any) => {
+const fontStyle = (item: PDFItem, lineItem: PDFItem[], lineArr: PDFItem[][], fontInfoObj: any) => {
   const fontOrder = fontInfoObj.fontOrderByFrequency;
   const strNoDuplicateByFont = fontInfoObj.strNoDuplicateByFont;
   const strNoDuplicateOrderByFont = fontInfoObj.strNoDuplicateOrderByFont;
@@ -489,17 +531,16 @@ const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
 };
 
 const makeLine = (lineArr: PDFItem[][]) => {
-  // 行数组中的元素合并成行，判断上下标，粗斜体
+  // 行数组中的元素合并成行，
+  //判断上下标，粗斜体
   const linesCombined = [];
   const fontInfoObj = fontInfo(lineArr, true);
-  //for (const lineItem of lineArr) {
   for (let i = 0; i < lineArr.length; i++) {
     const lineItem: PDFItem[] = lineArr[i];
     if (!lineItem.length) { continue; }
     // 行数组的首个元素转换为PDFLine类型，作为行首，即前一行（或上一小行）
     const lastLine = toLine(lineItem[0] as PDFItem);
-    //字体
-    const fontInfo = fontStyle(lineItem[0], lineItem, fontInfoObj);
+    const fontInfo = fontStyle(lineItem[0], lineItem, lineArr, fontInfoObj);
     lastLine.fontName = fontInfo?.lineMainFont ? fontInfo?.lineMainFont : lineItem[0].fontName;
     const lastLineFontStyle = fontInfo?.lineFontStyle;
     const lineTxt = lastLine.text;
@@ -1211,6 +1252,7 @@ export async function pdf2document(itmeID: number) {
     });
     itemsArr.push(items);
   }
+  const fontInfoArticle = fontInfo(itemsArr, false);
 
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
