@@ -150,7 +150,25 @@ const frequency = (item: any[]) => {
     num[String(item[i])] ??= 0;
     num[String(item[i])] += 1;
   }
-  return num;
+  //对象属性不按顺序排列
+  //属性为键转为对象数组
+  const tempArr = Object.keys(num).sort((h1: string, h2: string) =>
+    num[h2] - num[h1]
+  );
+  const objArrOrderByFrequency: { [key: string]: number; }[] = [];
+  tempArr.filter(e => {
+    objArrOrderByFrequency.push({
+      e: num[e]
+    });
+  });
+  const OrderByFrequency = orderByFrequency(num);
+  //return num;
+  return {
+    objFrequency: num,
+    objArrOrderByFrequency: objArrOrderByFrequency,
+    itemOrderByFrequency: OrderByFrequency
+  };
+
 };
 
 /**
@@ -167,7 +185,6 @@ const orderByFrequency = (num: { [key: string]: number; }) => {
   );
   // 如果排序后众数对应的高（字符串，在首位）的频次与第二位相同，
   // 则有可能未进行排序，不相等则一定做过排序
-
   //所有键均为数值数字，否则无法运行
   /// if (Object.keys(num).filter(e => e.match(/^[0-9.]+$/g) != null).length == Object.keys(num).length) {
   if (Object.keys(num).filter(e => !isNaN(Number(e))).length == Object.keys(num).length) {
@@ -176,8 +193,6 @@ const orderByFrequency = (num: { [key: string]: number; }) => {
   } else {
     return modeArr;
   }
-
-
 };
 
 
@@ -275,36 +290,45 @@ const combineLine = (lastLine: PDFLine, line: PDFLine, fontStyle?: string) => {
 };
 const abs = (x: number) => x > 0 ? x : -x;
 
+/**
+ * 通过字体筛选文本
+ * isRetrunObj为true时返回pdfItem数组，否则返回字符串数组
+ * @param strArr 
+ * @param fontName 
+ * @param isRetrunObj 
+ * @param isSkipWhiteSpace 
+ * @returns 
+ */
 const strByFont = (strArr: any[], fontName: string, isRetrunObj: boolean, isSkipWhiteSpace: boolean) => {
-  let strByFont;
+  let strByFontArr;
   if (isSkipWhiteSpace) {
+    //判断属性是text还是str
     if ((Object.prototype.hasOwnProperty.call(strArr[0], "text"))) {
       if (isRetrunObj) {
-        strByFont = strArr.filter(e => e.text != '' && e.text != " ").filter(e => e.fontName == fontName);
+        strByFontArr = strArr.filter(e => e.text != '' && e.text != " ").filter(e => e.fontName == fontName);
       } else {
-
-        strByFont = strArr.filter(e => e.text != '' && e.text != " ").filter(e => e.fontName == fontName).map(e => e.str);
+        strByFontArr = strArr.filter(e => e.text != '' && e.text != " ").filter(e => e.fontName == fontName).map(e => e.str);
       }
     } else {
       if (isRetrunObj) {
-        strByFont = strArr.filter(e => e.str != '' && e.str != " ").filter(e => e.fontName == fontName);
+        strByFontArr = strArr.filter(e => e.str != '' && e.str != " ").filter(e => e.fontName == fontName);
       } else {
 
-        strByFont = strArr.filter(e => e.str != '' && e.str != " ").filter(e => e.fontName == fontName).map(e => e.str);
+        strByFontArr = strArr.filter(e => e.str != '' && e.str != " ").filter(e => e.fontName == fontName).map(e => e.str);
       }
     }
   } else {
     if (isRetrunObj) {
-      strByFont = strArr.filter(e => e.fontName == fontName);
+      strByFontArr = strArr.filter(e => e.fontName == fontName);
     } else {
       if ((Object.prototype.hasOwnProperty.call(strArr[0], "text"))) {
-        strByFont = strArr.filter(e => e.fontName == fontName).map(e => e.text);
+        strByFontArr = strArr.filter(e => e.fontName == fontName).map(e => e.text);
       } else {
-        strByFont = strArr.filter(e => e.fontName == fontName).map(e => e.str);
+        strByFontArr = strArr.filter(e => e.fontName == fontName).map(e => e.str);
       }
     }
   }
-  return strByFont;
+  return strByFontArr;
 };
 
 /**
@@ -314,7 +338,6 @@ const strByFont = (strArr: any[], fontName: string, isRetrunObj: boolean, isSkip
  * @returns 
  */
 const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
-  /* if (!allItem.length) { return; } */
   if (Array.isArray(allItem[0])) {
     allItem = allItem.flat(Infinity);
   }
@@ -338,19 +361,19 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
   }
 
   const fontArr = arrTemp.map((e: any) => e["fontName"]);
-  const fontObj = frequency(fontArr);
+  const fontObj = frequency(fontArr).objFrequency;
   const fontOrder = orderByFrequency(fontObj) as string[];
-  //字体为字符串，末尾是序号，但个位字符数少于十位
+  //const fontOrder = fontObj.map(e => Object.keys(e)[0]) as string[];
+  //字体为字符串，末尾是序号，但个位的字符数少于十位的
   //截取末尾数字转为数字然后用来排序
   const reg = /.+?(\d+)$/m;
-  const test1 = Number(fontOrder[0].replace(reg, "$1"));
-  const test2 = Number(fontOrder[1].replace(reg, "$1"));
-  const fontOrderByValue = [...fontOrder];
-  fontOrderByValue.sort((a, b) => Number(b.replace(reg, "$1")) - Number(a.replace(reg, "$1")));
+  const test1 = Number(Object.keys(fontObj[0])[0].replace(reg, "$1"));
+  const test2 = Number(Object.keys(fontObj[1])[0].replace(reg, "$1"));
+  const fontPresentOrder = [...fontOrder].sort((a, b) => Number(b.replace(reg, "$1")) - Number(a.replace(reg, "$1")));
 
   const lineHeightArr = arrTemp.map((e: PDFItem) => e.height);
   const lineHeightMode = getMode(lineHeightArr, "descending");
-  const lineHeightOrderByValue = lineHeightMode.sort((a, b) => b - a);
+  const lineHeightOrderByValue = [...lineHeightMode].sort((a, b) => b - a);
 
   let titleFont;
   const maxLineHeight = lineHeightOrderByValue[0];
@@ -372,7 +395,7 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
     if (pdfItemsMaxHeight[0].transform[5] < maxY
       && pdfItemsMaxHeight[0].transform[5] > minY
       && pdfItemsMaxHeight[0].str.splic(" ").length > 1
-      && fontOrderByValue.indexOf(tempFont) < fontOrderByValue.length / 2
+      && fontPresentOrder.indexOf(tempFont) < fontPresentOrder.length / 2
       && Number(tempFont.match(/\d+$/m)[0])) {
       titleFont = tempFont;
     }
@@ -383,28 +406,38 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
       titleFont = pdfItemsMaxHeight[0].width >= pdfItemsMaxHeight[1].width ? pdfItemsMaxHeight[0].fontName : pdfItemsMaxHeight[1].fontName;
     }
   } else if (pdfItemsMaxHeight.length > 2) {
-    titleFont = orderByFrequency(frequency(pdfItemsMaxHeight.map(e => e.fontName)))[0];
+    titleFont = frequency(pdfItemsMaxHeight.map(e => e.fontName)).itemOrderByFrequency[0];
   }
 
 
 
   //const arrTemp = lineArr.flat(Infinity).filter((e: any) => !e.str.includes("\\u000"));
   const strNoDuplicateByFont: any = {};
+  const strCountsByFont: any = {};
+  const strArrByFont: any = {};
   for (let i = 0; i < fontOrder.length; i++) {
     //排除特殊字符,降低字体判断复杂度    
     const strByFontArr = strByFont(arrTemp, fontOrder[i], false, true);
     const newArr = [...new Set(strByFontArr)];
-    if (newArr.length) {
-      strNoDuplicateByFont[fontOrder[i]] = newArr.length;
-    }
+    strArrByFont[fontOrder[i]] = {
+      strNoDuplicateByFont: newArr,
+      strByFontArr: strByFontArr,
+    };
+    strNoDuplicateByFont[fontOrder[i]] = newArr.length;
+    strCountsByFont[fontOrder[i]] = strByFontArr.length;
   }
   //去重字符串的数量组成数组然后降序排序
   const strNoDuplicateOrderByFont = Object.values(strNoDuplicateByFont).sort((a, b) => (b as number) - (a as number));
+  const strOrderByFont = Object.values(strCountsByFont).sort((a, b) => (b as number) - (a as number));
   return {
     fontFrequency: fontObj,
     fontOrderByFrequency: fontOrder,
     strNoDuplicateByFont: strNoDuplicateByFont,
     strNoDuplicateOrderByFont: strNoDuplicateOrderByFont,
+    strCountsByFont: strCountsByFont,
+    strOrderByFont: strOrderByFont,
+    strArrByFont: strArrByFont,
+    titleFont: titleFont,
   };
 };
 
@@ -509,13 +542,13 @@ const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
       righti = items[i].transform[4] + items[i].width;
       leftNext = items[i + 1]?.transform[4];
       let hasGap = false;
-      if (items[i].chars) {
-        hasGap = leftNext - righti > 1 * (items[i].width / items[i].chars.length)
+      if (items[i].str != "") {
+        hasGap = leftNext - righti > 1 * (items[i].width / items[i].str.length)
           || false;
-      } else if (items[i + 1] && items[i + 1].chars) {
-        hasGap = leftNext - righti > 1 * (items[i + 1].width / items[i + 1].chars.length) || false;
-      } else if (items[i - 1] && items[i - 1].chars) {
-        hasGap = leftNext - righti > 1 * (items[i - 1].width / items[i - 1].chars.length) || false;
+      } else if (items[i + 1] && items[i + 1].str != "") {
+        hasGap = leftNext - righti > 1 * (items[i + 1].width / items[i + 1].str.length) || false;
+      } else if (items[i - 1] && items[i - 1].str != "") {
+        hasGap = leftNext - righti > 1 * (items[i - 1].width / items[i - 1].str.length) || false;
       } else {
         hasGap = leftNext - righti > 6;
       }
@@ -568,7 +601,7 @@ const makeLine = (lineArr: PDFItem[][]) => {
       for (let i = 1; i < lineItem.length; i++) {
         const line = toLine(lineItem[i]);
         lastLine.sourceLine.push(lineItem[i]);
-        const lineFontStyle = fontStyle(lineItem[i], lineItem, fontInfoObj)?.lineFontStyle;
+        const lineFontStyle = fontStyle(lineItem[i], lineItem, lineArr, fontInfoObj)?.lineFontStyle;
         //上一行的在合并中属性不断变化，最后成为一整行
         //是空字串也需要合并属性
         combineLine(lastLine, line, lineFontStyle);
@@ -816,7 +849,7 @@ const titleIdentify = (title: string,
     _frequency: {
       [key: string]: number;
     };
-    _orderByFrequency: number[];
+    _orderByFrequency: number[] | string[];
     mode: number;
   }) => {
   const pdfTitle = {
@@ -827,7 +860,7 @@ const titleIdentify = (title: string,
   if (title) {
     twords = [...new Set(title.toLowerCase().split(' '))];
   }
-  const pagesHeightOrderByValue = contentHeightInfo._orderByFrequency.sort((a, b) => b - a);
+  const pagesHeightOrderByValue = contentHeightInfo._orderByFrequency.sort((a, b) => Number(b) - Number(a)) as number[];
 
   const totalPageNum = Object.keys(_pagePara).length;
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
@@ -836,12 +869,12 @@ const titleIdentify = (title: string,
     const highModeFrequencyOrder = getModeFrequencyAndOrder(lineHeightArr);
     const lineHeightOrderByFrequency = highModeFrequencyOrder._orderByFrequency;
     const highMode = highModeFrequencyOrder.mode;
-    const lineHeightOrderByValue = lineHeightOrderByFrequency.sort((a, b) => b - a);
+    const lineHeightOrderByValue = [...lineHeightOrderByFrequency].sort((a, b) => Number(b) - Number(a));
 
     //const lineWidthtArr = Object.values(_para).map(e => parseFloat(e.width.toFixed(3)));
     //const widthModeFrequencyOrder = getModeFrequencyAndOrder(lineWidthtArr);
     //const lineWidthOrderByFrequency = widthModeFrequencyOrder._orderByFrequency;
-    //const lineWidthOrderByValue = lineWidthOrderByFrequency.sort((a, b) => b - a);
+    //const lineWidthOrderByValue =[... lineWidthOrderByFrequency].sort((a, b) => b - a);
 
     /* const lines = _para.flat(1).map(p => p.lines);
     const pagefontOrderByFrequency = fontInfo(lines, true)?.fontOrderByFrequency; */
@@ -983,21 +1016,48 @@ const propertyArr = (arr: any[], property: string) => {
 
 const getModeFrequencyAndOrder = (arrary: number[]) => {
   //众数可能不止一个，找到众数中较大的一个行高
-  const _frequency = frequency(arrary);
-  const _orderByFrequency = orderByFrequency(_frequency) as number[];
+  const tempObj = frequency(arrary);
+  const _frequency = tempObj.objFrequency;
+  const _objArrOrderByFrequency = tempObj.objArrOrderByFrequency;
+  const _orderByFrequency = tempObj.itemOrderByFrequency;
+  //const _orderByFrequency = orderByFrequency(_frequency) as number[];
   let mode = 0;
   let highArr;
-  for (let i = 1; i < _orderByFrequency.length; i++) {
-    //查询出频次，如果相邻频次数相差悬殊时终止
-    if (_frequency[_orderByFrequency[i - 1]] > 2 * _frequency[_orderByFrequency[i]] && _frequency[_orderByFrequency[i]] > 10) {
-      highArr = _orderByFrequency.slice(0, i - 1) as number[];
-      break;
+  //如果相邻频次相差悬殊时认为之前的为候选众数，因为频次较高的可能不止一个
+  for (let i = 1; i < _objArrOrderByFrequency.length; i++) {
+    if (Object.values(_objArrOrderByFrequency[i - 1])[0] > 2 * Object.values(_objArrOrderByFrequency[i])[0]
+      && Object.values(_objArrOrderByFrequency[i])[0] > 10) {
+      highArr = _objArrOrderByFrequency.slice(0, i - 1).map(e => Number(Object.keys(e)[0]));
     }
   }
-  if (highArr && highArr.length > 2) {
-    mode = Math.max(...highArr);
+
+
+  /*   for (let i = 1; i < _orderByFrequency.length; i++) {
+       
+      if (_frequency[_orderByFrequency[i - 1]] > 2 * _frequency[_orderByFrequency[i]] && _frequency[_orderByFrequency[i]] > 10) {
+        highArr = _orderByFrequency.slice(0, i - 1) as number[];
+        break;
+      }
+    } */
+  if (!highArr) {
+    mode = Number(Object.keys(_objArrOrderByFrequency[0])[0]);
+  } else if (highArr && highArr.length >= 2) {
+    while (!mode) {
+      const modeTemp = Math.max(...highArr);
+      if (_frequency[modeTemp] / Object.values(_objArrOrderByFrequency[0])[0] > 0.7) {
+        mode = modeTemp;
+        break;
+      } else {
+        if (highArr.length == 1) {
+          mode = highArr[0];
+          break;
+        } else {
+          highArr = highArr.filter(e => e != modeTemp);
+        }
+      }
+    }
   } else {
-    mode = _orderByFrequency[0];
+    mode = highArr[0];
   }
   return {
     _frequency: _frequency,
@@ -1015,7 +1075,7 @@ const longSpaceCounts = (pdfLine: PDFLine) => {
     pdfLine.sourceLine.filter(e => {
       if (e.str != " " && e.str != "") {
         widthChara += e.width;
-        counts += e.chars.length;
+        counts += e.str.length;
       }
     });
     if (counts) {
@@ -1045,8 +1105,9 @@ const longSpaceCounts = (pdfLine: PDFLine) => {
  * @returns 
  */
 const findColumnX = (items: PDFItem[]) => {
-  const xfrequency = frequency(items.filter(e => e.str != "" && e.str != " ").map(e => Math.round(e.transform[4] * 10) / 10));
-  const xorderByFrequency = orderByFrequency(xfrequency);
+  const temp = frequency(items.filter(e => e.str != "" && e.str != " ").map(e => Math.round(e.transform[4] * 10) / 10));
+  const xfrequency = temp.objFrequency;
+  const xorderByFrequency = temp.itemOrderByFrequency;
   const valid: number[] = [];
   const invalid: number[] = [];
   for (let i = 0; i < xorderByFrequency.length; i++) {
@@ -1078,8 +1139,9 @@ const findColumnX = (items: PDFItem[]) => {
 
 
 const findRowY = (items: CellBox[]) => {
-  const rowYfrequency = frequency(items.map(e => e.bottom));
-  const rowYorderByFrequency = orderByFrequency(rowYfrequency);
+  const temp = frequency(items.map(e => e.bottom));
+  const rowYfrequency = temp.objFrequency;
+  const rowYorderByFrequency = temp.itemOrderByFrequency;
   const valid: number[] = [];
   const invalid: number[] = [];
   for (let i = 0; i < rowYorderByFrequency.length; i++) {
@@ -1109,13 +1171,13 @@ const hasGapInline = (pdfLine: PDFLine) => {
     righti = items[i].transform[4] + items[i].width;
     leftNext = items[i + 1]?.transform[4];
     let hasGap = false;
-    if (items[i].chars) {
-      hasGap = leftNext - righti > 1 * (items[i].width / items[i].chars.length)
+    if (items[i].str) {
+      hasGap = leftNext - righti > 1 * (items[i].width / items[i].str.length)
         || false;
-    } else if (items[i + 1] && items[i + 1].chars) {
-      hasGap = leftNext - righti > 1 * (items[i + 1].width / items[i + 1].chars.length) || false;
-    } else if (items[i - 1] && items[i - 1].chars) {
-      hasGap = leftNext - righti > 1 * (items[i - 1].width / items[i - 1].chars.length) || false;
+    } else if (items[i + 1] && items[i + 1].str) {
+      hasGap = leftNext - righti > 1 * (items[i + 1].width / items[i + 1].str.length) || false;
+    } else if (items[i - 1] && items[i - 1].str) {
+      hasGap = leftNext - righti > 1 * (items[i - 1].width / items[i - 1].str.length) || false;
     } else {
       hasGap = leftNext - righti > 6;
     }
@@ -1148,12 +1210,18 @@ const IdentifyHeadingLevel = (
       [key: string]: number;
     };
     fontOrderByFrequency: string[];
+    strNoDuplicateByFont: any;
+    strNoDuplicateOrderByFont: unknown[];
+    strCountsByFont: any;
+    strOrderByFont: unknown[];
+    strArrByFont: any;
+    titleFont: any;
   },
   contentHeightInfo: {
     _frequency: {
       [key: string]: number;
     };
-    _orderByFrequency: number[];
+    _orderByFrequency: string[] | number[];
     mode: number;
   },
   modelineSpaceTop: number[],
@@ -1161,7 +1229,7 @@ const IdentifyHeadingLevel = (
 ) => {
   let headingLevel: number;
   let isheading = false;
-  const heightOrder = contentHeightInfo._orderByFrequency.sort((a, b) => b - a);
+  const heightOrder = contentHeightInfo._orderByFrequency.sort((a, b) => Number(b) - Number(a)) as number[];
   headingLevel = heightOrder.indexOf(para.lineHeight) + 1;
   if (para.headingLevel == 1 || para.headingLevel == 100 && !para.isReference) { return; }
   if (contentCleanFontInfo.fontOrderByFrequency[0].includes(para.fontName)) { return; }
@@ -1248,16 +1316,17 @@ export async function pdf2document(itmeID: number) {
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     const pdfPage = pages[pageNum].pdfPage;
     const textContent = await pdfPage.getTextContent();
-    const items: PDFItem[] = textContent.items;
-    items.filter(e => {
+    const items = textContent.items;
+    items.filter((e: any) => {
       e.transform[5] = Math.round(e.transform[5] * 1000) / 1000;
       e.transform[4] = Math.round(e.transform[4] * 1000) / 1000;
       e.transform[3] = Math.round(e.transform[3] * 1000) / 1000;
       e.transform[0] = Math.round(e.transform[0] * 1000) / 1000;
       e.height = Math.round(e.height * 1000) / 1000;
       e.width = Math.round(e.width * 1000) / 1000;
+      delete e.chars;
     });
-    itemsArr.push(items);
+    itemsArr.push(items as PDFItem[]);
   }
   const fontInfoArticle = fontInfo(itemsArr, false);
 
@@ -1454,15 +1523,15 @@ export async function pdf2document(itmeID: number) {
     if (lines.length > 1) {
 
       //整篇文章差异很大，单页获取
-      const xFrequency = frequency(linesX(lines));
+      const xFrequency = frequency(linesX(lines)).objFrequency;
       const xOrder = orderByFrequency(xFrequency);
-      const yFrequency = frequency(linesY(lines));
+      const yFrequency = frequency(linesY(lines)).objFrequency;
       const yOrder = orderByFrequency(yFrequency);
-      const hFrequency = frequency(linesHeight(lines));
+      const hFrequency = frequency(linesHeight(lines)).objFrequency;
       const hOrder = orderByFrequency(hFrequency);
-      const widthFrequency = frequency(linesWidth(lines));
+      const widthFrequency = frequency(linesWidth(lines)).objFrequency;
       const widthOrder = orderByFrequency(widthFrequency);
-      const spaceFrequency = frequency(lineSpace(lines));
+      const spaceFrequency = frequency(lineSpace(lines)).objFrequency;
       const spaceOrder = orderByFrequency(spaceFrequency);
 
       const font = fontInfo(lines, true);

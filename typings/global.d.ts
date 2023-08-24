@@ -52,14 +52,14 @@ declare type CellBox = {
 
 
 declare type PDFItem = {
-  chars: {
-    baseline: number;
-    c: string;
-    fontName: string;
-    fontSize: number;
-    rect: number[];
-    rotation: number;
-  }[];
+  /*   chars: {
+      baseline: number;
+      c: string;
+      fontName: string;
+      fontSize: number;
+      rect: number[];
+      rotation: number;
+    }[]; */
   dir: string;
   fontName: string;
   height: number;
