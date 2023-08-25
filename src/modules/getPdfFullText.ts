@@ -1,6 +1,7 @@
 /* import { Decimal } from 'decimal.js';
 import { ColumnOptions } from 'zotero-plugin-toolkit/dist/helpers/virtualizedTable';
 import { langCode_franVsZotero } from '../utils/config'; */
+import { kMaxLength } from 'buffer';
 import { getPref } from '../utils/prefs';
 
 /* eslint-disable no-useless-escape */
@@ -162,10 +163,10 @@ const frequency = (item: any[]) => {
     obj[e] = num[e];
     objArrOrderByFrequency.push(obj);
   });
-  const OrderByFrequency = orderByFrequency(num);
+  const OrderByFrequency = numberKVObjOrderByFrequency(num);
 
-  const test22 = objOrder(objArrOrderByFrequency, false);
-  const test23 = objOrder(objArrOrderByFrequency);
+  const test22 = objArrOrder(objArrOrderByFrequency, false);
+  const test23 = objArrOrder(objArrOrderByFrequency);
   //return num;
   return {
     objFrequency: num,
@@ -178,7 +179,7 @@ const frequency = (item: any[]) => {
 //数组中对象的属性仅有一个
 //数组中对象的属性不止一个，每个对象都有相同的属性
 //数组中对象的属性不止一个，且无相同属性
-const objOrder = (objArr: any, reverse?: boolean) => {
+const objArrOrder = (objArr: object | object[], reverse?: boolean, orderBy?: ["key" | "value"]) => {
   if (Array.isArray(objArr)) {
     const sortArr: any[] = [];
     const sortArrReverse: any[] = [];
@@ -222,7 +223,7 @@ const objOrder = (objArr: any, reverse?: boolean) => {
       */
 
 
-      const valuesArr = [...new Set(objArr.map(e => Object.values(e)[0]))].sort((a, b) => a - b);
+      const valuesArr = [...new Set(objArr.map(e => Object.values(e)[0]))].sort((a, b) => Number(a) - Number(b));
       valuesArr.filter(e => {
         objArr.filter(o => {
           if (Object.values(o) == e) {
@@ -230,7 +231,7 @@ const objOrder = (objArr: any, reverse?: boolean) => {
           }
         });
       });
-      const valuesArr2 = valuesArr.sort((a, b) => b - a);
+      const valuesArr2 = valuesArr.sort((a, b) => Number(b) - Number(a));
       valuesArr2.filter(e => {
         objArr.filter(o => {
           if (Object.values(o) == e) {
@@ -249,19 +250,153 @@ const objOrder = (objArr: any, reverse?: boolean) => {
     } else {
       return sortArr;
     }
-  } else if (typeof objArr == "object") {
+  } else if (objArr.constructor === Object) {
+    //如果是对象，将对象拆散为对象数组，按值排序或按属性排序
+    //按值排序
+
     return;
   }
 
 };
 
+const objTempOrder = (obj: { [key: string]: string | number; }, isPad?: boolean) => {
+  const objOrdered: any = {
+    objArrOrderByKey: [],
+    objArrOrderByKeyReverse: [],
+    objArrOrderByValue: [],
+    objArrOrderByValueReverse: [],
+  };
+
+  /* 按字符串排序;
+  字符串中有数字，补齐后排序;
+  按键排序;
+  按值排序; */
+  // 以 obj 的键作为字符串数组，根据相应键的值为条件排序
+
+  const keys = Object.keys(obj);
+  const values = Object.values(obj);
+  const vv: any = {};
+  if (isPad) {
+    const reg = [];
+    reg.push(/^(\d+)$/m);
+    reg.push(/^(\d+)[^\d]+$/m);
+    reg.push(/^[^\d]+(\d+)$/m);
+    reg.push(/^[^\d]+(\d+)[^\d]+$/m);
+    for (const reg0 of reg) {
+      //提取reg匹配的内容
+      let numbers: any = [];
+      keys.map(k => {
+        const contition = k.match(reg0);
+        if (contition == null) {
+          return false;
+        } else {
+          numbers.push(contition[1]);
+          return;
+        }
+      });
+      numbers = numbers.filter((e: any) => e && e);
+      //确定最长数字串的长度
+      const numLength = numbers.reduce((maxLength: number, num: any) => {
+        if (num.length > maxLength) {
+          maxLength = num.length;
+          return maxLength;
+        }
+      }, 0);
+      numbers.filter((e: any) => {
+        vv[e] = e.padStart(numLength, '0');
+      });
+      keys.filter((k: any) => {
+        const condition = k.match(reg0);
+        if (condition) {
+          const s1 = condition[1];
+          const s2 = s1.padStart(numLength, '0');
+          k = k.replace(s1, s2);
+        }
+      });
+    }
+    for (const reg0 of reg) {
+      //提取reg匹配的内容
+      let numbers: any = [];
+      values.map(k => {
+        k = k.toString();
+        const contition = k.match(reg0);
+        if (contition == null) {
+          return false;
+        } else {
+          numbers.push(contition[1]);
+          return;
+        }
+      });
+      numbers = numbers.filter((e: any) => e && e);
+      //确定最长数字串的长度
+      const numLength = numbers.reduce((maxLength: number, num: any) => {
+        if (num.length > maxLength) {
+          maxLength = num.length;
+          return maxLength;
+        }
+      }, 0);
+      numbers.filter((e: any) => {
+        vv[e] = e.padStart(numLength, '0');
+      });
+      values.filter((k: any) => {
+        const condition = k.match(reg0);
+        if (condition) {
+          const s1 = condition[1];
+          const s2 = s1.padStart(numLength, '0');
+          k = k.replace(s1, s2);
+        }
+      });
+    }
+
+  }
+  //按键排序
+
+
+  keys.sort().filter(e => {
+    const objTemp: any = {};
+    objTemp[e] = obj[e];
+    objOrdered.objArrOrderByKey.push(objTemp);
+  });
+  keys.sort().reverse().filter(e => {
+    const objTemp: any = {};
+    objTemp[e] = obj[e];
+    objOrdered.objArrOrderByKeyReverse.push(objTemp);
+  });
+
+  [...new Set(values)].sort().filter(e => {
+    Object.keys(obj).filter(k => {
+      if (obj[k] == e) {
+        const objTemp: any = {};
+        objTemp[k] = e;
+        objOrdered.objArrOrderByValue.push(objTemp);
+      }
+    });
+  });
+  [...new Set(values)].sort().reverse().filter(e => {
+    Object.keys(obj).filter(k => {
+      if (obj[k] == e) {
+        const objTemp: any = {};
+        objTemp[k] = e;
+        objOrdered.objArrOrderByValueReverse.push(objTemp);
+      }
+    });
+  });
+
+  // 如果排序后众数对应的高（字符串，在首位）的频次与第二位相同，
+  // 则有可能未进行排序，不相等则一定做过排序
+  //所有键均为数值数字，否则无法运行
+  /// if (Object.keys(num).filter(e => e.match(/^[0-9.]+$/g) != null).length == Object.keys(num).length) {
+
+  return objOrdered;
+};
+
 /**
- * 如果对象的键为数字型字符，返回数字数组
- * 数字元素是乱序的，其对应的频次是按降序排列的
+ * 对象的键值均为数字
+ * 返回的数组元素为乱序，其对应的频次降序排列
  * @param item 
  * @returns 
  */
-const orderByFrequency = (num: { [key: string]: number; }) => {
+const numberKVObjOrderByFrequency = (num: { [key: string]: number; }) => {
   //const num = frequency(item);
   // 以 num 的键作为字符串数组，根据相应键的值为条件，实现高度字符串按众数排序
   const modeArr = Object.keys(num).sort((h1: string, h2: string) =>
@@ -270,7 +405,6 @@ const orderByFrequency = (num: { [key: string]: number; }) => {
   // 如果排序后众数对应的高（字符串，在首位）的频次与第二位相同，
   // 则有可能未进行排序，不相等则一定做过排序
   //所有键均为数值数字，否则无法运行
-  /// if (Object.keys(num).filter(e => e.match(/^[0-9.]+$/g) != null).length == Object.keys(num).length) {
   if (Object.keys(num).filter(e => !isNaN(Number(e))).length == Object.keys(num).length) {
     const modeNumArr: number[] = modeArr.map((e: string) => Number(e));
     return modeNumArr;
@@ -1104,9 +1238,13 @@ const getModeFrequencyAndOrder = (arrary: number[]) => {
   //众数可能不止一个，找到众数中较大的一个行高
   const tempObj = frequency(arrary);
   const _frequency = tempObj.objFrequency;
+
+  const testobj = objTempOrder(_frequency);
+
+
   const _objArrOrderByFrequency = tempObj.objArrOrderByFrequency;
   const _orderByFrequency = tempObj.itemOrderByFrequency;
-  //const _orderByFrequency = orderByFrequency(_frequency) as number[];
+  //const _orderByFrequency = numberKVObjOrderByFrequency(_frequency) as number[];
   let mode = 0;
   let highArr;
   //如果相邻频次相差悬殊时认为之前的为候选众数，因为频次较高的可能不止一个
@@ -1419,6 +1557,8 @@ export async function pdf2document(itmeID: number) {
   const heightTempArr = itemsArr.flat(1).map(e => e.height).filter(e => e != undefined);
   const heightInfoArticle = getModeFrequencyAndOrder(heightTempArr);
 
+
+
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
   let refMarker = 0;
@@ -1613,15 +1753,15 @@ export async function pdf2document(itmeID: number) {
 
       //整篇文章差异很大，单页获取
       const xFrequency = frequency(linesX(lines)).objFrequency;
-      const xOrder = orderByFrequency(xFrequency);
+      const xOrder = numberKVObjOrderByFrequency(xFrequency);
       const yFrequency = frequency(linesY(lines)).objFrequency;
-      const yOrder = orderByFrequency(yFrequency);
+      const yOrder = numberKVObjOrderByFrequency(yFrequency);
       const hFrequency = frequency(linesHeight(lines)).objFrequency;
-      const hOrder = orderByFrequency(hFrequency);
+      const hOrder = numberKVObjOrderByFrequency(hFrequency);
       const widthFrequency = frequency(linesWidth(lines)).objFrequency;
-      const widthOrder = orderByFrequency(widthFrequency);
+      const widthOrder = numberKVObjOrderByFrequency(widthFrequency);
       const spaceFrequency = frequency(lineSpace(lines)).objFrequency;
-      const spaceOrder = orderByFrequency(spaceFrequency);
+      const spaceOrder = numberKVObjOrderByFrequency(spaceFrequency);
 
       const font = fontInfo(lines, true);
       const infoParas = {
