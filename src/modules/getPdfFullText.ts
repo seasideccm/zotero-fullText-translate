@@ -256,8 +256,29 @@ const objArrOrder = (objArr: object | object[], reverse?: boolean, orderBy?: ["k
 
 };
 
-const objArrQuery = (objArr: object | object[], property: string, value: string | number) => {
-  return;
+
+
+const objArrQuery = (objArr: object[], property: string | string[], value: string | number) => {
+  if (Array.isArray(objArr[0])) {
+    objArr = objArr.flat(Infinity);
+  }
+  if (Array.isArray(property)) {
+    return (objArr as any).filter((e: any) => {
+      let objTemp = e;
+      property.filter((p: string, i) => {
+        objTemp = objTemp[p];
+      });
+      if (objTemp == value) {
+        return true;
+      }
+    });
+
+  } else if (typeof property == "string") {
+    if (Object.prototype.hasOwnProperty.call((objArr as any)[0], property)) {
+      return (objArr as any).filter((e: any) => e[property] == value);
+    }
+  }
+
 };
 
 const objOrder = (obj: { [key: string]: string | number; }, isPad?: boolean) => {
@@ -730,10 +751,14 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
   const fontOrder = tempObj.itemOrderByFrequency as string[];
   const fontObjArrOrderByFrequency = tempObj.objArrOrderByFrequency;
   const fontList = makeFontList(tempObj.itemOrderByFrequency);
+  const propertyArr = ["height", "width", "x", "y"];
   Object.keys(fontList).filter(f => {
-    let hs = arrTemp.filter((e: any) => e.fontName == f).map((e: any) => e.height);
-    hs = [...new Set(hs)];
-    fontList[f]["height"] = hs;
+    const arrByFontname = arrTemp.filter((e: any) => e.fontName == f);
+    propertyArr.filter((p: string) => {
+      let ps = arrByFontname.map((e: any) => e.height);
+      ps = [...new Set(ps)];
+      fontList[f][p] = ps;
+    });
   });
   /*   arrTemp.filter(e => {
       const fontName = e["fontName"];
@@ -748,7 +773,10 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
   //const test2 = Number(Object.keys(fontObjArrOrderByFrequency[1])[0].replace(reg, "$1"));
   const fontPresentOrder = [...fontOrder].sort((a, b) => Number(b.replace(reg, "$1")) - Number(a.replace(reg, "$1")));
 
-  const lineHeightArr = arrTemp.map((e: PDFItem) => e.height).filter(e => e);
+  const lineHeightArr = arrTemp.map((e: PDFItem) => e.height).filter((e: any) => e);
+  const heightInfo = getModeFrequencyAndOrder(lineHeightArr);
+  const lineHeightMode2 = heightInfo.mode;
+  const lineHeightOrderByValue2 = heightInfo._orderByFrequency;
   const lineHeightMode = getMode(lineHeightArr, "descending");
   const lineHeightOrderByValue = [...lineHeightMode].sort((a, b) => b - a);
 
@@ -785,6 +813,8 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
   } else if (pdfItemsMaxHeight.length > 2) {
     titleFont = frequency(pdfItemsMaxHeight.map(e => e.fontName)).itemOrderByFrequency[0];
   }
+
+  //大于众高，不是最多的前几位，考虑粗体
 
 
 
@@ -1401,6 +1431,39 @@ const propertyArr = (arr: any[], property: string) => {
   return Arr;
 };
 
+
+const property_fonts = (propertytInfo: any, fontInfo: any, property: string) => {
+  propertytInfo._orderByFrequency.filter((e: any) => {
+    fontInfo.fontOrderByFrequency.filter((f: any) => {
+      if (fontInfo.fontList[f].height.includes(e)) {
+        (propertytInfo as any)[property] ??= {};
+        (propertytInfo as any)[property][e] ??= [] as string[];
+        (propertytInfo as any)[property][e].push(f);
+      }
+    });
+  });
+};
+
+const similarItem = (itemArr: any, heightInfo: any, fontInfo: any) => {
+  let arrTemp: PDFItem[] = [];
+  if (Array.isArray(itemArr[0])) {
+    arrTemp = itemArr.flat(Infinity) as PDFItem[];
+  }
+
+  property_fonts(heightInfo, fontInfo, "height_fonts");
+  Object.keys(heightInfo.height_fonts).filter((e: any) => {
+    e.filter((f: string) => {
+      (itemArr as PDFItem[]).filter(i => {
+        if (i.fontName == f && i.height == e) {
+          return true;
+        }
+      });
+    });
+  });
+};
+
+
+
 const getModeFrequencyAndOrder = (arrary: number[]) => {
   //众数可能不止一个，找到众数中较大的一个行高
   const tempObj = frequency(arrary);
@@ -1447,6 +1510,7 @@ const getModeFrequencyAndOrder = (arrary: number[]) => {
   } else {
     mode = highArr[0];
   }
+
   return {
     _frequency: _frequency,
     _orderByFrequency: _orderByFrequency,
@@ -1719,19 +1783,22 @@ export async function pdf2document(itmeID: number) {
   }
   const fontInfoArticle = fontInfo(itemsArr, false);
   const heightTempArr = itemsArr.flat(1).map(e => e.height).filter(e => e);
-  const heightInfoArticle = getModeFrequencyAndOrder(heightTempArr);
-  heightInfoArticle._orderByFrequency.filter(e => {
-    fontInfoArticle.fontOrderByFrequency.filter(f => {
-      if (fontInfoArticle.fontList[f].height.includes(e)) {
-        (heightInfoArticle as any)["height_fonts"] ??= {};
-        (heightInfoArticle as any)["height_fonts"][e] ??= [] as string[];
-        (heightInfoArticle as any)["height_fonts"][e].push(f);
-      }
-    });
-  });
+  const heightInfo = getModeFrequencyAndOrder(heightTempArr);
+  property_fonts(heightInfo, fontInfoArticle, "height_fonts");
+  const widthArr = itemsArr.flat(1).map(e => e.width).filter(e => e);
+  const widthInfo = getModeFrequencyAndOrder(widthArr);
+  property_fonts(widthInfo, fontInfoArticle, "width_fonts");
 
+  const yArr = itemsArr.flat(1).map(e => e.transform[5]).filter(e => e);
+  const yInfo = getModeFrequencyAndOrder(yArr);
+  property_fonts(yInfo, fontInfoArticle, "y_fonts");
 
+  const xArr = itemsArr.flat(1).map(e => e.transform[4]).filter(e => e);
+  const xInfo = getModeFrequencyAndOrder(xArr);
+  property_fonts(xInfo, fontInfoArticle, "x_fonts");
 
+  const test55 = objArrQuery(itemsArr, "height", 7.97);
+  //高、字体、宽度、y
 
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
