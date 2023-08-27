@@ -1,11 +1,7 @@
-/* import { Decimal } from 'decimal.js';
-import { ColumnOptions } from 'zotero-plugin-toolkit/dist/helpers/virtualizedTable';
-import { langCode_franVsZotero, fontName } from '../utils/config'; */
-import { kMaxLength } from 'buffer';
+
 import { getPref } from '../utils/prefs';
 
 /* eslint-disable no-useless-escape */
-
 declare type Box = {
   left: number;
   right: number;
@@ -280,6 +276,8 @@ const objArrQuery = (objArr: object[], property: string | string[], value: strin
   }
 
 };
+
+
 
 const objOrder = (obj: { [key: string]: string | number; }, isPad?: boolean) => {
   const objOrdered: {
@@ -749,76 +747,35 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
   const tempObj = frequency(fontArr);
   const fontObj = tempObj.objFrequency;
   const fontOrder = tempObj.itemOrderByFrequency as string[];
-  const fontObjArrOrderByFrequency = tempObj.objArrOrderByFrequency;
   const fontList = makeFontList(tempObj.itemOrderByFrequency);
-  const propertyArr = ["height", "width", "x", "y"];
+  let propertyArr: string[];
+  if (arrTemp[0].transform == undefined) {
+    propertyArr = ["height", "width", "x", "y"];
+  } else {
+    propertyArr = ["height", "y"];
+  }
   Object.keys(fontList).filter(f => {
     const arrByFontname = arrTemp.filter((e: any) => e.fontName == f);
+    /*     for (const e of arrByFontname) {
+          if (e.transform == undefined) {
+            const aa = e;
+          }
+        } */
     propertyArr.filter((p: string) => {
-      let ps = arrByFontname.map((e: any) => e.height);
+      let ps;
+      if (p == "x" && arrByFontname[0].transform != undefined) {
+        ps = arrByFontname.map((e: any) => e.transform[4]);
+      } else if (p == "y" && arrByFontname[0].transform != undefined) {
+        ps = arrByFontname.map((e: any) => e.transform[5]);
+      } else {
+        ps = arrByFontname.map((e: any) => e[p]).filter((e: any) => e);
+      }
+      //let ps = arrByFontname.map((e: any) => e[p]);
       ps = [...new Set(ps)];
       fontList[f][p] = ps;
     });
   });
-  /*   arrTemp.filter(e => {
-      const fontName = e["fontName"];
-      fontList[fontName]["height"] ??= [];
-      fontList[fontName]["height"].push(e.height);
-    }); */
-  //const fontOrder = fontObj.map(e => Object.keys(e)[0]) as string[];
-  //字体为字符串，末尾是序号，但个位的字符数少于十位的
-  //截取末尾数字转为数字然后用来排序
-  const reg = /.+?(\d+)$/m;
-  const test1 = Number(Object.keys(fontObjArrOrderByFrequency[0])[0].replace(reg, "$1"));
-  //const test2 = Number(Object.keys(fontObjArrOrderByFrequency[1])[0].replace(reg, "$1"));
-  const fontPresentOrder = [...fontOrder].sort((a, b) => Number(b.replace(reg, "$1")) - Number(a.replace(reg, "$1")));
 
-  const lineHeightArr = arrTemp.map((e: PDFItem) => e.height).filter((e: any) => e);
-  const heightInfo = getModeFrequencyAndOrder(lineHeightArr);
-  const lineHeightMode2 = heightInfo.mode;
-  const lineHeightOrderByValue2 = heightInfo._orderByFrequency;
-  const lineHeightMode = getMode(lineHeightArr, "descending");
-  const lineHeightOrderByValue = [...lineHeightMode].sort((a, b) => b - a);
-
-  let titleFont;
-  const maxLineHeight = lineHeightOrderByValue[0];
-  const yArr: number[] = [];
-  const xArr: number[] = [];
-  allItem.filter(e => {
-    yArr.push(e.transform[5]);
-    xArr.push(e.transform[4]);
-    xArr.push(e.transform[4] + e.width);
-  });
-  const maxY = Math.max(...yArr);
-  const minY = Math.min(...yArr);
-  const maxX = Math.max(...xArr);
-  const minX = Math.min(...xArr);
-  const pdfItemsMaxHeight = allItem.filter(e => e.height == maxLineHeight);
-
-  const tempFont = pdfItemsMaxHeight[0].fontName;
-  if (pdfItemsMaxHeight.length == 1) {
-    if (pdfItemsMaxHeight[0].transform[5] < maxY
-      && pdfItemsMaxHeight[0].transform[5] > minY
-      && pdfItemsMaxHeight[0].str.splic(" ").length > 1
-      && fontPresentOrder.indexOf(tempFont) < fontPresentOrder.length / 2
-      && Number(tempFont.match(/\d+$/m)[0])) {
-      titleFont = tempFont;
-    }
-  } else if (pdfItemsMaxHeight.length == 2) {
-    if (pdfItemsMaxHeight[0].fontName == pdfItemsMaxHeight[1].fontName) {
-      titleFont = tempFont;
-    } else {
-      titleFont = pdfItemsMaxHeight[0].width >= pdfItemsMaxHeight[1].width ? pdfItemsMaxHeight[0].fontName : pdfItemsMaxHeight[1].fontName;
-    }
-  } else if (pdfItemsMaxHeight.length > 2) {
-    titleFont = frequency(pdfItemsMaxHeight.map(e => e.fontName)).itemOrderByFrequency[0];
-  }
-
-  //大于众高，不是最多的前几位，考虑粗体
-
-
-
-  //const arrTemp = lineArr.flat(Infinity).filter((e: any) => !e.str.includes("\\u000"));
   const strNoDuplicateByFont: any = {};
   const strCountsByFont: any = {};
   const strArrByFont: any = {};
@@ -844,9 +801,63 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
     strCountsByFont: strCountsByFont,
     strOrderByFont: strOrderByFont,
     strArrByFont: strArrByFont,
-    titleFont: titleFont,
     fontList: fontList,
   };
+};
+
+const fontType = (allItem: any[]) => {
+  if (Array.isArray(allItem[0])) {
+    allItem = allItem.flat(Infinity);
+  }
+  const fontArr = allItem.map((e: any) => e["fontName"]);
+  const tempObj = frequency(fontArr);
+  const fontOrder = tempObj.itemOrderByFrequency as string[];
+
+  const lineHeightArr = allItem.map((e: PDFItem) => e.height).filter((e: any) => e);
+  const lineHeightMode = getMode(lineHeightArr, "descending");
+  const lineHeightOrderByValue = [...lineHeightMode].sort((a, b) => b - a);
+  let titleFont;
+  const maxLineHeight = lineHeightOrderByValue[0];
+  const yArr: number[] = [];
+  const xArr: number[] = [];
+  if (allItem[0].transform == undefined) {
+    allItem.filter(e => {
+      yArr.push(e.y);
+      xArr.push(e.x);
+      xArr.push(e.x + e.width);
+    });
+  } else {
+    allItem.filter(e => {
+      yArr.push(e.transform[5]);
+      xArr.push(e.transform[4]);
+      xArr.push(e.transform[4] + e.width);
+    });
+  }
+
+  const maxY = Math.max(...yArr);
+  const minY = Math.min(...yArr);
+  /*   const maxX = Math.max(...xArr);
+    const minX = Math.min(...xArr); */
+  const pdfItemsMaxHeight = allItem.filter(e => e.height == maxLineHeight);
+  const reg = /.+?(\d+)$/m;
+  const fontPresentOrder = [...fontOrder].sort((a, b) => Number(b.replace(reg, "$1")) - Number(a.replace(reg, "$1")));
+  const tempFont = pdfItemsMaxHeight[0].fontName;
+  if (pdfItemsMaxHeight.length == 1) {
+    if (fontPresentOrder.indexOf(tempFont) < fontPresentOrder.length / 2) {
+      titleFont = tempFont;
+    }
+  } else if (pdfItemsMaxHeight.length == 2) {
+    if (pdfItemsMaxHeight[0].fontName == pdfItemsMaxHeight[1].fontName) {
+      titleFont = tempFont;
+    } else {
+      titleFont = pdfItemsMaxHeight[0].width >= pdfItemsMaxHeight[1].width ? pdfItemsMaxHeight[0].fontName : pdfItemsMaxHeight[1].fontName;
+    }
+  } else if (pdfItemsMaxHeight.length > 2) {
+    titleFont = frequency(pdfItemsMaxHeight.map(e => e.fontName)).itemOrderByFrequency[0];
+  }
+  return titleFont;
+
+  //大于众高，不是最多的前几位，考虑粗体
 };
 
 const makeFontList = (fontArr: string[]) => {
@@ -1435,10 +1446,10 @@ const propertyArr = (arr: any[], property: string) => {
 const property_fonts = (propertytInfo: any, fontInfo: any, property: string) => {
   propertytInfo._orderByFrequency.filter((e: any) => {
     fontInfo.fontOrderByFrequency.filter((f: any) => {
-      if (fontInfo.fontList[f].height.includes(e)) {
-        (propertytInfo as any)[property] ??= {};
-        (propertytInfo as any)[property][e] ??= [] as string[];
-        (propertytInfo as any)[property][e].push(f);
+      if (fontInfo.fontList[f][property].includes(e)) {
+        (propertytInfo as any)[property + "_fonts"] ??= {};
+        (propertytInfo as any)[property + "_fonts"][e] ??= [] as string[];
+        (propertytInfo as any)[property + "_fonts"][e].push(f);
       }
     });
   });
@@ -1730,10 +1741,6 @@ const IdentifyHeadingLevel = (
 };
 
 export async function pdf2document(itmeID: number) {
-  //await Zotero.Reader.open(itmeID) as _ZoteroTypes.ReaderInstance;
-  //Zotero.Promise.delay(500);
-  /* let tab =Zotero_Tabs._getTab(Zotero_Tabs.selectedID) 
-    if(tab.tab.type!="reader"){return} */
   const tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
   if (!tabID) { return; }
   if (Zotero_Tabs.selectedID != tabID) {
@@ -1781,23 +1788,16 @@ export async function pdf2document(itmeID: number) {
     });
     itemsArr.push(items as PDFItem[]);
   }
-  const fontInfoArticle = fontInfo(itemsArr, false);
-  const heightTempArr = itemsArr.flat(1).map(e => e.height).filter(e => e);
-  const heightInfo = getModeFrequencyAndOrder(heightTempArr);
-  property_fonts(heightInfo, fontInfoArticle, "height_fonts");
-  const widthArr = itemsArr.flat(1).map(e => e.width).filter(e => e);
-  const widthInfo = getModeFrequencyAndOrder(widthArr);
-  property_fonts(widthInfo, fontInfoArticle, "width_fonts");
+  /*   const fontInfoArticle = fontInfo(itemsArr, false);
+    const heightTempArr = itemsArr.flat(1).map(e => e.height).filter(e => e);
+    const heightInfo = getModeFrequencyAndOrder(heightTempArr);
+    property_fonts(heightInfo, fontInfoArticle, "height");
+  
+    const yArr = itemsArr.flat(1).map(e => e.transform[5]).filter(e => e);
+    const yInfo = getModeFrequencyAndOrder(yArr);
+    property_fonts(yInfo, fontInfoArticle, "y"); */
 
-  const yArr = itemsArr.flat(1).map(e => e.transform[5]).filter(e => e);
-  const yInfo = getModeFrequencyAndOrder(yArr);
-  property_fonts(yInfo, fontInfoArticle, "y_fonts");
 
-  const xArr = itemsArr.flat(1).map(e => e.transform[4]).filter(e => e);
-  const xInfo = getModeFrequencyAndOrder(xArr);
-  property_fonts(xInfo, fontInfoArticle, "x_fonts");
-
-  const test55 = objArrQuery(itemsArr, "height", 7.97);
   //高、字体、宽度、y
 
   const linesArr: PDFLine[][] = [];

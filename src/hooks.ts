@@ -6,7 +6,6 @@ import { fullTextTranslate, onOpenPdf } from "./modules/fullTextTranslate";
 import { serviceInit } from "./modules/serviceManage";
 import { registerNotifier } from "./modules/pdfButton";
 
-
 async function onStartup() {
   await Promise.all([
     Zotero.initializationPromise,
@@ -41,7 +40,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
     progress: 30,
     text: `[30%] ${getString("startup-begin")}`,
   });
-  fullTextTranslate.registerFullTextTranslateRightClickMenuItem();
+  fullTextTranslate.rightClickMenuItem();
   await serviceInit();
 
 
@@ -52,6 +51,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   });
 
   popupWin.startCloseTimer(5000);
+
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {

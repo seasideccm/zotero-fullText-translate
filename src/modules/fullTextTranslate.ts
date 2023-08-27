@@ -40,7 +40,7 @@ export async function onOpenPdf(id: number) {
 
 export class fullTextTranslate {
   @example
-  static registerFullTextTranslateRightClickMenuItem() {
+  static rightClickMenuItem() {
     const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`;
     ztoolkit.Menu.register("item", {
       tag: "menuseparator",
@@ -59,32 +59,33 @@ export class fullTextTranslate {
       label: getString("menuitem-pdf") + " ALT+P",
       commandListener: ((ev) => {
         fullTextTranslate.translateFT("pdf");
-
       }),
       icon: menuIcon,
     });
-    ztoolkit.Menu.register("item", {
-      tag: "menuitem",
-      label: getString("menuitem-openPdfs"),
-      commandListener: (async (ev) => {
-        const ids = fullTextTranslate.getPDFs();
-        for (const id of ids) {
-          await onOpenPdf(id);
-        }
-        Zotero_Tabs.select('zotero-pane');
-
-      }),
-      icon: menuIcon,
-    });
-    ztoolkit.Menu.register("item", {
-      tag: "menuitem",
-      label: getString("menuitem-pdf2Note"),
-      commandListener: (async (ev) => {
-        await this.pdf2Note();        //fullTextTranslate.pdf2Note();
-
-      }),
-      icon: menuIcon,
-    });
+    /*     ztoolkit.Menu.register("item", {
+          tag: "menuitem",
+          label: getString("menuitem-openPdfs"),
+          commandListener: (async (ev) => {
+            const ids = fullTextTranslate.getPDFs();
+            const zp = Zotero.getActiveZoteroPane();
+            for (const id of ids) {
+              const item = Zotero.Items.get(id);
+              await zp.viewAttachment(item.id);
+              //await this.pdf2Note();
+              //await onOpenPdf(id);
+            }
+            Zotero_Tabs.select('zotero-pane');
+          }),
+          icon: menuIcon,
+        }); */
+    /*     ztoolkit.Menu.register("item", {
+          tag: "menuitem",
+          label: getString("menuitem-pdf2Note"),
+          commandListener: (async (ev) => {
+            await this.pdf2Note();       //fullTextTranslate.pdf2Note();
+          }),
+          icon: menuIcon,
+        }); */
 
   }
   //在参数设置中注册本插件的标签
@@ -176,7 +177,6 @@ export class fullTextTranslate {
     const pdfIDs = this.getPDFs();
     for (const id of pdfIDs) {
       this.contentPrepare(id);
-
     }
   }
 
@@ -185,13 +185,17 @@ export class fullTextTranslate {
     for (const id of pdfIDs) {
       const item = Zotero.Items.get(id);
       let tabID = Zotero_Tabs.getTabIDByItemID(item.id);
-      let counter = 0;
-      while (!tabID) {
-        Zotero.Promise.delay(500);
-        tabID = Zotero_Tabs.getTabIDByItemID(item.id);
-        counter += 500;
-        if (counter > 50000) { break; }
+      if (!tabID) {
+        this.fullTextTranslateInfo("find opened pdf");
+        continue;
       }
+      /*     let counter = 0;
+            while (!tabID) {
+             Zotero.Promise.delay(500);
+             tabID = Zotero_Tabs.getTabIDByItemID(item.id);
+             counter += 500;
+             if (counter > 50000) { break; }
+           } */
       Zotero_Tabs.select(tabID);
       let reader = Zotero.Reader.getByTabID(tabID);
       let hasIf = reader._iframeWindow;
@@ -200,7 +204,7 @@ export class fullTextTranslate {
         reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID);
         hasIf = reader._iframeWindow;
       }
-      fullTextTranslate.fullTextTranslateInfo("启动");
+      //fullTextTranslate.fullTextTranslateInfo("启动");
       //const reader = Zotero.Reader.open(item.id, undefined, { allowDuplicate: false }) as _ZoteroTypes.ReaderInstance;
       /*         while (!reader._iframeWindow) {
                 Zotero.Promise.delay(500);
@@ -208,7 +212,6 @@ export class fullTextTranslate {
       await this.getPdfContent(item, true);
 
       //任务完成关闭 pdf
-
       while (tabID) {
         Zotero_Tabs.close(tabID);
         await Zotero.Promise.delay(200);
