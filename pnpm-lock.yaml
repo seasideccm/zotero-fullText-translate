@@ -35,8 +35,8 @@ devDependencies:
     specifier: ^3.0.0
     version: 3.0.0
   compressing:
-    specifier: ^1.9.1
-    version: 1.9.1
+    specifier: ^1.10.0
+    version: 1.10.0
   concurrently:
     specifier: ^8.2.0
     version: 8.2.0
@@ -1257,8 +1257,8 @@ packages:
     requiresBuild: true
     optional: true
 
-  /compressing@1.9.1:
-    resolution: {integrity: sha512-5fyyxjvFRbY7/FEzmqUTSXQdyUA+ETsBEjLHqsYnWbZrZbE7aqyiHCGWHWYD1Xpq83O2b4geN0ctDccRyRjZwg==}
+  /compressing@1.10.0:
+    resolution: {integrity: sha512-k2vpbZLaJoHe9euyUZjYYE8vOrbR19aU3HcWIYw5EBXiUs34ygfDVnXU+ubI41JXMriHutnoiu0ZFdwCkH6jPA==}
     engines: {node: '>= 4.0.0'}
     dependencies:
       '@eggjs/yauzl': 2.11.0
