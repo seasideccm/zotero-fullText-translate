@@ -15,7 +15,7 @@ export function findFontOnPdfLoading() {
 
 const _messageHandler = async (event: Event) => {
     const type = event.type;
-    ztoolkit.log("event.type: ", type);
+    ztoolkit.log("event.type: ", type,"target:",event.target);
 
     const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
     while (tab.tab.type != "reader") {
