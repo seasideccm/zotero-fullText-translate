@@ -21,12 +21,12 @@ export function registerNotifier() {
     };
 
     // Register the callback in Zotero as an item observer
-    const notifierID = Zotero.Notifier.registerObserver(callback, [
-        "tab",
-        "item",
-        "file",
-    ]);
-
+    /*     const notifierID = Zotero.Notifier.registerObserver(callback, [
+            "tab",
+            "item",
+            "file",
+        ]); */
+    const notifierID = Zotero.Notifier.registerObserver(callback);
     // Unregister callback when the window closes (important to avoid a memory leak)
     window.addEventListener(
         "unload",
@@ -51,8 +51,6 @@ export function unregisterNotifier(notifierID: string) {
     Zotero.Notifier.unregisterObserver(notifierID);
 }
 
-
-
 async function onNotify(
     event: string,
     type: string,
@@ -60,13 +58,19 @@ async function onNotify(
     extraData: { [key: string]: any; },
 ) {
     // You can add your code to the corresponding notify type
-    ztoolkit.log("notify", event, type, ids, extraData);
+    ztoolkit.log("notify is coming【", "event:", event, "type:", type, "ids:", ids, "extraData:", extraData + "】");
     if (
         event == "select" &&
         type == "tab" &&
         extraData[ids[0]].type == "reader"
     ) {
         pdfButton();
+    } else if (
+        event == "close" &&
+        type == "tab" &&
+        ids[0] != "zotero-pane"
+    ) {
+        ztoolkit.log("干点啥");
     } else {
         return;
     }
@@ -135,6 +139,16 @@ export async function pdfButton() {
                     menuitem1.addEventListener("command", () => {
                         fullTextTranslate.translateOnePdf();
                     });
+                    /* 
+                    menupopup.openPopup 是一个函数调用。
+                    它用于打开一个弹出菜单，并将其定位在指定的按钮旁边。
+                    具体来说，menupopup.openPopup 函数接受多个参数：
+                    - 第一个参数 button 是一个按钮元素，表示要在其旁边打开弹出菜单的按钮。
+                    - 第二个参数 'after_start' 是一个字符串，表示弹出菜单相对于按钮的位置。在这种情况下，它指定将弹出菜单放置在按钮的起始位置之后。
+                    - 第三个和第四个参数 0 表示弹出菜单的偏移量，用于微调弹出菜单的位置。
+                    - 第五个和第六个参数 false 表示是否在弹出菜单显示时将焦点设置在菜单上。
+                    因此，给定的代码行的作用是在指定的按钮旁边打开一个弹出菜单，并将其定位在按钮的起始位置之后。
+                     */
                     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                     // @ts-ignore
                     menupopup.openPopup(button, 'after_start', 0, 0, false, false);
@@ -159,5 +173,6 @@ export async function pdfButton() {
             }
         ]
     }, ref) as HTMLButtonElement;
+
 
 }

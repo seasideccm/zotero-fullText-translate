@@ -5,6 +5,7 @@ import { createZToolkit } from "./utils/ztoolkit";
 import { fullTextTranslate, onOpenPdf } from "./modules/fullTextTranslate";
 import { serviceInit } from "./modules/serviceManage";
 import { registerNotifier } from "./modules/pdfButton";
+import { findFontOnPdfLoading } from "./modules/messageTest";
 
 async function onStartup() {
   await Promise.all([
@@ -18,6 +19,7 @@ async function onStartup() {
   // 注册通知
   registerNotifier();
   await onMainWindowLoad(window);
+  findFontOnPdfLoading();
 }
 
 async function onMainWindowLoad(win: Window): Promise<void> {
@@ -71,7 +73,7 @@ function onShutdown(): void {
  * This function is just an example of dispatcher for Notify events.
  * Any operations should be placed in a function to keep this funcion clear.
  */
-async function onNotify(
+/* async function onNotify(
   event: string,
   type: string,
   ids: Array<string | number>,
@@ -88,7 +90,7 @@ async function onNotify(
   } else {
     return;
   }
-}
+} */
 
 
 /**
@@ -129,7 +131,7 @@ export default {
   onShutdown,
   onMainWindowLoad,
   onMainWindowUnload,
-  onNotify,
+  //onNotify,
   onPrefsEvent,
   onShortcuts,
 };

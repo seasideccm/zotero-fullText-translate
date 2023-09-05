@@ -8,6 +8,7 @@ import { baiduModify } from "./baiduModify";
 import { baidufieldModify } from "./baidufieldModify";
 import { franc } from "franc";
 import { langCode_franVsZotero } from "../utils/config";
+//import { p2d } from "./getPdfFullText";
 
 
 // 装饰函数
@@ -62,30 +63,33 @@ export class fullTextTranslate {
       }),
       icon: menuIcon,
     });
-    /*     ztoolkit.Menu.register("item", {
-          tag: "menuitem",
-          label: getString("menuitem-openPdfs"),
-          commandListener: (async (ev) => {
-            const ids = fullTextTranslate.getPDFs();
-            const zp = Zotero.getActiveZoteroPane();
-            for (const id of ids) {
-              const item = Zotero.Items.get(id);
-              await zp.viewAttachment(item.id);
-              //await this.pdf2Note();
-              //await onOpenPdf(id);
-            }
-            Zotero_Tabs.select('zotero-pane');
-          }),
-          icon: menuIcon,
-        }); */
-    /*     ztoolkit.Menu.register("item", {
-          tag: "menuitem",
-          label: getString("menuitem-pdf2Note"),
-          commandListener: (async (ev) => {
-            await this.pdf2Note();       //fullTextTranslate.pdf2Note();
-          }),
-          icon: menuIcon,
-        }); */
+    ztoolkit.Menu.register("item", {
+      tag: "menuitem",
+      label: getString("menuitem-openPdfs"),
+      commandListener: ((ev) => {
+
+        //p2d();
+        const ids = fullTextTranslate.getPDFs();
+        const zp = Zotero.getActiveZoteroPane();
+        const openPdfPromises = [];
+        for (const id of ids) {
+          const item = Zotero.Items.get(id);
+          openPdfPromises.push(zp.viewAttachment(item.id));
+        }
+        Promise.all(openPdfPromises).then(() => { this.pdf2Note(); });
+
+        //Zotero_Tabs.select('zotero-pane');
+      }),
+      icon: menuIcon,
+    });
+    /* ztoolkit.Menu.register("item", {
+       tag: "menuitem",
+       label: getString("menuitem-pdf2Note"),
+       commandListener: (async (ev) => {
+         await this.pdf2Note();       //fullTextTranslate.pdf2Note();
+       }),
+       icon: menuIcon,
+     });  */
 
   }
   //在参数设置中注册本插件的标签
@@ -189,6 +193,9 @@ export class fullTextTranslate {
         this.fullTextTranslateInfo("find opened pdf");
         continue;
       }
+      //测试
+      this.fullTextTranslateInfo("进入测试");
+      continue;
       /*     let counter = 0;
             while (!tabID) {
              Zotero.Promise.delay(500);

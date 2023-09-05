@@ -23,6 +23,15 @@ declare const __env__: "production" | "development";
 
 declare class Localization { }
 
+declare module "pdfjs-dist/build/pdf.worker.entry";
+
+declare type Box = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+};
+
 declare type SecretKey = {
   key: string;
   usable: boolean;

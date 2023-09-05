@@ -1,15 +1,30 @@
 
 import { getPref } from '../utils/prefs';
+/* import * as pdfjsLib from "pdfjs-dist";
+import entry from "pdfjs-dist/build/pdf.worker.entry";
+import { TextItem } from 'pdfjs-dist/types/src/display/api';
+pdfjsLib.GlobalWorkerOptions.workerSrc = entry; */
 
 /* eslint-disable no-useless-escape */
-declare type Box = {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-};
 const tolerance = 2;
 
+/* export const p2d = async () => {
+  //报错 ReferenceError: console is not defined
+  const url = "D:\\test1.pdf";
+  const CMAP_URL = "./node_modules/pdfjs-dist/cmaps/";
+  const src = {
+    url: url,
+    cMapUrl: CMAP_URL,
+    cMapPacked: true,
+  };
+  const loadingTask = pdfjsLib.getDocument(src);
+  const doc = await loadingTask.promise;
+  const page = await doc.getPage(1);
+  const content = await page.getTextContent();
+  const items = content.items;
+  const item = items[0];
+  const str = item;
+}; */
 
 //通过Y判断底边，Y即为行的基线，行的基线和字符的基线是一致的
 const isSameBottom = (lineA: PDFLine, lineB: PDFLine) => {
@@ -1679,7 +1694,7 @@ const IdentifyHeadingLevel = (
     strCountsByFont: any;
     strOrderByFont: unknown[];
     strArrByFont: any;
-    titleFont: any;
+    fontList: any;
   },
   contentHeightInfo: {
     _frequency: {
