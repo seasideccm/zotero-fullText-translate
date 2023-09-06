@@ -7,51 +7,51 @@ export async function findFontOnPdfLoading() {
     //window.document
     //HTMLDocument chrome://zotero/content/zoteroPane.xhtml
     window.addEventListener('DOMContentLoaded', _messageHandler);
-    //_postMessage({ action: 'initialized' });
 }
 
-/* const _postMessage=(message:any)=> {
-    window.postMessage( message , '*');
-} */
 
 const _messageHandler = async (event: Event) => {
-    function savefont(app: any) {
-        let obj2;
-        if (app.pdfLoadingTask._transport.commonObjs) {
-            const obj = app.pdfLoadingTask._transport.commonObjs;
-            obj2 = JSON.parse(JSON.stringify(obj));
-        }
-        saveJsonToDisk(obj2, "commonObjs");
-    }
-    function onMes() {
-
-        ztoolkit.log("截获信息");
-
-    }
+    /*  function savefont(app: any) {
+         let obj2;
+         if (app.pdfLoadingTask._transport.commonObjs) {
+             const obj = app.pdfLoadingTask._transport.commonObjs;
+             obj2 = JSON.parse(JSON.stringify(obj));
+         }
+         saveJsonToDisk(obj2, "commonObjs");
+     }
+     function onMes() {
+         ztoolkit.log("截获信息");
+     } */
     const type = event.type;
     ztoolkit.log("event.type: ", type, "target:", event.target);
     if (event.target && (event.target as any).URL == "resource://zotero/reader/pdf/web/viewer.html") {
         const wr = (Zotero.Reader.getByTabID(Zotero_Tabs.selectedID)._iframeWindow as any).wrappedJSObject;
-        if (!wr.PDFViewerApplication) {
-            await wr._reader.initializedPromise;
+        if (wr.PDFViewerApplication) {
+            //await wr._reader.initializedPromise;
+            const app = wr.PDFViewerApplication;
+            while (!app.pdfLoadingTask._worker.messageHandler) {
+                await Zotero.Promise.delay(20);
+            }
+            const comObj = app.pdfLoadingTask._worker.messageHandler.comObj;
+            const test = comObj;
+            comObj.addEventListener("message", (event: Event) => { Zotero.debug(event.target); });
         }
-        const app = wr.PDFViewerApplication;
         //await app.pdfLoadingTask.promise;
-        ztoolkit.log("PDFViewerApplication.pdfLoadingTask._transport: ");
-        while (!app.pdfLoadingTask) {
-            Zotero.Promise.delay(10);
-        }
-        while (!app.pdfLoadingTask._transport) {
-            Zotero.Promise.delay(10);
-        }
-        while (!app.pdfLoadingTask._transport.commonObjs) {
-            Zotero.Promise.delay(10);
-        }
+        //ztoolkit.log("PDFViewerApplication.pdfLoadingTask._transport: ");
+        /*         while (!app.pdfLoadingTask) {
+                    await Zotero.Promise.delay(10);
+                }
+                while (!app.pdfLoadingTask._transport) {
+                    await Zotero.Promise.delay(10);
+                }
+                while (!app.pdfLoadingTask._transport.commonObjs) {
+                    await Zotero.Promise.delay(10);
+                } */
         /* while (!Object.keys(app.pdfLoadingTask._transport.commonObjs).length) {
-            Zotero.Promise.delay(10);
+            await Zotero.Promise.delay(10);
         } */
 
-        const length = Object.keys(app.pdfLoadingTask._transport.commonObjs).length;
+        //const length = Object.keys(app.pdfLoadingTask._transport.commonObjs).length;
         /* savefont(app); */
         ztoolkit.log("PDFViewerApplication.pdfLoadingTask._transport: ", app.pdfLoadingTask._transport.commonObjs, JSON.stringify(app.pdfLoadingTask._transport.commonObjs));
 
