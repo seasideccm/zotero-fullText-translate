@@ -1,3 +1,4 @@
+import { fontName } from "../utils/config";
 import { saveJsonToDisk } from "../utils/prefs";
 
 export async function findFontOnPdfLoading() {
@@ -29,42 +30,48 @@ const _messageHandler = async (event: Event) => {
         if (wr.PDFViewerApplication) {
             //await wr._reader.initializedPromise;
             const app = wr.PDFViewerApplication;
-            while (!app.pdfLoadingTask._worker.messageHandler) {
-                await Zotero.Promise.delay(20);
+            if (app.pdfLoadingTask._worker.messageHandler && app.pdfLoadingTask._worker.messageHandler.comObj) {
+                //await Zotero.Promise.delay(20);
+
+                const comObj = app.pdfLoadingTask._worker.messageHandler.comObj;
+                const test = comObj;
+                comObj.addEventListener("message", (event: MessageEvent) => {
+                    ztoolkit.log(event.target, event.data.data);
+                    if (event.data.data[1] == "Font") {
+                        const loadedName = event.data.data[2].loadedName;
+                        const name = event.data.data[2].name;
+                        ztoolkit.log("loadedName:", loadedName, ",name:", name);
+                    }
+
+                });
+
             }
-            const comObj = app.pdfLoadingTask._worker.messageHandler.comObj;
-            const test = comObj;
-            comObj.addEventListener("message", (event: Event) => { Zotero.debug(event.target); });
         }
-        //await app.pdfLoadingTask.promise;
-        //ztoolkit.log("PDFViewerApplication.pdfLoadingTask._transport: ");
-        /*         while (!app.pdfLoadingTask) {
-                    await Zotero.Promise.delay(10);
-                }
-                while (!app.pdfLoadingTask._transport) {
-                    await Zotero.Promise.delay(10);
-                }
-                while (!app.pdfLoadingTask._transport.commonObjs) {
-                    await Zotero.Promise.delay(10);
-                } */
-        /* while (!Object.keys(app.pdfLoadingTask._transport.commonObjs).length) {
+    }
+};
+
+//await app.pdfLoadingTask.promise;
+//ztoolkit.log("PDFViewerApplication.pdfLoadingTask._transport: ");
+/*         while (!app.pdfLoadingTask) {
+            await Zotero.Promise.delay(10);
+        }
+        while (!app.pdfLoadingTask._transport) {
+            await Zotero.Promise.delay(10);
+        }
+        while (!app.pdfLoadingTask._transport.commonObjs) {
             await Zotero.Promise.delay(10);
         } */
+/* while (!Object.keys(app.pdfLoadingTask._transport.commonObjs).length) {
+    await Zotero.Promise.delay(10);
+} */
 
-        //const length = Object.keys(app.pdfLoadingTask._transport.commonObjs).length;
-        /* savefont(app); */
-        ztoolkit.log("PDFViewerApplication.pdfLoadingTask._transport: ", app.pdfLoadingTask._transport.commonObjs, JSON.stringify(app.pdfLoadingTask._transport.commonObjs));
+//const length = Object.keys(app.pdfLoadingTask._transport.commonObjs).length;
+/* savefont(app); */
+//ztoolkit.log("PDFViewerApplication.pdfLoadingTask._transport: ", app.pdfLoadingTask._transport.commonObjs, JSON.stringify(app.pdfLoadingTask._transport.commonObjs));
 
-        //const obj = app.pdfLoadingTask._transport.commonObjs;
-
-
+//const obj = app.pdfLoadingTask._transport.commonObjs;
 
 
-    } else {
-        ztoolkit.log("This isn't PDFViewerApplication");
-    }
-
-}
 
 /*     const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
     while (tab.tab.type != "reader") {
