@@ -1,6 +1,6 @@
 import { fontName } from "../utils/config";
 import { saveJsonToDisk } from "../utils/prefs";
-
+export const fontInfoPdf: any = {};
 export async function findFontOnPdfLoading() {
 
     //window
@@ -19,33 +19,42 @@ const _messageHandler = async (event: Event) => {
              obj2 = JSON.parse(JSON.stringify(obj));
          }
          saveJsonToDisk(obj2, "commonObjs");
-     }
-     function onMes() {
-         ztoolkit.log("截获信息");
-     } */
-    const type = event.type;
-    ztoolkit.log("event.type: ", type, "target:", event.target);
+     }*/
+
+
     if (event.target && (event.target as any).URL == "resource://zotero/reader/pdf/web/viewer.html") {
-        const wr = (Zotero.Reader.getByTabID(Zotero_Tabs.selectedID)._iframeWindow as any).wrappedJSObject;
+        const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID);
+        await reader._waitForReader();
+        const wr = (reader._iframeWindow as any).wrappedJSObject;
         if (wr.PDFViewerApplication) {
+            ztoolkit.log("wr.PDFViewerApplication");
+
             //await wr._reader.initializedPromise;
             const app = wr.PDFViewerApplication;
-            if (app.pdfLoadingTask._worker.messageHandler && app.pdfLoadingTask._worker.messageHandler.comObj) {
-                //await Zotero.Promise.delay(20);
 
-                const comObj = app.pdfLoadingTask._worker.messageHandler.comObj;
-                const test = comObj;
-                comObj.addEventListener("message", (event: MessageEvent) => {
-                    ztoolkit.log(event.target, event.data.data);
-                    if (event.data.data[1] == "Font") {
-                        const loadedName = event.data.data[2].loadedName;
-                        const name = event.data.data[2].name;
-                        ztoolkit.log("loadedName:", loadedName, ",name:", name);
-                    }
-
-                });
-
+            while (!app.pdfLoadingTask?._worker?.messageHandler?.comObj) {
+                await Zotero.Promise.delay(0.5);
             }
+
+            const comObj = app.pdfLoadingTask._worker?.messageHandler?.comObj;
+            const sourceName = app.pdfLoadingTask._worker?.messageHandler?.sourceName;
+
+
+            comObj.addEventListener("message", (event: MessageEvent) => {
+
+                if (event.data.data && event.data.data[1] == "Font") {
+                    const loadedName = event.data.data[2].loadedName;
+                    const name = event.data.data[2].name;
+                    ztoolkit.log(sourceName, "loadedName:", loadedName, ",name:", name);
+                    fontInfoPdf[loadedName] = name;
+                }
+                if (event.data.chunk?.styles) {
+                    ztoolkit.log(sourceName, "event.data.chunk?.styles:", event.data.chunk?.styles);
+                }
+            });
+
+        } else {
+            () => { };
         }
     }
 };
