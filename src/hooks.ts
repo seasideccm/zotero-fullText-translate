@@ -19,7 +19,7 @@ async function onStartup() {
   // 注册通知
   registerNotifier();
   await onMainWindowLoad(window);
-  findFontOnPdfLoading();
+  //findFontOnPdfLoading();
 }
 
 async function onMainWindowLoad(win: Window): Promise<void> {

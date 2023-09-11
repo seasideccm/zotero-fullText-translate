@@ -8,6 +8,8 @@ export async function findFontOnPdfLoading() {
     //window.document
     //HTMLDocument chrome://zotero/content/zoteroPane.xhtml
     window.addEventListener('DOMContentLoaded', _messageHandler);
+    ztoolkit.log("准备绑定");
+
 }
 
 
@@ -20,32 +22,43 @@ const _messageHandler = async (event: Event) => {
          }
          saveJsonToDisk(obj2, "commonObjs");
      }
-     function onMes() {
-         ztoolkit.log("截获信息");
-     } */
-    const type = event.type;
-    ztoolkit.log("event.type: ", type, "target:", event.target);
+  */
+    const a = 5;
+    const test = a;
     if (event.target && (event.target as any).URL == "resource://zotero/reader/pdf/web/viewer.html") {
-        const wr = (Zotero.Reader.getByTabID(Zotero_Tabs.selectedID)._iframeWindow as any).wrappedJSObject;
+        const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID);
+        //await reader._waitForReader;
+        const wr = (reader._iframeWindow as any).wrappedJSObject;
         if (wr.PDFViewerApplication) {
             //await wr._reader.initializedPromise;
             const app = wr.PDFViewerApplication;
-            if (app.pdfLoadingTask._worker.messageHandler && app.pdfLoadingTask._worker.messageHandler.comObj) {
-                //await Zotero.Promise.delay(20);
-
-                const comObj = app.pdfLoadingTask._worker.messageHandler.comObj;
-                const test = comObj;
-                comObj.addEventListener("message", (event: MessageEvent) => {
-                    ztoolkit.log(event.target, event.data.data);
-                    if (event.data.data[1] == "Font") {
-                        const loadedName = event.data.data[2].loadedName;
-                        const name = event.data.data[2].name;
-                        ztoolkit.log("loadedName:", loadedName, ",name:", name);
-                    }
-
-                });
-
+            while (!app.pdfLoadingTask._worker._port) {
+                await Zotero.Promise.delay(0.5);
             }
+
+            /* const comObj = app.pdfLoadingTask._worker.messageHandler.comObj;
+            const test = comObj;
+            comObj.addEventListener("message", (event: MessageEvent) => {
+                //ztoolkit.log(event.target, event.data.data);
+                if (event.data.data && event.data.data[1] == "Font") {
+                    const loadedName = event.data.data[2].loadedName;
+                    const name = event.data.data[2].name;
+                    ztoolkit.log("loadedName:", loadedName, ",name:", name);
+                }
+
+            }); */
+            app.pdfLoadingTask._worker._port.addEventListener("message", (event: MessageEvent) => {
+                //ztoolkit.log(event.target, event.data.data);
+                if (event.data.data && event.data.data[1] == "Font") {
+                    const loadedName = event.data.data[2].loadedName;
+                    const name = event.data.data[2].name;
+                    ztoolkit.log("pdfLoadingTask._worker._port:", "loadedName", loadedName, ", name:", name);
+                }
+
+            });
+
+        } else {
+            () => { };
         }
     }
 };
