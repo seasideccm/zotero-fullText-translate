@@ -8,6 +8,8 @@ export async function findFontOnPdfLoading() {
     //window.document
     //HTMLDocument chrome://zotero/content/zoteroPane.xhtml
     window.addEventListener('DOMContentLoaded', _messageHandler);
+    ztoolkit.log("准备绑定");
+
 }
 
 
@@ -23,9 +25,7 @@ const _messageHandler = async (event: Event) => {
 
 
     if (event.target && (event.target as any).URL == "resource://zotero/reader/pdf/web/viewer.html") {
-        const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID);
-        await reader._waitForReader();
-        const wr = (reader._iframeWindow as any).wrappedJSObject;
+        const wr = (Zotero.Reader.getByTabID(Zotero_Tabs.selectedID)._iframeWindow as any).wrappedJSObject;
         if (wr.PDFViewerApplication) {
             ztoolkit.log("wr.PDFViewerApplication");
 
@@ -53,10 +53,9 @@ const _messageHandler = async (event: Event) => {
                 }
             });
 
-        } else {
-            () => { };
         }
     }
+}
 };
 
 //await app.pdfLoadingTask.promise;

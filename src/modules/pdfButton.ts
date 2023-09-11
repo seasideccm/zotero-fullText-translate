@@ -1,9 +1,10 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
-
-
-
+import { saveJsonToDisk } from "../utils/prefs";
+export const pdfFontInfo: {
+    [key: string]: string;
+} = {};
 export function registerNotifier() {
     const callback = {
         notify: async (
@@ -37,18 +38,15 @@ export function registerNotifier() {
     );
 }
 
-/* export function NotifierCallback() {
-    new ztoolkit.ProgressWindow(config.addonName)
-      .createLine({
-        text: "Open Tab Detected!",
-        type: "success",
-        progress: 100,
-      })
-      .show();
-  } */
-
 export function unregisterNotifier(notifierID: string) {
     Zotero.Notifier.unregisterObserver(notifierID);
+}
+
+function savefont(fontObj: any) {
+
+    const saveFileName = new Date().getTime().toString() + "_pdfFontInfo";
+    saveJsonToDisk(fontObj, saveFileName);
+    ztoolkit.log("saveFileName:", saveFileName);
 }
 
 async function onNotify(
@@ -65,12 +63,15 @@ async function onNotify(
         extraData[ids[0]].type == "reader"
     ) {
         pdfButton();
+        pdfFont();
     } else if (
         event == "close" &&
         type == "tab" &&
         ids[0] != "zotero-pane"
     ) {
-        ztoolkit.log("干点啥");
+
+        savefont(pdfFontInfo);
+        ztoolkit.log("保存字体信息");
     } else {
         return;
     }
@@ -84,7 +85,6 @@ export async function pdfButton() {
     while (!(_window = reader?._iframeWindow?.wrappedJSObject)) {
         await Zotero.Promise.delay(10);
     }
-
     const parent = _window.document.querySelector("#reader-ui .toolbar .end")!;
     const ref = parent.querySelector("#viewFind") as HTMLDivElement;
     const button = ztoolkit.UI.insertElementBefore({
@@ -174,5 +174,26 @@ export async function pdfButton() {
         ]
     }, ref) as HTMLButtonElement;
 
-
 }
+
+export async function pdfFont() {
+
+    const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
+    await reader._waitForReader;
+    let port;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    while (!(port = reader._iframeWindow?.wrappedJSObject?.PDFViewerApplication?.pdfLoadingTask?._worker?._port)) {
+        await Zotero.Promise.delay(0.5);
+    }
+    port.addEventListener("message", (event: MessageEvent) => {
+        //ztoolkit.log(event.target, event.data.data);
+        if (event.data.data && event.data.data[1] == "Font") {
+            const loadedName = event.data.data[2].loadedName;
+            const name = event.data.data[2].name;
+            pdfFontInfo[loadedName] = name;
+            ztoolkit.log("pdfLoadingTask._worker._port:", "loadedName", loadedName, ", name:", name);
+        }
+    });
+}
+

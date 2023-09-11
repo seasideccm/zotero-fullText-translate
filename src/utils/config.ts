@@ -2,7 +2,7 @@
 export const specialCharacters = {
   '\u0000': '－', '\u0001': '?', '\u0002': '×', '\u0003': '?',
   '\u0004': '?', '\u0005': '?', '\u0006': '?', '\u0007': '?',
-  '\u0008': '?'
+  '\u0008': '?', '\u000f': '●',
 };
 //特殊字符对应显示为unicode码
 export const specialCharaDisplay = {
