@@ -1,5 +1,6 @@
 
 import { getPref } from '../utils/prefs';
+import { pdfFontObj } from "./pdfButton";
 /* import * as pdfjsLib from "pdfjs-dist";
 import entry from "pdfjs-dist/build/pdf.worker.entry";
 import { TextItem } from 'pdfjs-dist/types/src/display/api';
@@ -764,7 +765,8 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
   const fontOrder = tempObj.itemOrderByFrequency as string[];
   const fontList = makeFontList(tempObj.itemOrderByFrequency);
   let propertyArr: string[];
-  if (arrTemp[0].transform == undefined) {
+  //当没有常规字符时arrTemp长度可为0
+  if (arrTemp[0]?.transform == undefined) {
     propertyArr = ["height", "width", "x", "y"];
   } else {
     propertyArr = ["height", "y"];
@@ -958,7 +960,7 @@ const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
     //通过？和 ||false 减低复杂度
     //isNewLineAdjacent指下一个元素是否新起一行，高于顶低于底则换行
     let bottomi = 0, topNext = 0, topi = 0, bottomNext = 0, righti = 0, leftNext = 0;
-    //定义页面方向，后续补充
+    //定义页面方向，ltr为左向右，Up 为向上，后续补充
     const ltrAndUp = true;
     if (ltrAndUp) {
       bottomi = items[i].transform[5];
@@ -1054,7 +1056,7 @@ const makeLine = (lineArr: PDFItem[][]) => {
         const heightFrequency = frequency(lastLine.sourceLine.map(e => e.height));
         let widthLong = 0;
         let widthShort = 0;
-        const heightFrequencyArr = Object.keys(heightFrequency).filter(e => e != "0");
+        const heightFrequencyArr = heightFrequency.itemOrderByFrequency.filter(e => e);
 
 
         let widthLongHeight = Number(heightFrequencyArr[0]);
@@ -1775,6 +1777,8 @@ export async function pdf2document(itmeID: number) {
   let title;
   if (titleTemp.length && !titleTemp.includes("untitled")) {
     title = titleTemp;
+  } else {
+    title = Zotero.Items.get(itmeID).parentItem?.getField("title");
   }
   // 读取所有页面lines
   //函数内全局变量

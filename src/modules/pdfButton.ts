@@ -2,7 +2,13 @@ import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { saveJsonToDisk } from "../utils/prefs";
-export const pdfFontObj: any = {};
+export const pdfFontObj: {
+    loadedName: string;
+    name: string;
+} = {
+    loadedName: "",
+    name: "",
+};
 export function registerNotifier() {
     const callback = {
         notify: async (
@@ -188,7 +194,7 @@ export async function pdfFont() {
         if (event.data.data && event.data.data[1] == "Font") {
             const loadedName = event.data.data[2].loadedName;
             const name = event.data.data[2].name;
-            pdfFontObj[loadedName] = name;
+            pdfFontObj.loadedName = name;
             ztoolkit.log("pdfLoadingTask._worker._port:", "loadedName", loadedName, ", name:", name);
         }
     });
