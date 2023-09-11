@@ -20,8 +20,8 @@ dependencies:
 
 devDependencies:
   '@types/node':
-    specifier: ^20.5.7
-    version: 20.5.7
+    specifier: ^20.6.0
+    version: 20.6.0
   '@types/pdfjs-dist':
     specifier: ^2.10.378
     version: 2.10.378
@@ -590,8 +590,8 @@ packages:
     dependencies:
       localforage: 1.10.0
 
-  /@types/node@20.5.7:
-    resolution: {integrity: sha512-dP7f3LdZIysZnmvP3ANJYTSwg+wLLl8p7RqniVlV7j+oXSXAbt9h0WIBFmJy5inWZoX9wZN6eXx+YXd9Rh3RBA==}
+  /@types/node@20.6.0:
+    resolution: {integrity: sha512-najjVq5KN2vsH2U/xyh2opaSEz6cZMR2SetLIlxlj08nOcmPOemJmUK2o4kUzfLqfrWE0PIrNeE16XhYDd3nqg==}
     dev: true
 
   /@types/pdfjs-dist@2.10.378:
