@@ -65,8 +65,8 @@ devDependencies:
     specifier: ^5.2.2
     version: 5.2.2
   zotero-types:
-    specifier: ^1.2.2
-    version: 1.2.2
+    specifier: ^1.2.3
+    version: 1.2.3
 
 packages:
 
@@ -576,6 +576,9 @@ packages:
     resolution: {integrity: sha512-C5Mc6rdnsaJDjO3UpGW/CQTHtCKaYlScZTly4JIu97Jxo/odCiH0ITnDXSJPTOrEKk/ycSZ0AOgTmkDtkOsvIA==}
     dev: true
 
+  /@types/bluebird@3.5.38:
+    resolution: {integrity: sha512-yR/Kxc0dd4FfwtEoLZMoqJbM/VE/W7hXn/MIjb+axcwag0iFmSPK7OBUZq1YWLynJUoWQkfUrI7T0HDqGApNSg==}
+
   /@types/http-cache-semantics@4.0.1:
     resolution: {integrity: sha512-SZs7ekbP8CN0txVG2xVRH6EgKmEm31BOxA07vkFaETzZz1xh+cbt8BcI0slpymvwhx5dlFnQG2rTlPVQn+iRPQ==}
     dev: true
@@ -607,15 +610,11 @@ packages:
   /@types/prop-types@15.7.5:
     resolution: {integrity: sha512-JCB8C6SnDoQf0cNycqd/35A7MjcnK+ZTqE7judS6o7utxUCg6imJg3QK2qzHKszlTjcj2cn+NwMB2i96ubpj7w==}
 
-  /@types/react@18.2.21:
-    resolution: {integrity: sha512-neFKG/sBAwGxHgXiIxnbm3/AAVQ/cMRS93hvBpg8xYRbeQSPVABp9U2bRnPf0iI4+Ucdv3plSxKK+3CW2ENJxA==}
+  /@types/react@17.0.2:
+    resolution: {integrity: sha512-Xt40xQsrkdvjn1EyWe1Bc0dJLcil/9x2vAuW7ya+PuQip4UYUaXyhzWmAbwRsdMgwOFHpfp7/FFZebDU6Y8VHA==}
     dependencies:
       '@types/prop-types': 15.7.5
-      '@types/scheduler': 0.16.3
       csstype: 3.1.2
-
-  /@types/scheduler@0.16.3:
-    resolution: {integrity: sha512-5cJ8CB4yAx7BH1oMvdU0Jh9lrEXyPkar6F9G/ERswkCuvP4KQZfZkSjcMbAICCpQTN4OuZn8tz0HiKv9TGZgrQ==}
 
   /@types/semver@7.5.1:
     resolution: {integrity: sha512-cJRQXpObxfNKkFAZbJl2yjWtJCqELQIdShsogr1d2MilP8dKD9TE/nEKHkJgUNHdGKCQaf9HbIynuV2csLGVLg==}
@@ -4456,11 +4455,12 @@ packages:
   /zotero-plugin-toolkit@2.2.9:
     resolution: {integrity: sha512-AnH6H/p/WnI/ZLUqnNniyoAQqj9mZETGtZHvjhJqsNG4OCchGzjMzxLVW8TFYc56AEYpImxVc3JNXTIHwkExDg==}
     dependencies:
-      zotero-types: 1.2.2
+      zotero-types: 1.2.3
     dev: false
 
-  /zotero-types@1.2.2:
-    resolution: {integrity: sha512-Mhf1TVh3JeK+nVpOZmbXmUxXZjv3Mi76ddDhn9AzgHGLI4c6ONxtzX31+Xgaeh78/k3gmOZMs7Atfm3mfp7ojA==}
+  /zotero-types@1.2.3:
+    resolution: {integrity: sha512-KD0m+vJSrN8/YnUwXsPZIl53ePh1J5UwGvsnVUj88KSkKE9T/l0C7PFMOEfgPfyls01shc0MTRw+I8XPCY9CuA==}
     dependencies:
-      '@types/react': 18.2.21
+      '@types/bluebird': 3.5.38
+      '@types/react': 17.0.2
       epubjs: 0.3.93
