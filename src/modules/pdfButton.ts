@@ -5,6 +5,7 @@ import { saveJsonToDisk } from "../utils/prefs";
 export const pdfFontInfo: {
     [key: string]: string;
 } = {};
+let title: string;
 export function registerNotifier() {
     const callback = {
         notify: async (
@@ -44,12 +45,11 @@ export function unregisterNotifier(notifierID: string) {
 
 async function savefont(fontObj: any) {
     //const item = Zotero.getActiveZoteroPane().getSelectedItems()[0]
-    const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
-    const pdfItem = reader._item;
-    const pdfPath = Zotero.Attachments.getStorageDirectory(pdfItem).path + "\\";
-    const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
-    let title = tab.tab.title;
-    title = title.replace(/( - [^-]+){1,2}$/m, "");
+    //const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
+    //const pdfItem = reader._item;
+    //const pdfPath = Zotero.Attachments.getStorageDirectory(pdfItem).path + "\\";
+    //const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
+
     const saveFileName = title + "_pdfFontInfo";
     //const saveFileName = new Date().getTime().toString() + "_pdfFontInfo";
     saveJsonToDisk(fontObj, saveFileName);
@@ -92,6 +92,9 @@ export async function pdfButton() {
     while (!(_window = reader?._iframeWindow?.wrappedJSObject)) {
         await Zotero.Promise.delay(10);
     }
+    const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
+    title = tab.tab.title;
+    title = title.replace(/( - [^-]+){1,2}$/m, "");
     const parent = _window.document.querySelector("#reader-ui .toolbar .end")!;
     const ref = parent.querySelector("#viewFind") as HTMLDivElement;
     const button = ztoolkit.UI.insertElementBefore({

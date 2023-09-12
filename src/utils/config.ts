@@ -10,34 +10,9 @@ export const specialCharaDisplay = {
   '\u0004': '\\u0004', '\u0005': '\\u0005', '\u0006': '\\u0006', '\u0007': '\\u0007',
   '\u0008': '\\u0008'
 };
-export const fontName = {
+export const boldFontStyle = ["AdvTT7d6ad6bc", "AdvP4ADA8D", "AdvP4AA440", "AdvP978E", "AdvP405AA6", 'AdvP9725', "AdvPi3", "AdvTTecf15426.B"];
+export const italicFontStyle = ["AdvP9794", 'AdvTT52d06db3.I',];
 
-  //可能最先采用的字体居前
-  "g_d0_f1": "",
-  //正文
-  "g_d0_f2": "",
-  //第二页 粗体 图片文字
-  //粗体 标题 作者 摘要 序言
-  "g_d0_f3": "",
-  //页脚 括号中粗体
-  //单位 摘要段落 页脚 粗体
-  "g_d0_f4": "",
-  //摘要中的斜体
-  //页脚斜体
-  "g_d0_f5": "",
-  //斜体 引文 图片
-  //或者说括号中的斜体
-  //括号中斜体 图片
-  "g_d0_f6": "",
-  //非摘要中的斜体
-  //括号中斜体
-  "g_d0_f7": "",
-  "g_d0_f8": "",
-  //第二页 图片文字的正文
-  "g_d0_f9": "",
-  //第二页 斜体，括号内外
-  "g_d0_f10": "",
-};
 
 export const langCode_franVsZotero = {
   "cmn": "zh",

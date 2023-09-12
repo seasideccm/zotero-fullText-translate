@@ -1,6 +1,7 @@
 
 import { getPref } from '../utils/prefs';
-import { pdfFontInfo } from "./pdfButton";
+import { pdfFontInfo } from './pdfButton';
+import { boldFontStyle, italicFontStyle } from '../utils/config';
 /* import * as pdfjsLib from "pdfjs-dist";
 import entry from "pdfjs-dist/build/pdf.worker.entry";
 import { TextItem } from 'pdfjs-dist/types/src/display/api';
@@ -793,7 +794,7 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
     });
   });
 
-  const strNoDuplicateByFont: any = {};
+  const strCountsNoDuplicateByFont: any = {};
   const strCountsByFont: any = {};
   const strArrByFont: any = {};
   for (let i = 0; i < fontOrder.length; i++) {
@@ -801,22 +802,22 @@ const fontInfo = (allItem: any[], isSkipClearCharaters: boolean) => {
     const strByFontArr = strByFont(arrTemp, fontOrder[i], false, true);
     const newArr = [...new Set(strByFontArr)];
     strArrByFont[fontOrder[i]] = {
-      strNoDuplicateByFont: newArr,
+      strCountsNoDuplicateByFont: newArr,
       strByFontArr: strByFontArr,
     };
-    strNoDuplicateByFont[fontOrder[i]] = newArr.length;
+    strCountsNoDuplicateByFont[fontOrder[i]] = newArr.length;
     strCountsByFont[fontOrder[i]] = strByFontArr.length;
   }
   //去重字符串的数量组成数组然后降序排序
-  const strNoDuplicateOrderByFont = Object.values(strNoDuplicateByFont).sort((a, b) => (b as number) - (a as number));
-  const strOrderByFont = Object.values(strCountsByFont).sort((a, b) => (b as number) - (a as number));
+  const strCountsNoDuplicateByFontOrder = Object.values(strCountsNoDuplicateByFont).sort((a, b) => (b as number) - (a as number));
+  const strCountsByFontOrder = Object.values(strCountsByFont).sort((a, b) => (b as number) - (a as number));
   return {
     fontFrequency: fontObj,
     fontOrderByFrequency: fontOrder,
-    strNoDuplicateByFont: strNoDuplicateByFont,
-    strNoDuplicateOrderByFont: strNoDuplicateOrderByFont,
+    strCountsNoDuplicateByFont: strCountsNoDuplicateByFont,
+    strCountsNoDuplicateByFontOrder: strCountsNoDuplicateByFontOrder,
     strCountsByFont: strCountsByFont,
-    strOrderByFont: strOrderByFont,
+    strCountsByFontOrder: strCountsByFontOrder,
     strArrByFont: strArrByFont,
     fontList: fontList,
   };
@@ -887,20 +888,21 @@ const makeFontList = (fontArr: string[]) => {
 };
 
 
-const fontStyle = (item: PDFItem, lineItem: PDFItem[], lineArr: PDFItem[][], fontInfoObj: any) => {
-  const fontOrder = fontInfoObj.fontOrderByFrequency;
-  const strNoDuplicateByFont = fontInfoObj.strNoDuplicateByFont;
-  const strNoDuplicateOrderByFont = fontInfoObj.strNoDuplicateOrderByFont;
-  const lineFontArr = [...new Set(lineItem.filter(e => !e.str.includes("\\u000")).map(e => e.fontName))];
+const fontStyle = (item: PDFItem, lineItem: PDFItem[], fontInfoObj: any) => {
+  const strCountsNoDuplicateByFont = fontInfoObj.strCountsNoDuplicateByFont;
+  const strCountsNoDuplicateByFontOrder = fontInfoObj.strCountsNoDuplicateByFontOrder;
+  //const lineFontArr = [...new Set(lineItem.filter(e => !e.str.includes("\\u000")).map(e => e.fontName))];
+  const lineFontArr = [...new Set(lineItem.map(e => e.fontName))];
   let lineFontStyle;
-  if (lineFontArr.length <= 1) {
+  if (lineFontArr.length == 1) {
     return {
       lineMainFont: lineFontArr[0],
     };
   }
   //根据本页字体确认该行正文字体，主字体
   //本行字体数组依据在本页字体顺序中的位置排序
-  lineFontArr.sort((a, b) => fontOrder.indexOf(a) - fontOrder.indexOf(b));
+  lineFontArr.sort((a, b) => fontInfoObj.fontOrderByFrequency.indexOf(a) - fontInfoObj.fontOrderByFrequency.indexOf(b));
+
   const lineMainFont = lineFontArr[0];
   if (item.fontName == lineMainFont) {
     return {
@@ -917,8 +919,8 @@ const fontStyle = (item: PDFItem, lineItem: PDFItem[], lineArr: PDFItem[][], fon
     };
   }
 
-  const strCountsLine = strNoDuplicateByFont[item.fontName];
-  const linefontIndex = strNoDuplicateOrderByFont.indexOf(strCountsLine);
+  const strCountsLine = strCountsNoDuplicateByFont[item.fontName];
+  const linefontIndex = strCountsNoDuplicateByFontOrder.indexOf(strCountsLine);
   //先一律设为斜体
   if (linefontIndex >= 1) {
     /*     if () */
@@ -931,6 +933,48 @@ const fontStyle = (item: PDFItem, lineItem: PDFItem[], lineArr: PDFItem[][], fon
     lineMainFont: lineMainFont,
     lineFontStyle: lineFontStyle,
   };
+};
+
+
+const lineMainFont = (lineItem: PDFItem[], fontInfoObj: any) => {
+  const strCountsNoDuplicateByFont = fontInfoObj.strCountsNoDuplicateByFont;
+  const strCountsNoDuplicateByFontOrder = fontInfoObj.strCountsNoDuplicateByFontOrder;
+  const lineFontArr = [...new Set(lineItem.map(e => e.fontName))];
+  let lineMainFont = lineFontArr[0];
+  if (lineFontArr.length == 1) {
+    return {
+      lineMainFont: lineMainFont,
+    };
+  }
+  //字符串数量最多的字体为主字体
+  let temp = 0;
+  for (let i = 0; i < lineFontArr.length; i++) {
+    const strByFontArr = strByFont(lineItem, lineFontArr[i], false, true);
+    const strLength = strByFontArr.map(e => e.length).reduce((total, current) => total + current, 0);
+    if (strLength > temp) {
+      temp = strLength;
+      lineMainFont = lineFontArr[i];
+    }
+  }
+  return {
+    lineMainFont: lineMainFont,
+  };
+
+};
+
+const pdfItemStyle = (item: PDFItem, lineMainFont: string, pdfFontInfo: any, boldFontStyle: any, italicFontStyle: any) => {
+  if (item.str.includes("\\u000")
+    || item.str.match(/[\u0000-\u001f]/) != null
+    || item.str.match(/^\s+$/g) != null
+    || item.str == ""
+
+  ) {
+    return;
+  }
+  if (item.fontName == lineMainFont) { return; }
+  let name = pdfFontInfo[item.fontName];
+  name = name.
+
 };
 
 const clearCharactersDisplay = (pdfItem: PDFItem) => {
@@ -1019,13 +1063,15 @@ const makeLine = (lineArr: PDFItem[][]) => {
   // 行数组中的元素合并成行，
   //判断上下标，粗斜体
   const linesCombined = [];
+  //本页字体信息
   const fontInfoObj = fontInfo(lineArr, true);
   for (let i = 0; i < lineArr.length; i++) {
     const lineItem: PDFItem[] = lineArr[i];
     if (!lineItem.length) { continue; }
     // 行数组的首个元素转换为PDFLine类型，作为行首，即前一行（或上一小行）
     const lastLine = toLine(lineItem[0] as PDFItem);
-    const fontInfo = fontStyle(lineItem[0], lineItem, lineArr, fontInfoObj);
+
+    const fontInfo = fontStyle(lineItem[0], lineItem, fontInfoObj);
     lastLine.fontName = fontInfo?.lineMainFont ? fontInfo?.lineMainFont : lineItem[0].fontName;
     const lastLineFontStyle = fontInfo?.lineFontStyle;
     const lineTxt = lastLine.text;
@@ -1046,7 +1092,7 @@ const makeLine = (lineArr: PDFItem[][]) => {
       for (let i = 1; i < lineItem.length; i++) {
         const line = toLine(lineItem[i]);
         lastLine.sourceLine.push(lineItem[i]);
-        const lineFontStyle = fontStyle(lineItem[i], lineItem, lineArr, fontInfoObj)?.lineFontStyle;
+        const lineFontStyle = fontStyle(lineItem[i], lineItem, fontInfoObj)?.lineFontStyle;
         //上一行的在合并中属性不断变化，最后成为一整行
         //是空字串也需要合并属性
         combineLine(lastLine, line, lineFontStyle);
@@ -1691,10 +1737,10 @@ const IdentifyHeadingLevel = (
       [key: string]: number;
     };
     fontOrderByFrequency: string[];
-    strNoDuplicateByFont: any;
-    strNoDuplicateOrderByFont: unknown[];
+    strCountsNoDuplicateByFont: any;
+    strCountsNoDuplicateByFontOrder: unknown[];
     strCountsByFont: any;
-    strOrderByFont: unknown[];
+    strCountsByFontOrder: unknown[];
     strArrByFont: any;
     fontList: any;
   },
