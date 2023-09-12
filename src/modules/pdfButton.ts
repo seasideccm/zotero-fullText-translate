@@ -42,9 +42,16 @@ export function unregisterNotifier(notifierID: string) {
     Zotero.Notifier.unregisterObserver(notifierID);
 }
 
-function savefont(fontObj: any) {
-
-    const saveFileName = new Date().getTime().toString() + "_pdfFontInfo";
+async function savefont(fontObj: any) {
+    //const item = Zotero.getActiveZoteroPane().getSelectedItems()[0]
+    const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
+    const pdfItem = reader._item;
+    const pdfPath = Zotero.Attachments.getStorageDirectory(pdfItem).path + "\\";
+    const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
+    let title = tab.tab.title;
+    title = title.replace(/( - [^-]+){1,2}$/m, "");
+    const saveFileName = title + "_pdfFontInfo";
+    //const saveFileName = new Date().getTime().toString() + "_pdfFontInfo";
     saveJsonToDisk(fontObj, saveFileName);
     ztoolkit.log("saveFileName:", saveFileName);
 }
