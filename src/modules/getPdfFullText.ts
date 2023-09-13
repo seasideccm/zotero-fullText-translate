@@ -1276,7 +1276,7 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
       paraCondition["condition"] += `当前行较上下行明显缩进，且上下行没有长空格和长间隙，字体和上一行相同，避免悬挂分段时错误分段，
       (currentLine.x > lastLine.x + tolerance && currentLine.x > nextLine.x + tolerance)
       && currentLine.fontName == lastLine.fontName)`;
-    } else if (currentLine.x > lastLine.x + 16 && longSpaceCount == 0) {
+    } else if (currentLine.x > lastLine.x + 16 && longSpaceCount == 0 && currentLine.y < lastLine.y) {
       isNewParagraph = true;
       paraCondition["condition"] += `左侧明显比上一行更靠右,(currentLine.x > lastLine.x + 16 && longSpaceCount == 0)`;
     } else if (nextLine.lineSpaceTop && lastLine.lineSpaceTop && currentLine.lineSpaceTop) {
@@ -1861,6 +1861,7 @@ export async function pdf2document(itmeID: number) {
 
   const itemsArr: PDFItem[][] = [];
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
+
     const pdfPage = pages[pageNum].pdfPage;
     const textContent = await pdfPage.getTextContent();
     const items = textContent.items;
