@@ -1,7 +1,8 @@
 
-import { saveJsonToDisk } from "../utils/prefs";
+import { saveJsonToDisk, readJsonFromDisk } from "../utils/prefs";
 import { pdfFont, pdfFontInfo } from "./fontDetect";
 import { pdfButton, title } from "./pdfButton";
+
 
 
 export function registerNotifier() {
@@ -41,6 +42,12 @@ async function savefont(fontObj: any) {
     //const pdfItem = reader._item;
     //const pdfPath = Zotero.Attachments.getStorageDirectory(pdfItem).path + "\\";
     //const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
+    const fontSaved = await readJsonFromDisk("fontCollection") as string[];
+    const fonts = Object.values(fontObj) as string[];
+    if (fontSaved && fonts.length) {
+        const newArr = [...new Set(fontSaved.concat(fonts))];
+        saveJsonToDisk(newArr, "fontCollection");
+    }
 
     const saveFileName = title + "_pdfFontInfo";
     //const saveFileName = new Date().getTime().toString() + "_pdfFontInfo";

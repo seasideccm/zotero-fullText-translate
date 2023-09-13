@@ -1,5 +1,6 @@
 import { config } from "../../package.json";
 import { fullTextTranslateService } from "../modules/serviceManage";
+import { fileNameLegal } from "../utils/fileNameLegal";
 
 export const fullTextTranslatedir = Zotero.Prefs.get("extensions.zotero.dataDir", true) as string + "\\storage\\" + config.addonName + "\\";
 export const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
@@ -65,6 +66,7 @@ export function setPluginsPref(plugin: string, key: string, value: string | numb
  * @param ext 
  */
 export async function saveJsonToDisk(obj: object, filename: string, dir?: string, ext?: string) {
+  filename = fileNameLegal(filename);
   const objJson = JSON.stringify(obj);
   if (ext === undefined) {
     ext = ".json";
