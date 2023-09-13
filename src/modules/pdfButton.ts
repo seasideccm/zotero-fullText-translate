@@ -1,89 +1,8 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
-import { saveJsonToDisk } from "../utils/prefs";
-export const pdfFontInfo: {
-    [key: string]: string;
-} = {};
-let title: string;
-export function registerNotifier() {
-    const callback = {
-        notify: async (
-            event: string,
-            type: string,
-            ids: number[] | string[],
-            extraData: { [key: string]: any; },
-        ) => {
-            if (!addon?.data.alive) {
-                unregisterNotifier(notifierID);
-                return;
-            }
-            onNotify(event, type, ids, extraData);
-        },
-    };
 
-    // Register the callback in Zotero as an item observer
-    /*     const notifierID = Zotero.Notifier.registerObserver(callback, [
-            "tab",
-            "item",
-            "file",
-        ]); */
-    const notifierID = Zotero.Notifier.registerObserver(callback);
-    // Unregister callback when the window closes (important to avoid a memory leak)
-    window.addEventListener(
-        "unload",
-        (e: Event) => {
-            unregisterNotifier(notifierID);
-        },
-        false,
-    );
-}
-
-export function unregisterNotifier(notifierID: string) {
-    Zotero.Notifier.unregisterObserver(notifierID);
-}
-
-async function savefont(fontObj: any) {
-    //const item = Zotero.getActiveZoteroPane().getSelectedItems()[0]
-    //const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
-    //const pdfItem = reader._item;
-    //const pdfPath = Zotero.Attachments.getStorageDirectory(pdfItem).path + "\\";
-    //const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
-
-    const saveFileName = title + "_pdfFontInfo";
-    //const saveFileName = new Date().getTime().toString() + "_pdfFontInfo";
-    saveJsonToDisk(fontObj, saveFileName);
-    ztoolkit.log("saveFileName:", saveFileName);
-}
-
-async function onNotify(
-    event: string,
-    type: string,
-    ids: Array<string | number>,
-    extraData: { [key: string]: any; },
-) {
-    // You can add your code to the corresponding notify type
-    ztoolkit.log("notify is coming【", "event:", event, "type:", type, "ids:", ids, "extraData:", extraData + "】");
-    if (
-        event == "select" &&
-        type == "tab" &&
-        extraData[ids[0]].type == "reader"
-    ) {
-        pdfButton();
-        pdfFont();
-    } else if (
-        event == "close" &&
-        type == "tab" &&
-        ids[0] != "zotero-pane"
-    ) {
-
-        savefont(pdfFontInfo);
-        ztoolkit.log("保存字体信息");
-    } else {
-        return;
-    }
-}
-
+export let title: string;
 export async function pdfButton() {
     const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
     let _window: any;
@@ -185,25 +104,3 @@ export async function pdfButton() {
     }, ref) as HTMLButtonElement;
 
 }
-
-export async function pdfFont() {
-
-    const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
-    await reader._waitForReader;
-    let port;
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    while (!(port = reader._iframeWindow?.wrappedJSObject?.PDFViewerApplication?.pdfLoadingTask?._worker?._port)) {
-        await Zotero.Promise.delay(0.5);
-    }
-    port.addEventListener("message", (event: MessageEvent) => {
-        //ztoolkit.log(event.target, event.data.data);
-        if (event.data.data && event.data.data[1] == "Font") {
-            const loadedName = event.data.data[2].loadedName;
-            const name = event.data.data[2].name;
-            pdfFontInfo[loadedName] = name;
-            ztoolkit.log("pdfLoadingTask._worker._port:", "loadedName", loadedName, ", name:", name);
-        }
-    });
-}
-

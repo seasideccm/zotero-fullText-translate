@@ -1,7 +1,8 @@
 
 import { getPref } from '../utils/prefs';
-import { pdfFontInfo } from './pdfButton';
-import { boldFontStyle, italicFontStyle } from '../utils/config';
+import { pdfFontInfo } from './fontDetect';
+import { fontStyleCollection } from '../utils/config';
+
 /* import * as pdfjsLib from "pdfjs-dist";
 import entry from "pdfjs-dist/build/pdf.worker.entry";
 import { TextItem } from 'pdfjs-dist/types/src/display/api';
@@ -669,6 +670,9 @@ const combineLine = (lastLine: PDFLine, line: PDFLine, fontStyle?: string) => {
     if (fontStyle == "italic") {
       lineTxt = "<em>" + lineTxt + "</em>";
     }
+    if (fontStyle == "boldItalic") {
+      lineTxt = "<strong><em>" + lineTxt + "</em></strong>";
+    }
   }
   //lastLine 已经是 lines 的元素，其 text 变化
   lastLine.text += lineTxt;
@@ -936,15 +940,11 @@ const fontStyle = (item: PDFItem, lineItem: PDFItem[], fontInfoObj: any) => {
 };
 
 
-const lineMainFont = (lineItem: PDFItem[], fontInfoObj: any) => {
-  const strCountsNoDuplicateByFont = fontInfoObj.strCountsNoDuplicateByFont;
-  const strCountsNoDuplicateByFontOrder = fontInfoObj.strCountsNoDuplicateByFontOrder;
+const lineMainFont = (lineItem: PDFItem[]) => {
   const lineFontArr = [...new Set(lineItem.map(e => e.fontName))];
   let lineMainFont = lineFontArr[0];
   if (lineFontArr.length == 1) {
-    return {
-      lineMainFont: lineMainFont,
-    };
+    return lineMainFont;
   }
   //字符串数量最多的字体为主字体
   let temp = 0;
@@ -954,27 +954,37 @@ const lineMainFont = (lineItem: PDFItem[], fontInfoObj: any) => {
     if (strLength > temp) {
       temp = strLength;
       lineMainFont = lineFontArr[i];
+    } else if (strLength && strLength == temp) {
+      //非空字符数相等，先出现的字体为主字体
+      if (lineFontArr.indexOf(lineMainFont) > i) {
+        lineMainFont = lineFontArr[i];
+      }
     }
   }
-  return {
-    lineMainFont: lineMainFont,
-  };
-
+  return lineMainFont;
 };
 
-const pdfItemStyle = (item: PDFItem, lineMainFont: string, pdfFontInfo: any, boldFontStyle: any, italicFontStyle: any) => {
-  if (item.str.includes("\\u000")
-    || item.str.match(/[\u0000-\u001f]/) != null
-    || item.str.match(/^\s+$/g) != null
-    || item.str == ""
-
+//: "bold" | "boldItalic" | "italic" | "normal" | undefined
+const pdfItemStyle = (fontName: string, pdfFontInfo: any, fontStyleCollection: {
+  boldFontStyle: string[];
+  italicFontStyle: string[];
+  boldItalicFontStyle: never[];
+}) => {
+  const name = pdfFontInfo[fontName];
+  if (!name) { return; }
+  if (/(Bold$)|(\.B$)|(Heavey$)|(Black$)/m.test(name)
+    || fontStyleCollection.boldFontStyle.some((e: string) => name.includes(e))
   ) {
-    return;
+    return "bold";
+  } else if (/(BoldItal$)/m.test(name)
+    || fontStyleCollection.boldItalicFontStyle.some((e: string) => name.includes(e))) {
+    return "boldItalic";
+  } else if (/(Italic$)|(\.I$)|(Oblique$)/m.test(name)
+    || fontStyleCollection.italicFontStyle.some((e: string) => name.includes(e))) {
+    return "italic";
+  } else {
+    return "normal";
   }
-  if (item.fontName == lineMainFont) { return; }
-  let name = pdfFontInfo[item.fontName];
-  name = name.
-
 };
 
 const clearCharactersDisplay = (pdfItem: PDFItem) => {
@@ -1070,11 +1080,17 @@ const makeLine = (lineArr: PDFItem[][]) => {
     if (!lineItem.length) { continue; }
     // 行数组的首个元素转换为PDFLine类型，作为行首，即前一行（或上一小行）
     const lastLine = toLine(lineItem[0] as PDFItem);
+    const lineTxt = lastLine.text;
+    const mainFont = lineMainFont(lineItem);
 
     const fontInfo = fontStyle(lineItem[0], lineItem, fontInfoObj);
-    lastLine.fontName = fontInfo?.lineMainFont ? fontInfo?.lineMainFont : lineItem[0].fontName;
-    const lastLineFontStyle = fontInfo?.lineFontStyle;
-    const lineTxt = lastLine.text;
+    lastLine.fontName = mainFont;
+    let lastLineFontStyle = pdfItemStyle(mainFont, pdfFontInfo, fontStyleCollection);
+    if (!lastLineFontStyle) {
+      if (fontInfo.lineFontStyle) {
+        lastLineFontStyle = fontInfo.lineFontStyle;
+      }
+    }
     if (lastLineFontStyle) {
       if (lastLineFontStyle == "bold") {
         lastLine.text = "<strong>" + lineTxt + "</strong>";
@@ -1093,9 +1109,14 @@ const makeLine = (lineArr: PDFItem[][]) => {
         const line = toLine(lineItem[i]);
         lastLine.sourceLine.push(lineItem[i]);
         const lineFontStyle = fontStyle(lineItem[i], lineItem, fontInfoObj)?.lineFontStyle;
+        let itemFontStyle;
+        itemFontStyle = pdfItemStyle(lineItem[i].fontName, pdfFontInfo, fontStyleCollection);
+        if (!itemFontStyle) {
+          itemFontStyle = lineFontStyle;
+        }
         //上一行的在合并中属性不断变化，最后成为一整行
         //是空字串也需要合并属性
-        combineLine(lastLine, line, lineFontStyle);
+        combineLine(lastLine, line, itemFontStyle);
       }
       //获取宽度最长的高
       if (lastLine.sourceLine.length > 1) {
@@ -1818,6 +1839,7 @@ export async function pdf2document(itmeID: number) {
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
   let totalPageNum = pages.length;
+
   let isHasEOL: boolean;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/g, '');
   let title;

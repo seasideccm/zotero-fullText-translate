@@ -10,8 +10,15 @@ export const specialCharaDisplay = {
   '\u0004': '\\u0004', '\u0005': '\\u0005', '\u0006': '\\u0006', '\u0007': '\\u0007',
   '\u0008': '\\u0008'
 };
-export const boldFontStyle = ["AdvTT7d6ad6bc", "AdvP4ADA8D", "AdvP4AA440", "AdvP978E", "AdvP405AA6", 'AdvP9725', "AdvPi3", "AdvTTecf15426.B"];
+export const boldFontStyle = ["AdvTT7d6ad6bc", "AdvP4ADA8D", "AdvP4AA440", "AdvP978E", "AdvP405AA6", "AdvPi3", "AdvTTecf15426.B", "AdvP418142"];
 export const italicFontStyle = ["AdvP9794", 'AdvTT52d06db3.I',];
+export const boldItalicFontStyle = [];
+export const normalFontStyle = ["AdvP9725",];
+export const fontStyleCollection = {
+  boldFontStyle: boldFontStyle,
+  italicFontStyle: italicFontStyle,
+  boldItalicFontStyle: boldItalicFontStyle,
+};
 
 
 export const langCode_franVsZotero = {

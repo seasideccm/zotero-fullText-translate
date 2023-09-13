@@ -4,7 +4,7 @@ import { registerPrefsScripts } from "./modules/preferenceScript";
 import { createZToolkit } from "./utils/ztoolkit";
 import { fullTextTranslate, onOpenPdf } from "./modules/fullTextTranslate";
 import { serviceInit } from "./modules/serviceManage";
-import { registerNotifier } from "./modules/pdfButton";
+import { registerNotifier } from "./modules/notify";
 import { findFontOnPdfLoading } from "./modules/messageTest";
 
 async function onStartup() {
