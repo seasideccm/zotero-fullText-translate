@@ -202,7 +202,7 @@ export class fullTextTranslate {
         await Zotero.Promise.delay(200);
         tabID = Zotero_Tabs.getTabIDByItemID(item.id);
       }
-      Zotero_Tabs.select('zotero-pane');
+      //Zotero_Tabs.select('zotero-pane');
 
     }
   }

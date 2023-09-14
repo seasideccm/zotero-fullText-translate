@@ -972,14 +972,14 @@ const pdfItemStyle = (fontName: string, pdfFontInfo: any, fontStyleCollection: {
 }) => {
   const name = pdfFontInfo[fontName];
   if (!name) { return; }
-  if (/(Bold$)|(\.B$)|(Heavey$)|(Black$)/m.test(name)
+  if (/(-Bold$)|(\.B(\+\d+)?$)|(Heavey$)|(Black$)|(-Semibold$)/m.test(name)
     || fontStyleCollection.boldFontStyle.some((e: string) => name.includes(e))
   ) {
     return "bold";
-  } else if (/(BoldItal$)/m.test(name)
+  } else if (/(BoldItal$)|(.BI$)|(-SemiboldIt$)|(BoldItalic$)/m.test(name)
     || fontStyleCollection.boldItalicFontStyle.some((e: string) => name.includes(e))) {
     return "boldItalic";
-  } else if (/(Italic$)|(\.I$)|(Oblique$)/m.test(name)
+  } else if (/(Italic$)|(\.I$)|(Oblique$)|(-LightIt$)|(-It$)/m.test(name)
     || fontStyleCollection.italicFontStyle.some((e: string) => name.includes(e))) {
     return "italic";
   } else {
@@ -1830,11 +1830,10 @@ export async function pdf2document(itmeID: number) {
   if (Zotero_Tabs.selectedID != tabID) {
     Zotero_Tabs.select(tabID);
   }
-  const reader = Zotero.Reader.getByTabID(tabID);
+  const reader = Zotero.Reader.getByTabID(tabID) as any;
   await reader._waitForReader();
-  while (!reader._iframeWindow) {
-    Zotero.Promise.delay(500);
-  }
+  await reader._initPromise;
+  await reader._internalReader._lastView.initializedPromise;
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
   await PDFViewerApplication.pdfLoadingTask.promise;
   await PDFViewerApplication.pdfViewer.pagesPromise;
@@ -1876,6 +1875,10 @@ export async function pdf2document(itmeID: number) {
       delete e.chars;
     });
     itemsArr.push(items as PDFItem[]);
+    reader.navigateToNextPage();
+    await PDFViewerApplication.pdfViewer.onePageRendered;
+    const test = 5;
+    //reader._internalReader.navigateToNextPage()
   }
   /*   const fontInfoArticle = fontInfo(itemsArr, false);
     const heightTempArr = itemsArr.flat(1).map(e => e.height).filter(e => e);
