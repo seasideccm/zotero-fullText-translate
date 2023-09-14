@@ -82,14 +82,14 @@ export class fullTextTranslate {
       }),
       icon: menuIcon,
     });
-    /* ztoolkit.Menu.register("item", {
-       tag: "menuitem",
-       label: getString("menuitem-pdf2Note"),
-       commandListener: (async (ev) => {
-         await this.pdf2Note();       //fullTextTranslate.pdf2Note();
-       }),
-       icon: menuIcon,
-     });  */
+    ztoolkit.Menu.register("item", {
+      tag: "menuitem",
+      label: getString("menuitem-pdf2Note"),
+      commandListener: (async (ev) => {
+        await this.pdf2Note();       //fullTextTranslate.pdf2Note();
+      }),
+      icon: menuIcon,
+    });
 
   }
   //在参数设置中注册本插件的标签
@@ -188,34 +188,12 @@ export class fullTextTranslate {
     const pdfIDs = this.getPDFs();
     for (const id of pdfIDs) {
       const item = Zotero.Items.get(id);
+
+      if (!Zotero_Tabs.getTabIDByItemID(item.id)) {
+        await Zotero.Reader.open(id);
+      }
       let tabID = Zotero_Tabs.getTabIDByItemID(item.id);
-      if (!tabID) {
-        this.fullTextTranslateInfo("find opened pdf");
-        continue;
-      }
-      //测试
-      this.fullTextTranslateInfo("进入测试");
-      continue;
-      /*     let counter = 0;
-            while (!tabID) {
-             Zotero.Promise.delay(500);
-             tabID = Zotero_Tabs.getTabIDByItemID(item.id);
-             counter += 500;
-             if (counter > 50000) { break; }
-           } */
       Zotero_Tabs.select(tabID);
-      let reader = Zotero.Reader.getByTabID(tabID);
-      let hasIf = reader._iframeWindow;
-      while (!hasIf) {
-        Zotero.Promise.delay(500);
-        reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID);
-        hasIf = reader._iframeWindow;
-      }
-      //fullTextTranslate.fullTextTranslateInfo("启动");
-      //const reader = Zotero.Reader.open(item.id, undefined, { allowDuplicate: false }) as _ZoteroTypes.ReaderInstance;
-      /*         while (!reader._iframeWindow) {
-                Zotero.Promise.delay(500);
-              } */
       await this.getPdfContent(item, true);
 
       //任务完成关闭 pdf

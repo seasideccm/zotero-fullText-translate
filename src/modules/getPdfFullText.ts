@@ -1831,6 +1831,7 @@ export async function pdf2document(itmeID: number) {
     Zotero_Tabs.select(tabID);
   }
   const reader = Zotero.Reader.getByTabID(tabID);
+  await reader._waitForReader();
   while (!reader._iframeWindow) {
     Zotero.Promise.delay(500);
   }

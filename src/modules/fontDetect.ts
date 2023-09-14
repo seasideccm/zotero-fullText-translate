@@ -15,7 +15,7 @@ export async function pdfFont() {
         //ztoolkit.log(event.target, event.data.data);
         if (event.data.data && event.data.data[1] == "Font") {
             const loadedName = event.data.data[2].loadedName;
-            const name = event.data.data[2].name;
+            const name = event.data.data[2].name.replace(/^[A-Z]{6}\+/m, "");
             pdfFontInfo[loadedName] = name;
             ztoolkit.log("pdfLoadingTask._worker._port:", "loadedName", loadedName, ", name:", name);
         }

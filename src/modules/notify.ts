@@ -44,8 +44,14 @@ async function savefont(fontObj: any) {
     //const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
     const fontSaved = await readJsonFromDisk("fontCollection") as string[];
     const fonts = Object.values(fontObj) as string[];
-    if (fontSaved && fonts.length) {
-        const newArr = [...new Set(fontSaved.concat(fonts))];
+    let newArr: string[];
+    if (fontSaved && fontSaved.length) {
+        newArr = [...new Set(fontSaved.concat(fonts))];
+
+    } else {
+        newArr = [...new Set(fonts)];
+    }
+    if (newArr.length) {
         saveJsonToDisk(newArr, "fontCollection");
     }
 
