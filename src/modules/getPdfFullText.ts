@@ -663,7 +663,7 @@ const combineLine = (lastLine: PDFLine, line: PDFLine, fontStyle?: string) => {
       }
     }
   }
-  if (fontStyle) {
+  if (fontStyle && lineTxt !== "" && lineTxt !== " ") {
     if (fontStyle == "bold") {
       lineTxt = "<strong>" + lineTxt + "</strong>";
     }
@@ -1082,7 +1082,6 @@ const makeLine = (lineArr: PDFItem[][]) => {
     const lastLine = toLine(lineItem[0] as PDFItem);
     const lineTxt = lastLine.text;
     const mainFont = lineMainFont(lineItem);
-
     const fontInfo = fontStyle(lineItem[0], lineItem, fontInfoObj);
     lastLine.fontName = mainFont;
     let lastLineFontStyle = pdfItemStyle(mainFont, pdfFontInfo, fontStyleCollection);
@@ -1091,7 +1090,7 @@ const makeLine = (lineArr: PDFItem[][]) => {
         lastLineFontStyle = fontInfo.lineFontStyle;
       }
     }
-    if (lastLineFontStyle) {
+    if (lastLineFontStyle && lineTxt !== "" && lineTxt !== " ") {
       if (lastLineFontStyle == "bold") {
         lastLine.text = "<strong>" + lineTxt + "</strong>";
       }
@@ -1324,9 +1323,10 @@ const cleanHeadFooter = (lines: PDFLine[], totalPageNum: number, headFooderTextA
   // 左下角坐标的 y 加上行高加上容差如果超过页眉下边界限认为是页眉
   // 左下角坐标的 y 加上容差如果超过页脚下边界限认为是页脚
   //只有当所有条件都为 true 时，当前元素 e 才会被过滤掉
-
+  //文本重复次：减去首页除以2再取整
+  const repeatTimes = Math.trunc((totalPageNum - 1) * 0.5);
   const linesClean = lines.filter((e: any) =>
-    !(e.forward || e.backward || (e.repeat && e.repeat > totalPageNum * 0.5)
+    !(e.forward || e.backward || (e.repeat && e.repeat > repeatTimes)
       || (headingY && (e.y + e.height + 6) > headingY) || (footerY && (e.y < footerY + 6))));
   // 如果是首尾行并且和页眉页脚内容雷同（除外非单词内容）则舍弃，
   //比较 y 避免多次移除
@@ -1825,11 +1825,11 @@ const IdentifyHeadingLevel = (
 };
 
 export async function pdf2document(itmeID: number) {
-  const tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
-  if (!tabID) { return; }
-  if (Zotero_Tabs.selectedID != tabID) {
-    Zotero_Tabs.select(tabID);
+  if (!Zotero_Tabs.getTabIDByItemID(itmeID)) {
+    await Zotero.Reader.open(itmeID);
   }
+  const tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
+  Zotero_Tabs.select(tabID);
   const reader = Zotero.Reader.getByTabID(tabID) as any;
   await reader._waitForReader();
   await reader._initPromise;
@@ -1839,7 +1839,6 @@ export async function pdf2document(itmeID: number) {
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
   let totalPageNum = pages.length;
-
   let isHasEOL: boolean;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/g, '');
   let title;
@@ -2017,10 +2016,13 @@ export async function pdf2document(itmeID: number) {
   }
   //获取页眉页脚的 Y
   let headFooderTextArr: string[] = [];
-  for (const line of removeLines as Set<{ y: number; text: string; }>) {
-    const y = line.y as number;
-    headFooterY.push(y);
-    headFooderTextArr.push(removeNumber(line.text));
+  const repeatTimes = Math.trunc((totalPageNum - 1) * 0.5);
+  for (const line of removeLines as Set<{ y: number; text: string; repeat: number; }>) {
+    if (line.repeat && line.repeat >= repeatTimes) {
+      const y = line.y as number;
+      headFooterY.push(y);
+      headFooderTextArr.push(removeNumber(line.text));
+    }
   }
   headFooderTextArr = [...new Set(headFooderTextArr)];
   headFooderTextArr = headFooderTextArr.filter((e: any) => e != undefined && e != null && e != "");
@@ -2031,22 +2033,36 @@ export async function pdf2document(itmeID: number) {
     return acc;
   }, {});
   //Y去重
-  let headingY: number = 0;
+  let headingY: number = Number(headingY0);
   let footerY: number = 0;
   const Yclean = Object.keys(resultY).sort((a: string, b: string) => Number(a) - Number(b));
   if (Yclean.length > 1) {
-    headingY = Number(Yclean.slice(-1)[0]);
-    footerY = Number(Yclean[0]);
-  } else {
-    Number(Yclean[0]) >= 300 ? headingY = Number(Yclean[0]) : footerY = Number(Yclean[0]);
+    for (const y of Yclean) {
+      //页眉在上页脚在下
+      if (Number(y) >= Number(headingY0) * 0.5) {
+        const headingTemp = Number(y);
+        //页眉可以是多行，最后一行的位置为页眉位置
+        if (headingTemp < headingY) {
+          headingY = headingTemp;
+        }
+      } else {
+        const footerTemp = Number(y);
+        //页脚可以是多行，第一行的位置为页脚位置
+        if (footerTemp > footerY) {
+          footerY = footerTemp;
+        }
+      }
+    }
+  } else if (Yclean.length == 1) {
+    Number(Yclean[0]) >= Number(headingY0) * 0.5 ? headingY = Number(Yclean[0]) : footerY = Number(Yclean[0]);
   }
   //如果页眉或页脚出现的次数小于总页数的一半，则认为没有页眉或页脚
-  if (resultY[Number(Yclean.slice(-1)[0])] < totalPageNum * 0.5) {
-    headingY = headingY0;
-  }
-  if (resultY[Number(Yclean[0])] < totalPageNum * 0.5) {
-    footerY = footerY0;
-  }
+  /*   if (resultY[Number(Yclean.slice(-1)[0])] < totalPageNum * 0.5) {
+      headingY = headingY0;
+    }
+    if (resultY[Number(Yclean[0])] < totalPageNum * 0.5) {
+      footerY = footerY0;
+    } */
 
 
   //recordCombine记录需要跨页合并的行，跨越多行合并，行顺序颠倒合并
@@ -2455,5 +2471,7 @@ export async function pdf2document(itmeID: number) {
     const pdfTitle = "<h1>" + title + "</h1>" + "\n";
     docs.unshift(pdfTitle);
   }
+  reader.close();
   return docs;
+
 };

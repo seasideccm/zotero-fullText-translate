@@ -188,20 +188,19 @@ export class fullTextTranslate {
     const pdfIDs = this.getPDFs();
     for (const id of pdfIDs) {
       const item = Zotero.Items.get(id);
-
-      if (!Zotero_Tabs.getTabIDByItemID(item.id)) {
+      /* if (!Zotero_Tabs.getTabIDByItemID(item.id)) {
         await Zotero.Reader.open(id);
-      }
-      let tabID = Zotero_Tabs.getTabIDByItemID(item.id);
-      Zotero_Tabs.select(tabID);
+      } */
+      /* let tabID = Zotero_Tabs.getTabIDByItemID(item.id);
+      Zotero_Tabs.select(tabID); */
       await this.getPdfContent(item, true);
 
       //任务完成关闭 pdf
-      while (tabID) {
-        Zotero_Tabs.close(tabID);
-        await Zotero.Promise.delay(200);
-        tabID = Zotero_Tabs.getTabIDByItemID(item.id);
-      }
+      /*       while (tabID) {
+              Zotero_Tabs.close(tabID);
+              await Zotero.Promise.delay(200);
+              tabID = Zotero_Tabs.getTabIDByItemID(item.id);
+            } */
       //Zotero_Tabs.select('zotero-pane');
 
     }
