@@ -54,9 +54,9 @@ async function savefont(fontObj: any) {
     if (newArr.length) {
         saveJsonToDisk(newArr, "fontCollection");
     }
-    const saveFileName = title + "_pdfFontInfo";
+    /* const saveFileName = title + "_pdfFontInfo";
     saveJsonToDisk(fontObj, saveFileName);
-    ztoolkit.log("saveFileName:", saveFileName);
+    ztoolkit.log("saveFileName:", saveFileName); */
 }
 
 async function onNotify(

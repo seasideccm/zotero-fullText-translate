@@ -1041,13 +1041,12 @@ const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
       righti = items[i].transform[4] + items[i].width;
       leftNext = items[i + 1]?.transform[4];
       let hasGap = false;
-      if (items[i].str != "") {
-        hasGap = leftNext - righti > 1 * (items[i].width / items[i].str.length)
-          || false;
-      } else if (items[i + 1] && items[i + 1].str != "") {
-        hasGap = leftNext - righti > 1 * (items[i + 1].width / items[i + 1].str.length) || false;
-      } else if (items[i - 1] && items[i - 1].str != "") {
-        hasGap = leftNext - righti > 1 * (items[i - 1].width / items[i - 1].str.length) || false;
+      if (items[i].str != " ") {
+        hasGap = leftNext - righti > 1.5 * (items[i].width / items[i].str.length);
+      } else if (items[i + 1] && items[i + 1].str != " " && items[i + 1].str != "") {
+        hasGap = leftNext - righti > 1.5 * (items[i + 1].width / items[i + 1].str.length);
+      } else if (items[i - 1] && items[i - 1].str != "" && items[i - 1].str != " ") {
+        hasGap = leftNext - righti > 1.5 * (items[i - 1].width / items[i - 1].str.length);
       } else {
         hasGap = leftNext - righti > 6;
       }
@@ -1243,6 +1242,9 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
   } else if (currentLine.sourceLine[1] && currentLine.sourceLine[0].str == '' && currentLine.sourceLine[0].hasEOL
     && /^[& 0-9.]+$/m.test(currentLine.sourceLine[1].str)) {
     isNewParagraph = true;
+  } else if (currentLine.sourceLine[0].hasEOL && currentLine.sourceLine[0].fontName != currentLine.fontName && currentLine.text.startsWith("<strong>")) {
+    isNewParagraph = true;
+    paraCondition["condition"] += `句首单词为粗体 (currentLine.sourceLine[0].hasEOL&&currentLine.sourceLine[0].fontName!=currentLine.fontName&&currentLine.text.startsWith("<strong>"))`;
   } else if (!nextLine) {
     if (lastLine.lineSpaceTop && currentLine.lineSpaceTop) {
       paraCondition["condition"] += ` if (lastLine.lineSpaceTop && currentLine.lineSpaceTop)`;
@@ -1299,7 +1301,20 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
   };
 };
 
-
+const footnoteIdentity = (paras: PDFParagraph[]) => {
+  const xArr = paras.map(e => e.left).sort((a, b) => a - b);
+  const bottomLeftArr = paras.filter(e => e.left == xArr[0]).map(e => e.bottom).sort((a, b) => a - b);
+  const bottomRightArr = paras.filter(e => e.left == xArr.slice(-1)[0]).map(e => e.bottom).sort((a, b) => a - b);
+  const heightArr = paras.map(e => e.lineHeight);
+  const heightMode = getModeFrequencyAndOrder(heightArr).mode;
+  for (let i = paras.length - 1; i > 0; i--) {
+    if (paras[i].lineHeight < heightMode
+      && (paras[i].bottom == bottomLeftArr[0] || paras[i].bottom == bottomRightArr[0])) {
+      return paras[i];
+      break;
+    }
+  };
+};
 const removeNumber = (text: string) => {
   // 删除英文页码
   //整行只有 1-3 个大写英文字母
@@ -1368,93 +1383,188 @@ const titleIdentify = (title: string,
     "title": '',
     "para": {} as PDFParagraph,
   };
-  let twords: string[] = [];
-  if (title) {
-    twords = [...new Set(title.toLowerCase().split(' '))];
-  }
-  const pagesHeightOrderByValue = contentHeightInfo._orderByFrequency.sort((a, b) => Number(b) - Number(a)) as number[];
+  /*   let titleWords: string[] = [];
+    if (title) {
+      titleWords = [...new Set(title.toLowerCase().split(' '))];
+    } */
 
-  const totalPageNum = Object.keys(_pagePara).length;
-  for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
-    const _para: PDFParagraph[] = _pagePara[String(pageNum) as keyof typeof _pagePara];
-    const lineHeightArr = Object.values(_para).map(e => e.lineHeight);
-    const highModeFrequencyOrder = getModeFrequencyAndOrder(lineHeightArr);
-    const lineHeightOrderByFrequency = highModeFrequencyOrder._orderByFrequency;
-    const highMode = highModeFrequencyOrder.mode;
-    const lineHeightOrderByValue = [...lineHeightOrderByFrequency].sort((a, b) => Number(b) - Number(a));
-
-    //const lineWidthtArr = Object.values(_para).map(e => parseFloat(e.width.toFixed(3)));
-    //const widthModeFrequencyOrder = getModeFrequencyAndOrder(lineWidthtArr);
-    //const lineWidthOrderByFrequency = widthModeFrequencyOrder._orderByFrequency;
-    //const lineWidthOrderByValue =[... lineWidthOrderByFrequency].sort((a, b) => b - a);
-
-    /* const lines = _para.flat(1).map(p => p.lines);
-    const pagefontOrderByFrequency = fontInfo(lines, true)?.fontOrderByFrequency; */
-
-    let skip = false;
-    for (let i = 0; i < _para.length; i++) {
-      const p = _para[i];
-      let isHasTitle = false;
-      if (title !== undefined && title != "") {
-        const pwords = [...new Set(p.text.toLowerCase().split(' '))];
-        let combineNoduplicate = [...new Set(pwords.concat(twords as string[]))];
-        combineNoduplicate = combineNoduplicate.filter(e => e.match(/<[^<>]+>/g) == null);
-        const counts = (pwords.length + twords.length) / 2;
-        const factor = counts / combineNoduplicate.length;
-        if ((
-          //和标题吻合
-          p.text.toLowerCase() == title.toLowerCase()
-          || (factor > 0.8 && abs(pwords.length - twords.length) < counts * 0.5)
-        )) {
-          isHasTitle = true;
-        }
-      }
-      //标题有可能是本页最短的行
-      //非高的众数
-      if (!isHasTitle
-        && p.lineHeight != highMode
-        && p.text.split(/\b/).filter(e => e != " ").length > 1) {
-        //所有页面中最高的
-        if (pagesHeightOrderByValue.indexOf(p.lineHeight) == 0) {
-          isHasTitle = true;
-        }
-        //本页最高且非单个单词
-        else if (lineHeightOrderByValue.indexOf(p.lineHeight) == 0
-        ) {
-          isHasTitle = true;
-        } else if (
-          //所有页面中第二高
-          pagesHeightOrderByValue.indexOf(p.lineHeight) == 1
-        ) {
-          isHasTitle = true;
-        }
-        else if (
-          //找不到符合条件且最高的行
-          //第二高，且仅有这一行
-          lineHeightOrderByValue.indexOf(p.lineHeight) == 1
-          && highModeFrequencyOrder._frequency[p.lineHeight] == 1
-        ) {
-          isHasTitle = true;
-        }
-      }
-      if (isHasTitle) {
-        pdfTitle.title = p.text;
-        pdfTitle.para = p;
-        p.headingLevel = 1;
-        if (_para[i + 1]) {
-          //用100表示紧邻文章大标题
-          if (_para[i + 1].left >= p.left && _para[i + 1].paraSpaceTop < 1.5 * p.lineHeight)
-            _para[i + 1].headingLevel = 100;
-        }
-        skip = true;
-        break;
+  function isTextConsistent(title: string, paraText: string) {
+    if (title !== undefined && title != "") {
+      let titleWords: string[] = [];
+      titleWords = [...new Set(title.toLowerCase().split(' '))];
+      const paraWords = [...new Set(paraText.toLowerCase().split(' '))];
+      let combineNoduplicate = [...new Set(paraWords.concat(titleWords as string[]))];
+      combineNoduplicate = combineNoduplicate.filter(e => e.match(/<[^<>]+>/g) == null);
+      const counts = (paraWords.length + titleWords.length) / 2;
+      const factor = counts / combineNoduplicate.length;
+      if (
+        paraText.toLowerCase() == title.toLowerCase()
+        || (factor > 0.8 && abs(paraWords.length - titleWords.length) < counts * 0.5)
+      ) {
+        return true;
       }
     }
-    if (skip) { break; }
   }
+
+  const pagesHeightOrderByValue = contentHeightInfo._orderByFrequency.sort((a, b) => Number(b) - Number(a)) as number[];
+  const titleCandidate = [];
+  const reg = /<\/?(em|strong)>/g;
+  const paras = Object.values(_pagePara).flat(1).filter(p => (pagesHeightOrderByValue.indexOf(p.lineHeight) <= 1));
+  if (title) {
+    for (const para of paras) {
+      //标题内容可能不止一处
+      const paraText = para.text.replace(reg, '');
+      if (isTextConsistent(title, paraText)) {
+        titleCandidate.push(para);
+      };
+    }
+  } else {
+    const parasHeightMax = paras.filter(p => (pagesHeightOrderByValue.indexOf(p.lineHeight) == 0));
+    const parasHeightSecond = paras.filter(p => (pagesHeightOrderByValue.indexOf(p.lineHeight) == 1));
+    const paraSpaceBottomArr = paras.map(e => e.paraSpaceBottom).sort((a, b) => b - a);
+    if (parasHeightMax.length == 1) {
+      if (parasHeightMax[0].text.split(/\b/).filter(e => e != " ").length > 1) {
+        titleCandidate.push(parasHeightMax[0]);
+      }
+    }
+    if (parasHeightSecond.length == 1) {
+      titleCandidate.push(parasHeightSecond[0]);
+    }
+    if (!titleCandidate.length && parasHeightSecond.length > 1) {
+      parasHeightSecond.filter(e => {
+        if (e.paraSpaceBottom == paraSpaceBottomArr[0]) {
+          titleCandidate.push(e);
+        }
+      });
+    }
+  }
+
+
+  if (titleCandidate.length) {
+    const paratitle = titleCandidate.slice(-1)[0];
+    pdfTitle.title = paratitle.text;
+    pdfTitle.para = paratitle;
+    paratitle.headingLevel = 1;
+    _pagePara[paratitle.pageIndex].filter((e, i) => {
+      if (e == paratitle) {
+        if (_pagePara[paratitle.pageIndex][i + 1]) {
+          if (_pagePara[paratitle.pageIndex][i + 1].left >= paratitle.left && _pagePara[paratitle.pageIndex][i + 1].paraSpaceTop < 1.5 * paratitle.lineHeight)
+            _pagePara[paratitle.pageIndex][i + 1].headingLevel = 100;
+        }
+      }
+    });
+  }
+
   if (pdfTitle.title != '') {
     return pdfTitle;
-  };
+  }
+
+
+
+
+  /*   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
+      const _para: PDFParagraph[] = _pagePara[String(pageNum) as keyof typeof _pagePara];
+      const lineHeightArr = Object.values(_para).map(e => e.lineHeight);
+      const highModeFrequencyOrder = getModeFrequencyAndOrder(lineHeightArr);
+      const lineHeightOrderByFrequency = highModeFrequencyOrder._orderByFrequency;
+      const highMode = highModeFrequencyOrder.mode;
+      const lineHeightOrderByValue = [...lineHeightOrderByFrequency].sort((a, b) => Number(b) - Number(a));
+      let skip = false;
+      for (let i = 0; i < _para.length; i++) {
+        const p = _para[i];
+        let isHasTitle = false;
+        if (title !== undefined && title != "") {
+          const paraWords = [...new Set(p.text.replace(reg, '').toLowerCase().split(' '))];
+          let combineNoduplicate = [...new Set(paraWords.concat(titleWords as string[]))];
+          combineNoduplicate = combineNoduplicate.filter(e => e.match(/<[^<>]+>/g) == null);
+          const counts = (paraWords.length + titleWords.length) / 2;
+          const factor = counts / combineNoduplicate.length;
+          if ((
+            //和标题吻合
+            p.text.replace(reg, '').toLowerCase() == title.toLowerCase()
+            || (factor > 0.8 && abs(paraWords.length - titleWords.length) < counts * 0.5)
+          )) {
+            //高为前两位者为标题，否则待选
+            if (pagesHeightOrderByValue.indexOf(p.lineHeight) <= 1) {
+              isHasTitle = true;
+            } else {
+              titleCandidate.push(p);
+            }
+          }
+        }
+        //标题有可能是本页最短的行
+        //非高的众数
+        if (!isHasTitle
+          && p.lineHeight != highMode
+          && p.text.split(/\b/).filter(e => e != " ").length > 1) {
+          //所有页面中最高的
+          if (pagesHeightOrderByValue.indexOf(p.lineHeight) <= 1) {
+            titleCandidate.push(p);
+          }
+          //本页最高且非单个单词
+          else if (lineHeightOrderByValue.indexOf(p.lineHeight) == 0
+          ) {
+            titleCandidate.push(p);
+          }
+          else if (
+            //第二高，且仅有这一行
+            lineHeightOrderByValue.indexOf(p.lineHeight) == 1
+            && highModeFrequencyOrder._frequency[p.lineHeight] == 1
+          ) {
+            titleCandidate.push(p);
+          }
+        }
+        if (isHasTitle) {
+          pdfTitle.title = p.text;
+          pdfTitle.para = p;
+          p.headingLevel = 1;
+          if (_para[i + 1]) {
+            //用100表示紧邻文章大标题
+            if (_para[i + 1].left >= p.left && _para[i + 1].paraSpaceTop < 1.5 * p.lineHeight)
+              _para[i + 1].headingLevel = 100;
+          }
+          skip = true;
+          break;
+        }
+      }
+      if (skip) { break; }
+    }
+    if (pdfTitle.title != '') {
+      return pdfTitle;
+    } else {
+      if (titleCandidate.length) {
+        const t = titleCandidate.filter(e => pagesHeightOrderByValue.indexOf(e.lineHeight) == 0);
+        if (t.length) {
+          if (t.length == 1) {
+            if (t[0].text.split(/\b/).filter(e => e != " ").length > 1) {
+              pdfTitle.title = t[0].text;
+              pdfTitle.para = t[0];
+              t[0].headingLevel = 1;
+            }
+          } else {
+            let lengthMaxP;
+            let lengthMax = 0;
+            for (const p of t) {
+              const templenth = p.text.split(/\b/).filter(e => e != " ").length;
+              if (templenth > lengthMax) {
+                lengthMaxP = p;
+                lengthMax = templenth;
+              }
+            }
+            if (lengthMaxP) {
+              pdfTitle.title = lengthMaxP.text;
+              pdfTitle.para = lengthMaxP;
+              lengthMaxP.headingLevel = 1;
+            }
+          }
+        }
+        if (pdfTitle.title != '') {
+          return pdfTitle;
+        } else {
+          const t2 = titleCandidate.filter(e => pagesHeightOrderByValue.indexOf(e.lineHeight) == 1);
+        }
+      }
+    }; */
 };
 
 //计算行间距
@@ -1719,13 +1829,16 @@ const hasGapInline = (pdfLine: PDFLine) => {
     righti = items[i].transform[4] + items[i].width;
     leftNext = items[i + 1]?.transform[4];
     let hasGap = false;
-    if (items[i].str) {
-      hasGap = leftNext - righti > 1 * (items[i].width / items[i].str.length)
-        || false;
-    } else if (items[i + 1] && items[i + 1].str) {
-      hasGap = leftNext - righti > 1 * (items[i + 1].width / items[i + 1].str.length) || false;
-    } else if (items[i - 1] && items[i - 1].str) {
-      hasGap = leftNext - righti > 1 * (items[i - 1].width / items[i - 1].str.length) || false;
+    let item;
+    if (items[i] && items[i].str != '' && items[i].str != ' ') {
+      item = items[i];
+    } else if (items[i + 1] && items[i + 1].str != '' && items[i + 1].str != ' ') {
+      item = items[i + 1];
+    } else if (items[i - 1] && items[i - 1].str != '' && items[i - 1].str != ' ') {
+      item = items[i - 1];
+    }
+    if (item) {
+      hasGap = leftNext - righti > 1.5 * (item.width / item.str.length);
     } else {
       hasGap = leftNext - righti > 6;
     }
@@ -1840,7 +1953,7 @@ export async function pdf2document(itmeID: number) {
   const pages = PDFViewerApplication.pdfViewer._pages;
   let totalPageNum = pages.length;
   let isHasEOL: boolean;
-  const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/g, '');
+  const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/gm, '').replace(/ - zotero:.+$/gm, '');
   let title;
   if (titleTemp.length && !titleTemp.includes("untitled")) {
     title = titleTemp;
@@ -1876,7 +1989,6 @@ export async function pdf2document(itmeID: number) {
     itemsArr.push(items as PDFItem[]);
     reader.navigateToNextPage();
     await PDFViewerApplication.pdfViewer.onePageRendered;
-    const test = 5;
     //reader._internalReader.navigateToNextPage()
   }
   /*   const fontInfoArticle = fontInfo(itemsArr, false);
