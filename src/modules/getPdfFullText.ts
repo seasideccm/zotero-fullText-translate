@@ -1209,8 +1209,28 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
   const gapCounts = gaps.gapCounts;
   const gapIndex = gaps.gapIndex;
 
+  const longSpacesLast = longSpaceCounts(lastLine);
+  const longSpaceCountLast = longSpacesLast.spaceCounts;
+  const longSpaceIndexLast = longSpacesLast.longSpaceIndex || 0;
+  const gapsLast = hasGapInline(lastLine);
+  const gapCountsLast = gapsLast.gapCounts;
+  const gapIndexLast = gapsLast.gapIndex;
+
+
+  let hangingIndent = false;
+  if ((longSpaceCount == 1 && longSpaceIndex[0] <= 3)
+    || (gapCounts == 1 && gapIndex[0] <= 3)
+    || (currentLine.sourceLine[0].hasEOL && currentLine.sourceLine[1] && currentLine.sourceLine[1].str == "❓\\u000f❓")) {
+    hangingIndent = true;
+  }
+  let hangingIndentLast = false;
+  if ((longSpaceCountLast == 1 && longSpaceIndexLast[0] <= 3)
+    || (gapCountsLast == 1 && gapIndexLast[0] <= 3)
+    || (lastLine.sourceLine[0].hasEOL && lastLine.sourceLine[1] && lastLine.sourceLine[1].str == "❓\\u000f❓")) {
+    hangingIndentLast = true;
+  }
   //悬挂缩进，暂定一个长空格或一个长间隙
-  if ((longSpaceCount == 1 && longSpaceIndex[0] <= 3) || (gapCounts == 1 && gapIndex[0] <= 3)) {
+  if (hangingIndent) {
     paraCondition["condition"] += `悬挂缩进 ((longSpaceCount == 1 && longSpaceIndex[0] <= 3) || (gapCounts >= 1 && gapIndex[0] <= 3))`;
     if (nextLine && currentLine.x + tolerance < nextLine.x) {
       isNewParagraph = true;
@@ -1272,11 +1292,12 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
     if ((currentLine.x > lastLine.x + tolerance && currentLine.x > nextLine.x + tolerance)
       /* && longSpaceCounts(lastLine).spaceCounts == 0 && longSpaceCounts(nextLine).spaceCounts == 0
       && hasGapInline(lastLine).gapCounts == 0 && hasGapInline(nextLine).gapCounts == 0 */
-      && currentLine.fontName == lastLine.fontName) {
+      && currentLine.fontName == lastLine.fontName
+      && !hangingIndentLast) {
       isNewParagraph = true;
       paraCondition["condition"] += `当前行较上下行明显缩进，且上下行没有长空格和长间隙，字体和上一行相同，避免悬挂分段时错误分段，
       (currentLine.x > lastLine.x + tolerance && currentLine.x > nextLine.x + tolerance)
-      && currentLine.fontName == lastLine.fontName)`;
+      && currentLine.fontName == lastLine.fontName && !hangingIndentLast)`;
     } else if (currentLine.x > lastLine.x + 16 && longSpaceCount == 0 && currentLine.y < lastLine.y) {
       isNewParagraph = true;
       paraCondition["condition"] += `左侧明显比上一行更靠右,(currentLine.x > lastLine.x + 16 && longSpaceCount == 0)`;
@@ -1946,18 +1967,16 @@ const docReplaceSpecialCharacter = (text: string) => {
       reg = new RegExp(e, 'g');
     }
     const substitution = pdfCharasReplace[e as keyof typeof pdfCharasReplace];
-    const test = reg.test(text);
-
     text = text.replace(reg, substitution);
-    const testtext = text;
   });
   return text;
-
 };
 
 export async function pdf2document(itmeID: number) {
+  let isCloseReader = false;
   if (!Zotero_Tabs.getTabIDByItemID(itmeID)) {
     await Zotero.Reader.open(itmeID);
+    isCloseReader = true;
   }
   const tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
   Zotero_Tabs.select(tabID);
@@ -2598,9 +2617,10 @@ export async function pdf2document(itmeID: number) {
     const pdfTitle = "<h1>" + title + "</h1>" + "\n";
     docs.unshift(pdfTitle);
   }
-  reader.close();
+  if (isCloseReader) {
+    reader.close();
+  }
   let doc = docs.join('');
   doc = docReplaceSpecialCharacter(doc);
   return doc;
-
 };
