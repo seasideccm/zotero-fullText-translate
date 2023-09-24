@@ -43,8 +43,13 @@ const isSameBottom = (lineA: PDFLine, lineB: PDFLine) => {
 
 // 判断lineB是否是上标(确保上标的下边界被左侧字符包裹，不得随意调整
 const isSup = (lineA: PDFLine, lineB: PDFLine) => {
-  if (!isSameBottom(lineA, lineB) && lineA.height > lineB.height + tolerance) {
-    if (lineA.y + lineA.height > lineB.y + tolerance && lineA.y + tolerance < lineB.y) {
+  if (lineA.fontName != lineB.fontName && !isSameBottom(lineA, lineB) && lineA.height > lineB.height + tolerance) {
+    const centerLineA = lineA.y + lineA.height / 2;
+    const centerLineB = lineB.y + lineB.height / 2;
+    if (lineA.y + lineA.height > lineB.y + tolerance
+      && lineA.y + tolerance < lineB.y
+      && lineA.y + lineA.height > centerLineB
+      && centerLineB > centerLineA) {
       return true;
     } else {
       return false;
@@ -55,9 +60,15 @@ const isSup = (lineA: PDFLine, lineB: PDFLine) => {
 };
 
 //判断lineB是否是下标(确保下标的上边界被左侧字符包裹，不得随意调整)
+//pdf的行中高度相同的文本，占用的空间可能是不同的，即高可以不同
 const isSub = (lineA: PDFLine, lineB: PDFLine,) => {
-  if (!isSameBottom(lineA, lineB) && lineA.height > lineB.height + tolerance) {
-    if ((lineA.y + lineA.height) > lineB.y + lineB.height + tolerance && lineA.y + tolerance < lineB.y + lineB.height) {
+  if (lineA.fontName != lineB.fontName && !isSameBottom(lineA, lineB) && lineA.height > lineB.height + tolerance) {
+    const centerLineA = lineA.y + lineA.height / 2;
+    const centerLineB = lineB.y + lineB.height / 2;
+    if ((lineA.y + lineA.height) > lineB.y + lineB.height + tolerance
+      && lineA.y + tolerance < lineB.y + lineB.height
+      && centerLineB > lineA.y
+      && centerLineA > centerLineB) {
       return true;
     } else {
       return false;
