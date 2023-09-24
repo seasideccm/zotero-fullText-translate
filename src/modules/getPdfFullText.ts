@@ -1342,9 +1342,13 @@ const removeNumber = (text: string) => {
   if (/^[A-Z]{1,3}$/.test(text)) {
     text = "";
   }
-  // 删除空格、页码部分、清楚后末尾的非单词字符
+  // 删除空格、页码部分、末尾的非单词字符
   text = text.replace(/\x20+/g, "").replace(/<\/?su[bp]>/g, "").replace(/<\/?em>/g, "").replace(/<\/?strong>/g, "").replace(/[\dⅠ-Ⅻⅰ-ⅹ]+([\w]{1,3})?([\dⅠ-Ⅻⅰ-ⅹ]+)?$/g, "").replace(/\d+/g, "").replace(/\W+$/g, "");
-  return text;
+  if (text == "") {
+    return "none words";
+  } else {
+    return text;
+  }
 };
 
 
@@ -1972,6 +1976,85 @@ const docReplaceSpecialCharacter = (text: string) => {
   return text;
 };
 
+const headerFooterIdentify = (pageLines: any) => {
+  const totalPageNum = Object.keys(pageLines).length;
+  const pageLinesArr = Object.values(pageLines) as PDFLine[][];
+  const linesAll = pageLinesArr.flat(1);
+  const yArr = linesAll.map(e => e.y);
+  const yFrequency = frequency(yArr);
+  function extractLinesByLocation(pageLinesArr: PDFLine[][], index: number) {
+    const lineArrTop: PDFLine[] = [];
+    const lineArrBottom: PDFLine[] = [];
+    for (const lines of pageLinesArr) {
+      const yArr = lines.map(e => e.y).sort((a, b) => b - a);
+      lineArrTop.push(...lines.filter(e => e.y == yArr[index]));
+      lineArrBottom.push(...lines.filter(e => e.y == yArr.slice(-1 * index - 1)[0]));
+    }
+    return {
+      lineArrTop: lineArrTop,
+      lineArrBottom: lineArrBottom
+    };
+  }
+  let stop = false;
+  let index = 0;
+  const header: PDFLine[] = [];
+  const footer: PDFLine[] = [];
+  while (!stop) {
+    const counts = header.length + footer.length;
+    const tempObj = extractLinesByLocation(pageLinesArr, index);
+    const textHeaderArr = tempObj.lineArrTop.map(e => removeNumber(e.text));
+    const headerFrequency = frequency(textHeaderArr).objFrequency;
+    Object.keys(headerFrequency).filter(e => {
+      if (headerFrequency[e] >= 2) {
+        tempObj.lineArrTop.filter(e2 => {
+          if (removeNumber(e2.text) == e) {
+            header.push(e2);
+          }
+        });
+      }
+    });
+    const textFooterArr = tempObj.lineArrBottom.map(e => removeNumber(e.text));
+    const footerFrequency = frequency(textFooterArr).objFrequency;
+    Object.keys(footerFrequency).filter(e => {
+      if (footerFrequency[e] >= 2) {
+        tempObj.lineArrBottom.filter(e2 => {
+          if (removeNumber(e2.text) == e) {
+            footer.push(e2);
+          }
+        });
+      }
+    });
+    const counts2 = header.length + footer.length;
+    if (counts2 > counts) {
+      index++;
+    } else {
+      stop = true;
+    }
+  }
+  let headerY, footerY;
+  if (header.length) {
+    if (header.length == 1) {
+      headerY = header[0].y;
+    } else {
+      const headerYArr = header.map(e => e.y).sort((a, b) => a - b);
+      headerY = headerYArr[0];
+    }
+
+  }
+  if (footer.length) {
+    if (footer.length == 1) {
+      footerY = footer[0].y;
+    } else {
+      const footerYArr = footer.map(e => e.y).sort((a, b) => b - a);
+      footerY = footerYArr[0];
+    }
+  }
+  return {
+    headerY: headerY,
+    footerY: footerY,
+  };
+};
+
 export async function pdf2document(itmeID: number) {
   let isCloseReader = false;
   if (!Zotero_Tabs.getTabIDByItemID(itmeID)) {
@@ -1988,7 +2071,7 @@ export async function pdf2document(itmeID: number) {
   await PDFViewerApplication.pdfLoadingTask.promise;
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
-  let totalPageNum = pages.length;
+  const totalPageNum = pages.length;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/gm, '').replace(/ - zotero:.+$/gm, '');
   let title: string | undefined;
   title = Zotero.Items.get(itmeID).parentItem?.getField("title") as string | undefined;
@@ -2083,132 +2166,8 @@ export async function pdf2document(itmeID: number) {
     }
   }
 
+  const objHeaderFooter = headerFooterIdentify(pageLines);
 
-  // 获取页眉页脚信息，将信息作为行属性添加到相应行
-  totalPageNum = Object.keys(pageLines).length;
-  const headingY0: number = pages[0].pdfPage._pageInfo.view[3] + 10;
-  const footerY0 = 0;
-  const headFooterY: number[] = [];
-  const removeLines = new Set();
-  //判断并标记每一行是否属于页眉页脚
-  for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
-    const pdfPage = pages[pageNum].pdfPage;
-    const maxWidth = pdfPage._pageInfo.view[2];
-    const maxHeight = pdfPage._pageInfo.view[3];
-    //当前页的行对象数组
-    const lines = [...pageLines[pageNum]];
-    // 是否为重复
-    const isRepeat = (line: PDFLine, _line: PDFLine) => {
-      const text = removeNumber(line.text);
-      const _text = removeNumber(_line.text);
-      //比较两行文本是否相同，以及 位置是否相同
-      return text == _text && isIntersectLines(line, _line, maxWidth, maxHeight);
-    };
-    // 存在于数据起始结尾的无效行
-    for (const i of Object.keys(pageLines)) {
-      //不比较同一页面
-      if (Number(i) == pageNum) { continue; }
-      // 两个不同页，开始对比
-      // 未使用...解构则会出错
-      const _lines = [...pageLines[i]];
-      /* 定义前后方向是为了比较当前页和其他页之间的行是否重复。
-        通过比较两个不同页的行，可以找出重复的行并进行处理。
-        通过 factor 计算可以定位到页面的第一行或最后一行 */
-      const directions = {
-        forward: {
-          factor: 1,
-          done: false
-        },
-        backward: {
-          factor: -1,
-          done: false
-        }
-      };
-      // 如果不同页面的第一句或最后一句判断不是重复的，则标记为本页前向或后向已完成
-      for (let offset = 0; offset < lines.length && offset < _lines.length; offset++) {
-        ["forward", "backward"].forEach((direction: string) => {
-          if (directions[direction as keyof typeof directions].done) { return; }
-          const factor = directions[direction as keyof typeof directions].factor;
-          const index = factor * offset + (factor > 0 ? 0 : -1);
-          const line = lines.slice(index)[0];
-          const _line = _lines.slice(index)[0];
-          const sss = line.text;
-          const ssss = _line.text;
-          if (isRepeat(line, _line)) {
-            // 认为是相同的
-            line[direction] = true;
-            removeLines.add(line);
-          } else {
-            directions[direction as keyof typeof directions].done = true;
-          }
-        });
-      }
-      // 内部的
-      // 设定一个百分百正文区域防止误杀
-      const content = { x: 0.2 * maxWidth, width: .6 * maxWidth, y: .2 * maxHeight, height: .6 * maxHeight };
-      for (let j = 0; j < lines.length; j++) {
-        const line = lines[j];
-        if (isIntersectLines(content, line, maxWidth, maxHeight)) { continue; }
-        for (let k = 0; k < _lines.length; k++) {
-          const _line = _lines[k];
-          if (isRepeat(line, _line)) {
-            line.repeat = line.repeat == undefined ? 1 : (line.repeat + 1);
-            line.repateWith = _line;
-            removeLines.add(line);
-          }
-        }
-      }
-    }
-  }
-  //获取页眉页脚的 Y
-  let headFooderTextArr: string[] = [];
-  const repeatTimes = Math.trunc((totalPageNum - 1) * 0.5);
-  for (const line of removeLines as Set<{ y: number; text: string; repeat: number; }>) {
-    if (line.repeat && line.repeat >= repeatTimes) {
-      const y = line.y as number;
-      headFooterY.push(y);
-      headFooderTextArr.push(removeNumber(line.text));
-    }
-  }
-  headFooderTextArr = [...new Set(headFooderTextArr)];
-  headFooderTextArr = headFooderTextArr.filter((e: any) => e != undefined && e != null && e != "");
-
-  // 统计数组重复元素及其出现的次数
-  const resultY = headFooterY.reduce((acc: { [key: number]: number; }, el) => {
-    acc[el] = (acc[el] + 1) || 1;
-    return acc;
-  }, {});
-  //Y去重
-  let headingY: number = Number(headingY0);
-  let footerY: number = 0;
-  const Yclean = Object.keys(resultY).sort((a: string, b: string) => Number(a) - Number(b));
-  if (Yclean.length > 1) {
-    for (const y of Yclean) {
-      //页眉在上页脚在下
-      if (Number(y) >= Number(headingY0) * 0.5) {
-        const headingTemp = Number(y);
-        //页眉可以是多行，最后一行的位置为页眉位置
-        if (headingTemp < headingY) {
-          headingY = headingTemp;
-        }
-      } else {
-        const footerTemp = Number(y);
-        //页脚可以是多行，第一行的位置为页脚位置
-        if (footerTemp > footerY) {
-          footerY = footerTemp;
-        }
-      }
-    }
-  } else if (Yclean.length == 1) {
-    Number(Yclean[0]) >= Number(headingY0) * 0.5 ? headingY = Number(Yclean[0]) : footerY = Number(Yclean[0]);
-  }
-  //如果页眉或页脚出现的次数小于总页数的一半，则认为没有页眉或页脚
-  /*   if (resultY[Number(Yclean.slice(-1)[0])] < totalPageNum * 0.5) {
-      headingY = headingY0;
-    }
-    if (resultY[Number(Yclean[0])] < totalPageNum * 0.5) {
-      footerY = footerY0;
-    } */
 
 
   //recordCombine记录需要跨页合并的行，跨越多行合并，行顺序颠倒合并
@@ -2227,8 +2186,12 @@ export async function pdf2document(itmeID: number) {
     paraCondition[pageNum] = [];
     //当前页的行对象数组
     let linesTemp: PDFLine[] = [...pageLines[pageNum]];
+    const lines = linesTemp.filter(e =>
+      !(objHeaderFooter.headerY && e.y >= objHeaderFooter.headerY
+        || objHeaderFooter.footerY && e.y <= objHeaderFooter.footerY
+      ));
     //删除当前页的页眉页脚，返回当前页的行
-    const lines = cleanHeadFooter(linesTemp, totalPageNum, headFooderTextArr, headingY, footerY);
+    //const lines = cleanHeadFooter(linesTemp, totalPageNum, headFooderTextArr, headingY, footerY);
     //防止空行中断
     if (!lines.length) { continue; }
     //释放内存
