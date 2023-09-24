@@ -137,9 +137,9 @@ export class fullTextTranslate {
       fullTextTranslate.fullTextTranslateInfo(getString("info-notPdf"));
       return;
     }
-    const docs = await pdf2document(pdfItem.id);
-    if (!docs) { return; }
-    const noteTxt = docs.join('');
+    const doc = await pdf2document(pdfItem.id);
+    if (!doc) { return; }
+    const noteTxt = doc;
     //保存笔记
     if (isSavePDTtoNote) {
       const note = new Zotero.Item('note');

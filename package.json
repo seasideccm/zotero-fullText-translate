@@ -43,25 +43,23 @@
   "dependencies": {
     "decimal.js": "^10.4.3",
     "franc": "^6.1.0",
-    "pdfjs-dist": "^3.10.111",
-    "zotero-plugin-toolkit": "^2.2.9"
+    "zotero-plugin-toolkit": "^2.3.8"
   },
   "devDependencies": {
-    "@types/node": "^20.5.7",
-    "@types/pdfjs-dist": "^2.10.378",
-    "@typescript-eslint/eslint-plugin": "^6.5.0",
-    "@typescript-eslint/parser": "^6.5.0",
+    "@types/node": "^20.6.4",
+    "@typescript-eslint/eslint-plugin": "^6.7.2",
+    "@typescript-eslint/parser": "^6.7.2",
     "chokidar-cli": "^3.0.0",
     "compressing": "^1.10.0",
     "concurrently": "^8.2.1",
     "cross-env": "^7.0.3",
     "esbuild": "^0.18.20",
-    "eslint": "^8.48.0",
+    "eslint": "^8.50.0",
     "eslint-config-prettier": "^9.0.0",
     "prettier": "^3.0.3",
-    "release-it": "^16.1.5",
+    "release-it": "^16.2.0",
     "replace-in-file": "^7.0.1",
     "typescript": "^5.2.2",
-    "zotero-types": "^1.2.2"
+    "zotero-types": "^1.2.4"
   }
 }

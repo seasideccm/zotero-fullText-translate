@@ -1,7 +1,7 @@
 
 import { getPref } from '../utils/prefs';
 import { pdfFontInfo } from './fontDetect';
-import { fontStyleCollection } from '../utils/config';
+import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
 
 /* import * as pdfjsLib from "pdfjs-dist";
 import entry from "pdfjs-dist/build/pdf.worker.entry";
@@ -1368,7 +1368,7 @@ const cleanHeadFooter = (lines: PDFLine[], totalPageNum: number, headFooderTextA
  * @param _pagePara 
  * @returns 
  */
-const titleIdentify = (title: string,
+const titleIdentify = (title: string | undefined,
   _pagePara: {
     [key: string]: PDFParagraph[];
   },
@@ -1937,6 +1937,24 @@ const IdentifyHeadingLevel = (
   }
 };
 
+const docReplaceSpecialCharacter = (text: string) => {
+  Object.keys(pdfCharasReplace).filter(e => {
+    let reg;
+    if (e.startsWith("\\u")) {
+      reg = new RegExp('❓?' + "\\" + e + '❓?', "g");
+    } else {
+      reg = new RegExp(e, 'g');
+    }
+    const substitution = pdfCharasReplace[e as keyof typeof pdfCharasReplace];
+    const test = reg.test(text);
+
+    text = text.replace(reg, substitution);
+    const testtext = text;
+  });
+  return text;
+
+};
+
 export async function pdf2document(itmeID: number) {
   if (!Zotero_Tabs.getTabIDByItemID(itmeID)) {
     await Zotero.Reader.open(itmeID);
@@ -1952,18 +1970,15 @@ export async function pdf2document(itmeID: number) {
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
   let totalPageNum = pages.length;
-  let isHasEOL: boolean;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/gm, '').replace(/ - zotero:.+$/gm, '');
-  let title;
-  if (titleTemp.length && !titleTemp.includes("untitled")) {
+  let title: string | undefined;
+  title = Zotero.Items.get(itmeID).parentItem?.getField("title") as string | undefined;
+  if (!title && titleTemp.length && !titleTemp.includes("untitled")) {
     title = titleTemp;
-  } else {
-    title = Zotero.Items.get(itmeID).parentItem?.getField("title");
   }
   // 读取所有页面lines
   //函数内全局变量
   const pageLines: any = {};
-  const pageParas: any = {};
   const _paraArr = [];
   const docs: string[] = [];
 
@@ -2584,6 +2599,8 @@ export async function pdf2document(itmeID: number) {
     docs.unshift(pdfTitle);
   }
   reader.close();
-  return docs;
+  let doc = docs.join('');
+  doc = docReplaceSpecialCharacter(doc);
+  return doc;
 
 };
