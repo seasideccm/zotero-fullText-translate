@@ -97,6 +97,8 @@ declare type PDFLine = {
   fontName: string;
   _fontName: string[];
   isReference: boolean;
+  //0非悬挂，1悬挂首行，2悬挂后续行
+  hangingIndent: 0 | 1 | 2;
 };
 
 declare type PDFParagraph = {

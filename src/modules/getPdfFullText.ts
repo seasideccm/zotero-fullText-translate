@@ -43,12 +43,12 @@ const isSameBottom = (lineA: PDFLine, lineB: PDFLine) => {
 
 // 判断lineB是否是上标(确保上标的下边界被左侧字符包裹，不得随意调整
 const isSup = (lineA: PDFLine, lineB: PDFLine) => {
-  if (lineA.fontName != lineB.fontName && !isSameBottom(lineA, lineB) && lineA.height > lineB.height + tolerance) {
+  if (!isSameBottom(lineA, lineB) && lineA.height > lineB.height + tolerance) {
     const centerLineA = lineA.y + lineA.height / 2;
     const centerLineB = lineB.y + lineB.height / 2;
-    if (lineA.y + lineA.height > lineB.y + tolerance
+    if (lineA.y + lineA.height >= centerLineB
       && lineA.y + tolerance < lineB.y
-      && lineA.y + lineA.height > centerLineB
+      && lineA.y + lineA.height < lineB.y + lineB.height
       && centerLineB > centerLineA) {
       return true;
     } else {
@@ -62,10 +62,10 @@ const isSup = (lineA: PDFLine, lineB: PDFLine) => {
 //判断lineB是否是下标(确保下标的上边界被左侧字符包裹，不得随意调整)
 //pdf的行中高度相同的文本，占用的空间可能是不同的，即高可以不同
 const isSub = (lineA: PDFLine, lineB: PDFLine,) => {
-  if (lineA.fontName != lineB.fontName && !isSameBottom(lineA, lineB) && lineA.height > lineB.height + tolerance) {
+  if (!isSameBottom(lineA, lineB) && lineA.height > lineB.height + tolerance) {
     const centerLineA = lineA.y + lineA.height / 2;
     const centerLineB = lineB.y + lineB.height / 2;
-    if ((lineA.y + lineA.height) > lineB.y + lineB.height + tolerance
+    if (lineA.y + lineA.height > lineB.y + lineB.height + tolerance
       && lineA.y + tolerance < lineB.y + lineB.height
       && centerLineB > lineA.y
       && centerLineA > centerLineB) {
@@ -623,6 +623,7 @@ const toLine = (item: PDFItem) => {
     isReference: false,
     lineSpaceTop: 0,
     lineSpaceBottom: 0,
+    hangingIndent: 0,
   };
   if (line.width < 0) {
     line.x = Math.round(line.width + line.x);
@@ -1213,45 +1214,43 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
     lastLine: lastLine,
     nextLine: nextLine,
   };
-  const longSpaces = longSpaceCounts(currentLine);
-  const longSpaceCount = longSpaces.spaceCounts;
-  const longSpaceIndex = longSpaces.longSpaceIndex || 0;
-  const gaps = hasGapInline(currentLine);
-  const gapCounts = gaps.gapCounts;
-  const gapIndex = gaps.gapIndex;
-
-  const longSpacesLast = longSpaceCounts(lastLine);
-  const longSpaceCountLast = longSpacesLast.spaceCounts;
-  const longSpaceIndexLast = longSpacesLast.longSpaceIndex || 0;
-  const gapsLast = hasGapInline(lastLine);
-  const gapCountsLast = gapsLast.gapCounts;
-  const gapIndexLast = gapsLast.gapIndex;
-
-
-  let hangingIndent = false;
-  if ((longSpaceCount == 1 && longSpaceIndex[0] <= 3)
-    || (gapCounts == 1 && gapIndex[0] <= 3)
-    || (currentLine.sourceLine[0].hasEOL && currentLine.sourceLine[1] && currentLine.sourceLine[1].str == "❓\\u000f❓")) {
-    hangingIndent = true;
+  function isHangingIndent(currentLine: PDFLine) {
+    const longSpaces = longSpaceCounts(currentLine);
+    const longSpaceCount = longSpaces.spaceCounts;
+    const longSpaceIndex = longSpaces.longSpaceIndex || 0;
+    const gaps = hasGapInline(currentLine);
+    const gapCounts = gaps.gapCounts;
+    const gapIndex = gaps.gapIndex;
+    if ((longSpaceCount == 1 && longSpaceIndex[0] <= 3)
+      || (gapCounts == 1 && gapIndex[0] <= 3)
+      || (currentLine.sourceLine[0].hasEOL && currentLine.sourceLine[1] && currentLine.sourceLine[1].str == "❓\\u000f❓")
+      || currentLine.sourceLine[0].hasEOL && currentLine.sourceLine[1] && currentLine.sourceLine[1].str.endsWith(".") && currentLine.sourceLine[2] && currentLine.sourceLine[2].str == " "
+      || !currentLine.sourceLine[0].hasEOL && currentLine.sourceLine[0].str.endsWith(".") && currentLine.sourceLine[1] && currentLine.sourceLine[1].str == " ") {
+      currentLine.hangingIndent = 1;
+    }
   }
-  let hangingIndentLast = false;
-  if ((longSpaceCountLast == 1 && longSpaceIndexLast[0] <= 3)
-    || (gapCountsLast == 1 && gapIndexLast[0] <= 3)
-    || (lastLine.sourceLine[0].hasEOL && lastLine.sourceLine[1] && lastLine.sourceLine[1].str == "❓\\u000f❓")) {
-    hangingIndentLast = true;
-  }
+  isHangingIndent(currentLine);
   //悬挂缩进，暂定一个长空格或一个长间隙
-  if (hangingIndent) {
+  if (currentLine.hangingIndent == 2) {
+    isNewParagraph = false;
+    paraCondition["condition"] += `悬挂缩进续(currentLine.hangingIndent == 2)`;
+  } else if (currentLine.hangingIndent == 1) {
+    isNewParagraph = true;
     paraCondition["condition"] += `悬挂缩进 ((longSpaceCount == 1 && longSpaceIndex[0] <= 3) || (gapCounts >= 1 && gapIndex[0] <= 3))`;
-    if (nextLine && currentLine.x + tolerance < nextLine.x) {
-      isNewParagraph = true;
+    if (nextLine
+      && currentLine.x + tolerance < nextLine.x
+    ) {
+      if (currentLine.sourceLine[3] && nextLine.sourceLine[0].transform[4] == currentLine.sourceLine[3].transform[4]
+        || currentLine.sourceLine[2] && nextLine.sourceLine[0].transform[4] == currentLine.sourceLine[2].transform[4]) {
+        nextLine.hangingIndent = 2;
+      }
       paraCondition["condition"] += `&&(nextLine && currentLine.x > nextLine.x + tolerance)`;
-    } else if (currentLine.x + tolerance < lastLine.x) {
+    } else if (currentLine.x + tolerance < lastLine.x && lastLine.hangingIndent == 0) {
       isNewParagraph = true;
-      paraCondition["condition"] += `&&(currentLine.x > lastLine.x + tolerance)`;
-    } else if (longSpaceCounts(lastLine).spaceCounts == 1 && longSpaceCounts(lastLine).longSpaceIndex[0] <= 3) {
+      paraCondition["condition"] += `&&(currentLine.x + tolerance < lastLine.x&&lastLine.hangingIndent==0)`;
+    } else if (lastLine.hangingIndent == 1) {
       isNewParagraph = true;
-      paraCondition["condition"] += `&&(longSpaceCounts(lastLine).spaceCounts== 1 &&longSpaceCounts(lastLine).longSpaceIndex[0]<= 3)`;
+      paraCondition["condition"] += `&&(lastLine.hangingIndent==1)`;
     } else if (nextLine && longSpaceCounts(nextLine).spaceCounts == 1 && longSpaceCounts(nextLine).longSpaceIndex[0] <= 3) {
       isNewParagraph = true;
       paraCondition["condition"] += `&&(nextLine&&longSpaceCounts(nextLine).spaceCounts== 1 &&longSpaceCounts(nextLine).longSpaceIndex[0]<= 3)`;
@@ -1292,7 +1291,7 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
           paraCondition["condition"] += `&& 最低位，中间无图那种情况 (currentLine.y == infoParas.yOrder[0] )`;
         }
       }
-    } else if (currentLine.x > lastLine.x + 16 && longSpaceCount == 0 && gapCounts == 0) {
+    } else if (currentLine.x > lastLine.x + 16 && currentLine.hangingIndent == 0) {
       isNewParagraph = true;
       paraCondition["condition"] += `非悬挂，确认缩进就换行,(currentLine.x > lastLine.x + 16 && longSpaceCount==0&&gapCounts==0)`;
     }
@@ -1304,12 +1303,12 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
       /* && longSpaceCounts(lastLine).spaceCounts == 0 && longSpaceCounts(nextLine).spaceCounts == 0
       && hasGapInline(lastLine).gapCounts == 0 && hasGapInline(nextLine).gapCounts == 0 */
       && currentLine.fontName == lastLine.fontName
-      && !hangingIndentLast) {
+      && lastLine.hangingIndent == 0) {
       isNewParagraph = true;
       paraCondition["condition"] += `当前行较上下行明显缩进，且上下行没有长空格和长间隙，字体和上一行相同，避免悬挂分段时错误分段，
       (currentLine.x > lastLine.x + tolerance && currentLine.x > nextLine.x + tolerance)
       && currentLine.fontName == lastLine.fontName && !hangingIndentLast)`;
-    } else if (currentLine.x > lastLine.x + 16 && longSpaceCount == 0 && currentLine.y < lastLine.y) {
+    } else if (currentLine.x > lastLine.x + 16 && currentLine.y < lastLine.y) {
       isNewParagraph = true;
       paraCondition["condition"] += `左侧明显比上一行更靠右,(currentLine.x > lastLine.x + 16 && longSpaceCount == 0)`;
     } else if (nextLine.lineSpaceTop && lastLine.lineSpaceTop && currentLine.lineSpaceTop) {
@@ -1988,11 +1987,8 @@ const docReplaceSpecialCharacter = (text: string) => {
 };
 
 const headerFooterIdentify = (pageLines: any) => {
-  const totalPageNum = Object.keys(pageLines).length;
   const pageLinesArr = Object.values(pageLines) as PDFLine[][];
   const linesAll = pageLinesArr.flat(1);
-  const yArr = linesAll.map(e => e.y);
-  const yFrequency = frequency(yArr);
   function extractLinesByLocation(pageLinesArr: PDFLine[][], index: number) {
     const lineArrTop: PDFLine[] = [];
     const lineArrBottom: PDFLine[] = [];
@@ -2101,7 +2097,6 @@ export async function pdf2document(itmeID: number) {
 
   const itemsArr: PDFItem[][] = [];
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
-
     const pdfPage = pages[pageNum].pdfPage;
     const textContent = await pdfPage.getTextContent();
     const items = textContent.items;
@@ -2180,7 +2175,6 @@ export async function pdf2document(itmeID: number) {
   const objHeaderFooter = headerFooterIdentify(pageLines);
 
 
-
   //recordCombine记录需要跨页合并的行，跨越多行合并，行顺序颠倒合并
   const recordCombine: any = {};
   //pagePara对象，键为页码，值为段落组成的数组
@@ -2189,14 +2183,22 @@ export async function pdf2document(itmeID: number) {
   const paraCondition: any = {};
 
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
+
     //paragraphs数组,每页都初始化为空
     const paragraphs = [];
     pagePara[pageNum] = [] as PDFLine[][];
     //先定义空数组，如何没有数据 push 进来，则该页数组长度为 0
     recordCombine[pageNum] = [];
     paraCondition[pageNum] = [];
-    //当前页的行对象数组
     let linesTemp: PDFLine[] = [...pageLines[pageNum]];
+    if (!objHeaderFooter.headerY) {
+      const headingY0: number = pages[pageNum].pdfPage._pageInfo.view[3];
+      objHeaderFooter.headerY = headingY0 * 0.95;
+    }
+    if (!objHeaderFooter.footerY) {
+      const headingY0: number = pages[pageNum].pdfPage._pageInfo.view[3];
+      objHeaderFooter.footerY = headingY0 * 0.05;
+    }
     const lines = linesTemp.filter(e =>
       !(objHeaderFooter.headerY && e.y >= objHeaderFooter.headerY
         || objHeaderFooter.footerY && e.y <= objHeaderFooter.footerY
@@ -2587,10 +2589,10 @@ export async function pdf2document(itmeID: number) {
       docs.push(_pagePara[p][i].text);
     }
   }
-  if (pdfTitle == undefined && title !== undefined && title != "") {
+  /* if (pdfTitle == undefined && title !== undefined && title != "") {
     const pdfTitle = "<h1>" + title + "</h1>" + "\n";
     docs.unshift(pdfTitle);
-  }
+  } */
   if (isCloseReader) {
     reader.close();
   }
