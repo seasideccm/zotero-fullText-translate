@@ -984,7 +984,7 @@ const pdfItemStyle = (fontName: string, pdfFontInfo: any, fontStyleCollection: {
 }) => {
   const name = pdfFontInfo[fontName];
   if (!name) { return; }
-  if (/(-Bold$)|(\.B(\+\d+)?$)|(Heavey$)|(Black$)|(-Semibold$)/m.test(name)
+  if (/(-Bold$)|(\.B(\+\d+)?$)|(Heavey$)|(Black$)|(-Semibold$)|(-Bold-)/m.test(name)
     || fontStyleCollection.boldFontStyle.some((e: string) => name.includes(e))
   ) {
     return "bold";
@@ -1134,8 +1134,6 @@ const makeLine = (lineArr: PDFItem[][]) => {
         let widthLong = 0;
         let widthShort = 0;
         const heightFrequencyArr = heightFrequency.itemOrderByFrequency.filter(e => e);
-
-
         let widthLongHeight = Number(heightFrequencyArr[0]);
         if (heightFrequencyArr.length > 1) {
           for (let i = 0; i < heightFrequencyArr.length; i++) {
@@ -1155,6 +1153,9 @@ const makeLine = (lineArr: PDFItem[][]) => {
         lastLine.height = lastLine.sourceLine[0].height;
       }
     }
+    const regStrong = /<\/(strong>)<\1/g;
+    const regEm = /<\/(em>)<\1/g;
+    lastLine.text = lastLine.text.replace(regStrong, '').replace(regEm, '');
     linesCombined.push(lastLine);
   }
   return linesCombined;
@@ -1894,7 +1895,8 @@ const tagWrapHeader = (headingLevel: number, item: string) => {
   } else {
     const tagBegin = '<h' + headingLevel + '>';
     const tagClose = '</h' + headingLevel + '>\n';
-    item = tagBegin + item + tagClose;
+    const reg = /<\/?strong>/g;
+    item = tagBegin + item.replace(reg, '') + tagClose;
   }
   return item;
 };
@@ -1988,7 +1990,6 @@ const docReplaceSpecialCharacter = (text: string) => {
 
 const headerFooterIdentify = (pageLines: any) => {
   const pageLinesArr = Object.values(pageLines) as PDFLine[][];
-  const linesAll = pageLinesArr.flat(1);
   function extractLinesByLocation(pageLinesArr: PDFLine[][], index: number) {
     const lineArrTop: PDFLine[] = [];
     const lineArrBottom: PDFLine[] = [];
@@ -2010,7 +2011,17 @@ const headerFooterIdentify = (pageLines: any) => {
     const counts = header.length + footer.length;
     const tempObj = extractLinesByLocation(pageLinesArr, index);
     const textHeaderArr = tempObj.lineArrTop.map(e => removeNumber(e.text));
+    const xHeaderArr = tempObj.lineArrTop.map(e => e.x);
+    const yHeaderArr = tempObj.lineArrTop.map(e => e.y);
+    const textFooterArr = tempObj.lineArrBottom.map(e => removeNumber(e.text));
+    const xFooterArr = tempObj.lineArrBottom.map(e => e.x);
+    const yFooterArr = tempObj.lineArrBottom.map(e => e.y);
     const headerFrequency = frequency(textHeaderArr).objFrequency;
+    const footerFrequency = frequency(textFooterArr).objFrequency;
+    const xHeaderFrequency = frequency(xHeaderArr).objFrequency;
+    const yHeaderFrequency = frequency(yHeaderArr).objFrequency;
+    const xFooterFrequency = frequency(xFooterArr).objFrequency;
+    const yHFooterFrequency = frequency(yFooterArr).objFrequency;
     Object.keys(headerFrequency).filter(e => {
       if (headerFrequency[e] >= 2) {
         tempObj.lineArrTop.filter(e2 => {
@@ -2020,8 +2031,8 @@ const headerFooterIdentify = (pageLines: any) => {
         });
       }
     });
-    const textFooterArr = tempObj.lineArrBottom.map(e => removeNumber(e.text));
-    const footerFrequency = frequency(textFooterArr).objFrequency;
+
+
     Object.keys(footerFrequency).filter(e => {
       if (footerFrequency[e] >= 2) {
         tempObj.lineArrBottom.filter(e2 => {
