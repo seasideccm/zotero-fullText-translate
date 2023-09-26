@@ -8,6 +8,7 @@ import { baiduModify } from "./baiduModify";
 import { baidufieldModify } from "./baidufieldModify";
 import { franc } from "franc";
 import { langCode_franVsZotero } from "../utils/config";
+import { html2md, md2html } from "./mdHtmlConvert";
 //import { p2d } from "./getPdfFullText";
 
 
@@ -271,6 +272,9 @@ export class fullTextTranslate {
         backend: "turndown",
       });
     }
+    const mdHtml = note.getNote();
+    const mdtxt2 = await Zotero.BetterNotes.api.convert.md2html(mdHtml);
+    const mdtxt2Test = await md2html(mdHtml);
     return mdtxt;
   }
 
@@ -610,18 +614,13 @@ export class fullTextTranslate {
       noteHtml = item.getNote();
     } else if (item.isPDFAttachment()) {
       noteHtml = await this.getPdfContent(item) as string;
-      /*       //测试
-            return noteHtml; */
-
     }
-
     const docCellArr: DocCell[] = [];
     const docItem: DocItem = {
       itemID: itemID,
       key: item.key,
       content: docCellArr,
     };
-
     if (!noteHtml.length || noteHtml === undefined) { return; }
     //split paragraph
     //replace begin <div data-schema-version="8"> with ''
@@ -872,6 +871,7 @@ export class fullTextTranslate {
           const regMatch = item.match(reg);
           //不替换行内图片，转为markdown ![](), 译后替换
           let mdTxt: string = await Zotero.BetterNotes.api.convert.html2md(item);
+          const mdTxtTest = html2md(item);
           mdTxt = mdTxt.replace("\n", '');
           mdTxt = fullTextTranslate.cleanMd(mdTxt);
           //再拆分，为句子？
@@ -1063,6 +1063,7 @@ export class fullTextTranslate {
       }
       tranedStr = fullTextTranslate.modifySubSupHeading(tranedStr);
       const result = await Zotero.BetterNotes.api.convert.md2html(tranedStr);
+      const resultTest = md2html(tranedStr);
       if (result !== undefined) {
         docCell.result = result;
       } else { return; }
