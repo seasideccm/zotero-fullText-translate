@@ -33,6 +33,7 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
    */
   const ctx = {
     rootURI,
+    document: Zotero.getMainWindow().document,
   };
   ctx._globalThis = ctx;
 
