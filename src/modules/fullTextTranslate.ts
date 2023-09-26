@@ -10,7 +10,7 @@ import { franc } from "franc";
 import { langCode_franVsZotero } from "../utils/config";
 import { html2md, md2html } from "./mdHtmlConvert";
 
-
+let htmlToMd, mdToHtml;
 // 装饰函数
 function example(
   target: any,
@@ -36,8 +36,20 @@ export async function onOpenPdf(id: number) {
   await Zotero.Reader.open(id);
   ztoolkit.log("open pdf");
 }
+/* declare class testt = {
+  htmlToMd:object;
+  mdToHtml:object;
+}
+class testt {
+
+  constructor() {
+    this.htmlToMd = {};
+    this.mdToHtml = {};
+  }
+} */
 
 export class fullTextTranslate {
+
   @example
   static rightClickMenuItem() {
     const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`;
@@ -243,70 +255,21 @@ export class fullTextTranslate {
     window.alert("成功获取笔记ID" + noteIDs);
   }
 
-  static async betterNoteVersion() {
-    //兼容 betterNote 插件版本 0.8.9 和 1.0.0以上
+
+  static async getHtmlMdInterconvert() {
     const betterNoteVersion = await fullTextTranslate.getAddonVersion('Knowledge4Zotero@windingwind.com');
-    if (!betterNoteVersion) { return; }
-    if (betterNoteVersion.startsWith('1')) {
-      return 7;
-    } else {
-      return 6;
-    }
-  }
-  static async htmlToMd(html: string) {
-    let mdTxt: string;
-    const version = await this.betterNoteVersion();
-    if (!version) {
-      mdTxt = await html2md(html);
-    } else if (version == 7) {
-      mdTxt = await Zotero.BetterNotes.api.convert.html2md(html);
-    } else {
-      mdTxt = await Zotero.BetterNotes.NoteParse.parseHTMLToMD(html);
-    }
-    return mdTxt;
-  }
+    if (!betterNoteVersion) {
+      htmlToMd = html2md;
+      mdToHtml = md2html;
 
-  static async mdToHtmlTo(md: string) {
-    let html: string;
-    const version = await this.betterNoteVersion();
-    if (!version) {
-      html = await md2html(md);
-      return html;
-    } else if (version == 7) {
-      html = await Zotero.BetterNotes.api.convert.md2html(md);
-      return html;
-    } else if (version == 6) {
-      html = await Zotero.BetterNotes.NoteParse.parseMDToHTML(md);
-      return html;
+    } else {
+      htmlToMd = Zotero.BetterNotes.api.convert.html2md;
+      mdToHtml = Zotero.BetterNotes.api.convert.md2html;
     }
   }
 
-  static async noteToMd(noteId: number) {
-    let mdTxt: string;
-    const note = Zotero.Items.get(noteId);
-    const version = await this.betterNoteVersion();
-    if (!version) {
-      const html = note.getNote();
-      mdTxt = await html2md(html);
-      return mdTxt;
-    } else if (version == 7) {
-      const dir = '';
-      mdTxt = await Zotero.BetterNotes.api.convert.note2md(note, dir,
-        {
-          keepNoteLink: false,
-          withYAMLHeader: false,
-          skipSavingImages: true
-        });
-      return mdTxt;
-    } else if (version == 6) {
-      mdTxt = await Zotero.BetterNotes.NoteParse.parseNoteToMD(note, {
-        withMeta: false,
-        skipSavingImages: true,
-        backend: "turndown",
-      });
-      return mdTxt;
-    }
-  }
+
+
 
   /**
    * 
@@ -901,7 +864,7 @@ export class fullTextTranslate {
           const regMatch = item.match(reg);
           //不替换行内图片，转为markdown ![](), 译后替换
 
-          let mdTxt = await this.htmlToMd(item) as string;
+          let mdTxt = await htmlToMd(item) as string;
           mdTxt = mdTxt.replace("\n", '');
           mdTxt = fullTextTranslate.cleanMd(mdTxt);
           //再拆分，为句子？

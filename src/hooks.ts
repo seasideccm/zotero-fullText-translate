@@ -2,10 +2,10 @@ import { config } from "../package.json";
 import { getString, initLocale } from "./utils/locale";
 import { registerPrefsScripts } from "./modules/preferenceScript";
 import { createZToolkit } from "./utils/ztoolkit";
-import { fullTextTranslate, onOpenPdf } from "./modules/fullTextTranslate";
+import { fullTextTranslate } from "./modules/fullTextTranslate";
 import { serviceInit } from "./modules/serviceManage";
 import { registerNotifier } from "./modules/notify";
-import { findFontOnPdfLoading } from "./modules/messageTest";
+
 
 async function onStartup() {
   await Promise.all([
@@ -19,7 +19,8 @@ async function onStartup() {
   // 注册通知
   registerNotifier();
   await onMainWindowLoad(window);
-  //findFontOnPdfLoading();
+  fullTextTranslate.getHtmlMdInterconvert();
+
 }
 
 async function onMainWindowLoad(win: Window): Promise<void> {
