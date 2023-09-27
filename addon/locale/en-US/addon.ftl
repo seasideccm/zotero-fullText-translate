@@ -87,4 +87,5 @@ info-filesUnEditable = No permission to edit the file
 info-filteredByLanguageForbidden = filtered By Language Forbidden, recognition may be wrong
 info-translateFailure = translate failure
 info-translationTIme = Time spent on translation: 
-info-empty = Information not filled in 
+info-empty = Information not filled in
+info-francRecognize=The languages identified by franc are: 

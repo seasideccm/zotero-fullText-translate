@@ -7,7 +7,7 @@ import { tencentTransmart } from "./tencentTransmart";
 import { baiduModify } from "./baiduModify";
 import { baidufieldModify } from "./baidufieldModify";
 import { franc } from "franc-min";
-import { langCode_francVsZotero } from "../utils/config";
+import { langCode_francVsZotero, langCodeNameSpeakers } from "../utils/config";
 import { html2md, md2html } from "./mdHtmlConvert";
 
 let htmlToMd: any, mdToHtml: any;
@@ -36,20 +36,7 @@ export async function onOpenPdf(id: number) {
   await Zotero.Reader.open(id);
   ztoolkit.log("open pdf");
 }
-/* declare class testt = {
-  htmlToMd:object;
-  mdToHtml:object;
-}
-class testt {
-
-  constructor() {
-    this.htmlToMd = {};
-    this.mdToHtml = {};
-  }
-} */
-
 export class fullTextTranslate {
-
   @example
   static rightClickMenuItem() {
     const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`;
@@ -310,14 +297,17 @@ export class fullTextTranslate {
     const arr = sourceText.split("\n");
     const plainText = arr.slice(0, arr.length > 15 ? 15 : arr.length);
     const languageArr = [];
+    let langCodeNameSpeakersString = getString("info-francRecognize");
     for (const text of plainText) {
       //franc库识别语种，注意有识别错误的情况
       const francLang: string = franc(text);
       if (francLang !== undefined && francLang != "") {
         const lang = langCode_francVsZotero[francLang as keyof typeof langCode_francVsZotero];
+        const langCodeNameSpeakersObj = langCodeNameSpeakers[francLang as keyof typeof langCode_francVsZotero];
         if (lang !== undefined && lang != '') {
           languageArr.push(lang);
         }
+        langCodeNameSpeakersString += ('\n' + francLang + "=" + langCodeNameSpeakersObj.name + ", speakers=" + langCodeNameSpeakersObj.speakers + ';\n');
       }
     }
     //对元素合并计数
@@ -335,7 +325,8 @@ export class fullTextTranslate {
         langArr.push(langKey);
       }
     }
-    fullTextTranslate.fullTextTranslateInfo("识别出 " + langArr.length + " 种语言：" + langArr.toString() + '。保留前两种语言');
+
+    fullTextTranslate.fullTextTranslateInfo(langCodeNameSpeakersString + '\n保留前两种语言', 5000);
     if (langArr.length > 2) {
       langArr.splice(2);
     }

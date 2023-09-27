@@ -84,3 +84,4 @@ info-filteredByLanguageForbidden = 滤掉禁止翻译的语言，可能有误
 info-translateFailure = 翻译失败
 info-translationTIme = 翻译用时：
 info-empty = 未填写内容
+info-francRecognize=franc识别出的语言分别为：
