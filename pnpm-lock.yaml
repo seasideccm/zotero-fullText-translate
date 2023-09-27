@@ -8,7 +8,7 @@ dependencies:
   decimal.js:
     specifier: ^10.4.3
     version: 10.4.3
-  franc:
+  franc-min:
     specifier: ^6.1.0
     version: 6.1.0
   hast-util-to-html:
@@ -2070,8 +2070,8 @@ packages:
       fetch-blob: 3.2.0
     dev: true
 
-  /franc@6.1.0:
-    resolution: {integrity: sha512-woYqLX7sFcrKD4y1M33IorhH4b21bCDNr0Rm+zlAGRNuxLFilT4h8qEcclu8RFLpHmvNz7FgAYl9Vqfa8UZwoA==}
+  /franc-min@6.1.0:
+    resolution: {integrity: sha512-ZGKRCVw//1KvlLjeRjNTYB27Py6bq1J+0smr3IalQ4l7ZYR9DeoeLxjGWQKQ0Hr8n2dIjkfOvCzr7nzejljeJg==}
     dependencies:
       trigram-utils: 2.0.1
     dev: false

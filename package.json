@@ -42,7 +42,7 @@
   "homepage": "https://github.com/seasideccm/zotero-fullText-translate#readme",
   "dependencies": {
     "decimal.js": "^10.4.3",
-    "franc": "^6.1.0",
+    "franc-min": "^6.1.0",
     "hast-util-to-html": "^9.0.0",
     "hast-util-to-mdast": "^8.4.1",
     "hast-util-to-text": "^4.0.0",

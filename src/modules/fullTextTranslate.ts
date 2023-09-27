@@ -6,11 +6,11 @@ import { serviceManage, updatecharConsum, recoverDefaultLimit, services } from "
 import { tencentTransmart } from "./tencentTransmart";
 import { baiduModify } from "./baiduModify";
 import { baidufieldModify } from "./baidufieldModify";
-import { franc } from "franc";
-import { langCode_franVsZotero } from "../utils/config";
+import { franc } from "franc-min";
+import { langCode_francVsZotero } from "../utils/config";
 import { html2md, md2html } from "./mdHtmlConvert";
 
-let htmlToMd, mdToHtml;
+let htmlToMd: any, mdToHtml: any;
 // 装饰函数
 function example(
   target: any,
@@ -254,23 +254,19 @@ export class fullTextTranslate {
     const noteIDs = fullTextTranslate.getNoteIDs();
     window.alert("成功获取笔记ID" + noteIDs);
   }
-
-
   static async getHtmlMdInterconvert() {
     const betterNoteVersion = await fullTextTranslate.getAddonVersion('Knowledge4Zotero@windingwind.com');
     if (!betterNoteVersion) {
       htmlToMd = html2md;
       mdToHtml = md2html;
+      ztoolkit.log("betterNote未安装");
 
     } else {
       htmlToMd = Zotero.BetterNotes.api.convert.html2md;
       mdToHtml = Zotero.BetterNotes.api.convert.md2html;
+      ztoolkit.log("已经安装betterNote");
     }
   }
-
-
-
-
   /**
    * 
    * @returns 
@@ -310,27 +306,15 @@ export class fullTextTranslate {
     if (isSkipLocal) {
       untranslatedLanguage += Zotero.locale as string;
     }
-    /*  const noteTodoIDs = [];
-     if (noteIDs.length) {
-       for (const aNOteID of noteIDs) { */
-    /* const note = Zotero.Items.get(aNOteID); */
-    //const NoteTitle = note.getNoteTitle();
-    //const arr = Zotero.Utilities.unescapeHTML(note.getNote()).split("\n");
+
     const arr = sourceText.split("\n");
     const plainText = arr.slice(0, arr.length > 15 ? 15 : arr.length);
     const languageArr = [];
-    /*         try {
-              language = await queryLanguage(NoteTitle) as string;
-            } catch (e: any) {
-              language = "en";
-              fullTextTranslate.fullTextTranslateInfo(getString("info-networkDisconnected") + '\n' + e.message);
-              return;
-            } */
     for (const text of plainText) {
       //franc库识别语种，注意有识别错误的情况
       const francLang: string = franc(text);
       if (francLang !== undefined && francLang != "") {
-        const lang = langCode_franVsZotero[francLang as keyof typeof langCode_franVsZotero];
+        const lang = langCode_francVsZotero[francLang as keyof typeof langCode_francVsZotero];
         if (lang !== undefined && lang != '') {
           languageArr.push(lang);
         }
@@ -351,13 +335,17 @@ export class fullTextTranslate {
         langArr.push(langKey);
       }
     }
+    fullTextTranslate.fullTextTranslateInfo("识别出 " + langArr.length + " 种语言：" + langArr.toString() + '。保留前两种语言');
+    if (langArr.length > 2) {
+      langArr.splice(2);
+    }
     let isTran;
     const forbiddenLang = langArr.filter(item => untranslatedLanguage.includes(item));
     if (!forbiddenLang.length) {
       isTran = true;
       /* noteTodoIDs.push(aNOteID); */
     } else {
-      isTran = true;
+      isTran = false;
       fullTextTranslate.fullTextTranslateInfo(getString("info-filteredByLanguageForbidden") + ": " + forbiddenLang.toString());
     }
     /*     }
@@ -1055,11 +1043,7 @@ export class fullTextTranslate {
         }
       }
       tranedStr = fullTextTranslate.modifySubSupHeading(tranedStr);
-      //const result = await Zotero.BetterNotes.api.convert.md2html(tranedStr);
-      const result = await md2html(tranedStr);
-      /*       if (resultTest != result) {
-              ztoolkit.log("md2html：resultTest != result");
-            } */
+      const result = await mdToHtml(tranedStr);
       if (result !== undefined) {
         docCell.result = result;
       } else { return; }
@@ -1652,11 +1636,15 @@ export class fullTextTranslate {
     const { AddonManager } = ChromeUtils.import("resource://gre/modules/AddonManager.jsm");
     if (id !== undefined && id != "") {
       const addon = await AddonManager.getAddonByID(id);
-      return addon.version;
+      if (addon) {
+        return addon.version;
+      }
     }
     else {
       const addonAll = await AddonManager.getAllAddons();
-      return addonAll;
+      if (addonAll) {
+        return addonAll;
+      }
     }
   }
 

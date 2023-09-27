@@ -5,6 +5,7 @@ import { createZToolkit } from "./utils/ztoolkit";
 import { fullTextTranslate } from "./modules/fullTextTranslate";
 import { serviceInit } from "./modules/serviceManage";
 import { registerNotifier } from "./modules/notify";
+import { html2md, md2html } from "./modules/mdHtmlConvert";
 
 
 async function onStartup() {
@@ -19,7 +20,7 @@ async function onStartup() {
   // 注册通知
   registerNotifier();
   await onMainWindowLoad(window);
-  fullTextTranslate.getHtmlMdInterconvert();
+
 
 }
 
@@ -52,6 +53,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
     progress: 100,
     text: `[100%] ${getString("startup-finish")}`,
   });
+  fullTextTranslate.getHtmlMdInterconvert();
 
   popupWin.startCloseTimer(5000);
 
