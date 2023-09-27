@@ -242,16 +242,15 @@ export class fullTextTranslate {
     window.alert("成功获取笔记ID" + noteIDs);
   }
   static async getHtmlMdInterconvert() {
-    const betterNoteVersion = await fullTextTranslate.getAddonVersion('Knowledge4Zotero@windingwind.com');
-    if (!betterNoteVersion) {
+    const betterNoteInfo = await fullTextTranslate.getAddonInfo('Knowledge4Zotero@windingwind.com');
+    if (!betterNoteInfo || betterNoteInfo.userDisabled) {
       htmlToMd = html2md;
       mdToHtml = md2html;
-      ztoolkit.log("betterNote未安装");
-
+      ztoolkit.log("betterNote未安装或禁用，使用根据 windingwind/zotero-better-notes 改编的 html2md和md2html");
     } else {
       htmlToMd = Zotero.BetterNotes.api.convert.html2md;
       mdToHtml = Zotero.BetterNotes.api.convert.md2html;
-      ztoolkit.log("已经安装betterNote");
+      ztoolkit.log("已经安装betterNote" + ":version " + betterNoteInfo.version);
     }
   }
   /**
@@ -288,6 +287,7 @@ export class fullTextTranslate {
 
   static async languageIdentify(sourceText: string) {
     //todo 指定排除的语言
+    sourceText = Zotero.Utilities.unescapeHTML(sourceText);
     const isSkipLocal = getPref("isSkipLocal");
     let untranslatedLanguage = getPref("untranslatedLanguage") as string || "";
     if (isSkipLocal) {
@@ -297,18 +297,26 @@ export class fullTextTranslate {
     const arr = sourceText.split("\n");
     const plainText = arr.slice(0, arr.length > 15 ? 15 : arr.length);
     const languageArr = [];
+    const langRecognize = [];
     let langCodeNameSpeakersString = getString("info-francRecognize");
     for (const text of plainText) {
       //franc库识别语种，注意有识别错误的情况
       const francLang: string = franc(text);
-      if (francLang !== undefined && francLang != "") {
+      if (francLang !== undefined && francLang != "" && francLang !== "und") {
+        //三码到两码未定义的语言被忽略
         const lang = langCode_francVsZotero[francLang as keyof typeof langCode_francVsZotero];
         const langCodeNameSpeakersObj = langCodeNameSpeakers[francLang as keyof typeof langCode_francVsZotero];
         if (lang !== undefined && lang != '') {
           languageArr.push(lang);
         }
-        langCodeNameSpeakersString += ('\n' + francLang + "=" + langCodeNameSpeakersObj.name + ", speakers=" + langCodeNameSpeakersObj.speakers + ';\n');
+        langRecognize.push(francLang);
       }
+    }
+    if (langRecognize.length) {
+      [...new Set(langRecognize)].filter(e => {
+        langCodeNameSpeakersString = langCodeNameSpeakersString + ('\n' + e + "=" + langCodeNameSpeakers[e as keyof typeof langCode_francVsZotero].name + ", speakers=" + langCodeNameSpeakers[e as keyof typeof langCode_francVsZotero].speakers + ';\n');
+      });
+
     }
     //对元素合并计数
     const languageObj = languageArr.reduce((acc: { [key: string]: number; }, el) => {
@@ -326,7 +334,7 @@ export class fullTextTranslate {
       }
     }
 
-    fullTextTranslate.fullTextTranslateInfo(langCodeNameSpeakersString + '\n保留前两种语言', 5000);
+    fullTextTranslate.fullTextTranslateInfo(langCodeNameSpeakersString + '\n\n' + '保留识别次数最多的前两种语言', 5000);
     if (langArr.length > 2) {
       langArr.splice(2);
     }
@@ -640,17 +648,11 @@ export class fullTextTranslate {
     //const regContentEnd = /(?<!<th>\n)(<[^>\n]+?>)(<[^>\n]+?>)*\W*(\bReferences?\b|\bAcknowledgments?\b|\bAppendix\b)[^A-Za-z\n]*(<\/[^>]+?>)[\s\S]*/gi;
     //const regContentEnd = /(?<!<\/?th[^<>]+>\n?)^(<[^>\n]+?>)(<[^>\n]+?>)*\W*(\bReferences?\b|\bAcknowledgments?\b|\bAppendix\b)[^A-Za-z\n]*(<\/[^>]+?>)[\s\S]*/mgi;
     //整篇没有换行？除外表格标题或单元格内的关键字：可有一次换行，无论多少<*>标签，后面的关键字都是除外的
-    const regContentEnd = /(?<!<\/?t[hd][^<>]*>\n?(<\/?[^>\n]+?>)*)(<[^>\n]+?>)+\W*(\bReferences?\b|\bAcknowledgments?\b|\bAppendix\b)[^A-Za-z\n]*(<\/[^>]+?>)[\s\S]*/gi;
+    const regContentEnd = /(?<!<\/?t[hd][^<>]*>\n?(<\/?[^>\n]+?>)*)(<[^>\n]+?>)+\W*(\bReferences?\b|\bAcknowledgments?\b|\bAppendix\b)(&nbsp)*[^A-Za-z\n]*(<\/[^>]+?>)[\s\S]*/gi;
     const contentEndMatch = noteHtmlTrimHeadTail.match(regContentEnd);
     if (contentEndMatch != null && contentEndMatch[0] != "") {
       contentEnd = contentEndMatch[0];
       noteHtmlTrimHeadEndTail = noteHtmlTrimHeadTail.replace(contentEnd, '');
-      //语种识别
-      const isTran = await this.languageIdentify(noteHtmlTrimHeadEndTail);
-      if (isTran == false) { return; }
-
-
-
       //split table and img.How todo when contentEndExceptImgTableis table？
       if (contentEnd.includes("<table>" || "<p><img")) {
         const contentEndArrTemp = fullTextTranslate.splitContentEnd(contentEnd);
@@ -676,6 +678,9 @@ export class fullTextTranslate {
     } else {
       noteHtmlTrimHeadEndTail = noteHtmlTrimHeadTail;
     }
+    //语种识别
+    const isTran = await this.languageIdentify(noteHtmlTrimHeadEndTail);
+    if (isTran == false) { return; }
 
     //tailMarker
     if (tailMarkerMatch != null && tailMarkerMatch.length) {
@@ -1623,15 +1628,17 @@ export class fullTextTranslate {
    * @param id 
    * @returns 
    */
-  static async getAddonVersion(id?: string) {
+  static async getAddonInfo(id?: string) {
     const { AddonManager } = ChromeUtils.import("resource://gre/modules/AddonManager.jsm");
     if (id !== undefined && id != "") {
       const addon = await AddonManager.getAddonByID(id);
       if (addon) {
-        return addon.version;
+        return {
+          version: addon.version,
+          userDisabled: addon.userDisabled
+        };
       }
-    }
-    else {
+    } else {
       const addonAll = await AddonManager.getAllAddons();
       if (addonAll) {
         return addonAll;
