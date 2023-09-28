@@ -1684,16 +1684,12 @@ export class fullTextTranslate {
       closeOtherProgressWindows: closeOtherProgressWindows ? closeOtherProgressWindows : true
     })
       .createLine({
-        //text: fullTextTranslateInfo.replace('\n',"<br>"),未换行
         text: fullTextTranslateInfo,
         type: "default",
         progress: 0,
       });
     popupWin.show();
-    const ItemProgress = Zotero.ProgressWindow.ItemProgress;
-    //var container = _progressWindow.document.getElementById("zotero-progress-text-box")
-    //popupWin.close();
-    //Zotero.ProgressWindowSet.closeAll()
+
     return popupWin;
   }
 
