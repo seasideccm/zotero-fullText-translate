@@ -163,7 +163,7 @@ const getMode = (item: number[], order: "ascending" | "descending") => {
  * @param item 
  * @returns 
  */
-const frequency = (item: any[]) => {
+export const frequency = (item: any[]) => {
   if (Array.isArray(item[0])) {
     item = item.flat(Infinity);
   }

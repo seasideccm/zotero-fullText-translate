@@ -1,7 +1,7 @@
 import { config } from "../../package.json";
 import { getPref, getSingleServiceUnderUse } from "../utils/prefs";
 import { getString } from "../utils/locale";
-import { pdf2document } from './getPdfFullText';
+import { pdf2document, frequency } from './getPdfFullText';
 import { serviceManage, updatecharConsum, recoverDefaultLimit, services } from "./serviceManage";
 import { tencentTransmart } from "./tencentTransmart";
 import { baiduModify } from "./baiduModify";
@@ -297,7 +297,7 @@ export class fullTextTranslate {
     const arr = sourceText.split("\n");
     const plainText = arr.slice(0, arr.length > 15 ? 15 : arr.length);
     const languageArr = [];
-    const langRecognize = [];
+    const langRecognize: string[] = [];
     let langCodeNameSpeakersString = getString("info-francRecognize");
     for (const text of plainText) {
       //franc库识别语种，注意有识别错误的情况
@@ -313,7 +313,8 @@ export class fullTextTranslate {
       }
     }
     if (langRecognize.length) {
-      [...new Set(langRecognize)].filter(e => {
+      //[...new Set(langRecognize)]
+      frequency(langRecognize).itemOrderByFrequency.filter(e => {
         langCodeNameSpeakersString = langCodeNameSpeakersString + ('\n' + e + "=" + langCodeNameSpeakers[e as keyof typeof langCode_francVsZotero].name + ", speakers=" + langCodeNameSpeakers[e as keyof typeof langCode_francVsZotero].speakers + ';\n');
       });
 
@@ -334,7 +335,7 @@ export class fullTextTranslate {
       }
     }
 
-    fullTextTranslate.fullTextTranslateInfo(langCodeNameSpeakersString + '\n\n' + '保留识别次数最多的前两种语言', 5000);
+    fullTextTranslate.fullTextTranslateInfo(langCodeNameSpeakersString + '\n\n' + '三码到两码未定义的语言被忽略，然后保留识别次数最多的前两种语言', 5000);
     if (langArr.length > 2) {
       langArr.splice(2);
     }
@@ -1689,6 +1690,8 @@ export class fullTextTranslate {
         progress: 0,
       });
     popupWin.show();
+    const ItemProgress = Zotero.ProgressWindow.ItemProgress;
+    //var container = _progressWindow.document.getElementById("zotero-progress-text-box")
     //popupWin.close();
     //Zotero.ProgressWindowSet.closeAll()
     return popupWin;
