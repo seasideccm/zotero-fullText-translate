@@ -159,6 +159,34 @@ function buildPrefsPane() {
     doc.querySelector(`#${makeId("serviceID-placeholder")}`)!
   );
 
+  ztoolkit.UI.replaceElement(
+    {
+      // 下拉列表
+      tag: "menulist",
+      id: makeId("sourceLang"),
+      attributes: {
+        native: "true",
+      },
+      children: [
+        {
+          tag: "menupopup",
+          //map出的对象数组赋值给键 children
+          children: Object.keys(Zotero.Locale.availableLocales).map(e => ({
+            tag: "menuitem",
+            id: makeId(e),
+            attributes: {
+              label: e,
+              value: e,
+            },
+          })),
+        },
+      ],
+    },
+    // 将要被替换掉的元素
+    doc.querySelector(`#${makeId("sourceLang-placeholder")}`)!
+  );
+
+
 
   ztoolkit.UI.replaceElement(
     {

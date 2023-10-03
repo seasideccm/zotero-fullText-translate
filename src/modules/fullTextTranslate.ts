@@ -60,7 +60,7 @@ export class fullTextTranslate {
       }),
       icon: menuIcon,
     });
-    ztoolkit.Menu.register("item", {
+    /* ztoolkit.Menu.register("item", {
       tag: "menuitem",
       label: getString("menuitem-openPdfs"),
       commandListener: ((ev) => {
@@ -78,7 +78,7 @@ export class fullTextTranslate {
         //Zotero_Tabs.select('zotero-pane');
       }),
       icon: menuIcon,
-    });
+    }); */
     ztoolkit.Menu.register("item", {
       tag: "menuitem",
       label: getString("menuitem-pdf2Note"),
@@ -141,7 +141,16 @@ export class fullTextTranslate {
     if (isSavePDTtoNote) {
       const note = new Zotero.Item('note');
       note.libraryID = pdfItem.libraryID;
-      note.parentKey = pdfItem.parentKey;
+      const zp = Zotero.getActiveZoteroPane();
+
+      if (pdfItem.parentKey) {
+        note.parentKey = pdfItem.parentKey;
+      }
+      else if (pdfItem.getCollections().length) {
+
+        note.addToCollection(zp.collectionsView.selectedTreeRow.ref.id);
+      }
+
       note.setNote(noteTxt);
       await note.saveTx();
     }
@@ -1168,7 +1177,7 @@ export class fullTextTranslate {
       if (zp.getCollectionTreeRow()!.isCollection() && newItem.isTopLevelItem()) {
         newItem.setCollections([zp.getCollectionTreeRow()!.ref.id]);
       }
-      const newItemID = await newItem.save({ skipSelect: true });
+      const newItemID = await newItem.saveTx({ skipSelect: true });
       if (typeof newItemID == "number") {
         docItem.newItemID = newItemID;
       }

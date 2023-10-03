@@ -297,6 +297,12 @@ export class serviceManage {
       getSingleServiceUnderUse().serviceID, 3000);
   }
 
+  static switchTranslateLang(langFrom: string, langTo: string) {
+    setPluginsPref("ZoteroPDFTranslate", "sourceLanguage", langFrom);
+    setPluginsPref("ZoteroPDFTranslate", "targetLanguage", langTo);
+
+  }
+
   /**
    * 针对 PDF Translate 更换秘钥
    * @param secretKey 

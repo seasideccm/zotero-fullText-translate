@@ -624,6 +624,7 @@ const toLine = (item: PDFItem) => {
     lineSpaceTop: 0,
     lineSpaceBottom: 0,
     hangingIndent: 0,
+    pageIndex: 0
   };
   if (line.width < 0) {
     line.x = Math.round(line.width + line.x);
@@ -1273,9 +1274,19 @@ const splitPara = (lines: PDFLine[], lastLine: PDFLine, currentLine: PDFLine, i:
   } else if (currentLine.sourceLine[1] && currentLine.sourceLine[0].str == '' && currentLine.sourceLine[0].hasEOL
     && /^[& 0-9.]+$/m.test(currentLine.sourceLine[1].str)) {
     isNewParagraph = true;
-  } else if (currentLine.sourceLine[0].hasEOL && currentLine.sourceLine[0].fontName != currentLine.fontName && currentLine.text.startsWith("<strong>")) {
+  } else if (currentLine.sourceLine[0].hasEOL && currentLine.sourceLine[0].str == ""
+    && currentLine.sourceLine[0].fontName != currentLine.fontName
+    && abs(currentLine.x - lastLine.x) < tolerance && currentLine.text.startsWith("<strong>")) {
+    paraCondition["condition"] += `(currentLine.sourceLine[0].hasEOL &&currentLine.sourceLine[0].str ==""
+    && currentLine.sourceLine[0].fontName != currentLine.fontName
+    && abs(currentLine.x-lastLine.x)<tolerance&&currentLine.text.startsWith("<strong>")) `;
+  } else if (currentLine.sourceLine[0].hasEOL && currentLine.sourceLine[0].str == ""
+    && currentLine.sourceLine[0].fontName != currentLine.fontName
+    && abs(currentLine.x - lastLine.x) < tolerance && lastLine.text.match(/[.!?]$/m)) {
     isNewParagraph = true;
-    paraCondition["condition"] += `句首单词为粗体 (currentLine.sourceLine[0].hasEOL&&currentLine.sourceLine[0].fontName!=currentLine.fontName&&currentLine.text.startsWith("<strong>"))`;
+    paraCondition["condition"] += `(currentLine.sourceLine[0].hasEOL &&currentLine.sourceLine[0].str ==""
+    && currentLine.sourceLine[0].fontName != currentLine.fontName
+    && abs(currentLine.x-lastLine.x)<tolerance&&lastLine.text.match(/[.!?]$/m))`;
   } else if (!nextLine) {
     if (lastLine.lineSpaceTop && currentLine.lineSpaceTop) {
       paraCondition["condition"] += ` if (lastLine.lineSpaceTop && currentLine.lineSpaceTop)`;
@@ -1354,7 +1365,7 @@ const removeNumber = (text: string) => {
     text = "";
   }
   // 删除空格、页码部分、末尾的非单词字符
-  text = text.replace(/\x20+/g, "").replace(/<\/?su[bp]>/g, "").replace(/<\/?em>/g, "").replace(/<\/?strong>/g, "").replace(/[\dⅠ-Ⅻⅰ-ⅹ]+([\w]{1,3})?([\dⅠ-Ⅻⅰ-ⅹ]+)?$/g, "").replace(/\d+/g, "").replace(/\W+$/g, "");
+  text = text.replace(/\x20+/g, "").replace(/<\/?su[bp]>/g, "").replace(/<\/?em>/g, "").replace(/<\/?strong>/g, "").replace(/[\dⅠ-Ⅻⅰ-ⅹ]+([\w]{1,3})?([\dⅠ-Ⅻⅰ-ⅹ]+)?$/g, "").replace(/\d+/g, "").replace(/\s/g, "");
   if (text == "") {
     return "none words";
   } else {
@@ -1988,7 +1999,7 @@ const docReplaceSpecialCharacter = (text: string) => {
   return text;
 };
 
-const headerFooterIdentify = (pageLines: any) => {
+const headerFooterIdentify = (pageLines: any, pages: any) => {
   const pageLinesArr = Object.values(pageLines) as PDFLine[][];
   function extractLinesByLocation(pageLinesArr: PDFLine[][], index: number) {
     const lineArrTop: PDFLine[] = [];
@@ -2011,22 +2022,25 @@ const headerFooterIdentify = (pageLines: any) => {
     const counts = header.length + footer.length;
     const tempObj = extractLinesByLocation(pageLinesArr, index);
     const textHeaderArr = tempObj.lineArrTop.map(e => removeNumber(e.text));
-    const xHeaderArr = tempObj.lineArrTop.map(e => e.x);
-    const yHeaderArr = tempObj.lineArrTop.map(e => e.y);
+    /*     const xHeaderArr = tempObj.lineArrTop.map(e => e.x);
+        const yHeaderArr = tempObj.lineArrTop.map(e => e.y); */
     const textFooterArr = tempObj.lineArrBottom.map(e => removeNumber(e.text));
-    const xFooterArr = tempObj.lineArrBottom.map(e => e.x);
-    const yFooterArr = tempObj.lineArrBottom.map(e => e.y);
+    /*     const xFooterArr = tempObj.lineArrBottom.map(e => e.x);
+        const yFooterArr = tempObj.lineArrBottom.map(e => e.y); */
     const headerFrequency = frequency(textHeaderArr).objFrequency;
     const footerFrequency = frequency(textFooterArr).objFrequency;
-    const xHeaderFrequency = frequency(xHeaderArr).objFrequency;
-    const yHeaderFrequency = frequency(yHeaderArr).objFrequency;
-    const xFooterFrequency = frequency(xFooterArr).objFrequency;
-    const yHFooterFrequency = frequency(yFooterArr).objFrequency;
+    /*     const xHeaderFrequency = frequency(xHeaderArr).objFrequency;
+        const yHeaderFrequency = frequency(yHeaderArr).objFrequency;
+        const xFooterFrequency = frequency(xFooterArr).objFrequency;
+        const yHFooterFrequency = frequency(yFooterArr).objFrequency; */
     Object.keys(headerFrequency).filter(e => {
       if (headerFrequency[e] >= 2) {
         tempObj.lineArrTop.filter(e2 => {
           if (removeNumber(e2.text) == e) {
-            header.push(e2);
+            //行的y值大于视窗y值的80%才是有效的页眉
+            if (e2.y > pages[e2.pageIndex].pdfPage._pageInfo.view[3] * 0.8) {
+              header.push(e2);
+            }
           }
         });
       }
@@ -2037,7 +2051,10 @@ const headerFooterIdentify = (pageLines: any) => {
       if (footerFrequency[e] >= 2) {
         tempObj.lineArrBottom.filter(e2 => {
           if (removeNumber(e2.text) == e) {
-            footer.push(e2);
+            //行的y值小于视图y值的20%才是有效的页脚
+            if (e2.y < pages[e2.pageIndex].pdfPage._pageInfo.view[3] * 0.2) {
+              footer.push(e2);
+            }
           }
         });
       }
@@ -2125,18 +2142,6 @@ export async function pdf2document(itmeID: number) {
     await PDFViewerApplication.pdfViewer.onePageRendered;
     //reader._internalReader.navigateToNextPage()
   }
-  /*   const fontInfoArticle = fontInfo(itemsArr, false);
-    const heightTempArr = itemsArr.flat(1).map(e => e.height).filter(e => e);
-    const heightInfo = getModeFrequencyAndOrder(heightTempArr);
-    property_fonts(heightInfo, fontInfoArticle, "height");
-  
-    const yArr = itemsArr.flat(1).map(e => e.transform[5]).filter(e => e);
-    const yInfo = getModeFrequencyAndOrder(yArr);
-    property_fonts(yInfo, fontInfoArticle, "y"); */
-
-
-  //高、字体、宽度、y
-
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
   let refMarker = 0;
@@ -2183,7 +2188,7 @@ export async function pdf2document(itmeID: number) {
     }
   }
 
-  const objHeaderFooter = headerFooterIdentify(pageLines);
+  const objHeaderFooter = headerFooterIdentify(pageLines, pages);
 
 
   //recordCombine记录需要跨页合并的行，跨越多行合并，行顺序颠倒合并
@@ -2192,9 +2197,7 @@ export async function pdf2document(itmeID: number) {
   const pagePara: { [key: string]: PDFLine[][]; } = {};
   //记录分段的判断条件
   const paraCondition: any = {};
-
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
-
     //paragraphs数组,每页都初始化为空
     const paragraphs = [];
     pagePara[pageNum] = [] as PDFLine[][];
@@ -2221,13 +2224,10 @@ export async function pdf2document(itmeID: number) {
     //释放内存
     //linesTemp.length =0 有可能影响引用的数组
     linesTemp = [];
-
-
-
     // 段落聚类; 原则：字体从大到小，合并；从小变大，断开
     //定义段落数组，将本页第一行转为数组放入段落数组内
-    const linesYArr = lines.map((e) => e.y);
-    const Ymin = Math.min(...linesYArr);
+    const linesOrderByY = lines.map((e) => e).sort((a, b) => b.y - a.y);
+    //const Ymin = Math.min(...linesYArr);
     paragraphs.push([lines[0]]);
     pagePara[pageNum].push([lines[0]]);
     //如果本页行中元素大于1，否则跳过该步骤
@@ -2280,14 +2280,22 @@ export async function pdf2document(itmeID: number) {
           paragraphs.push([currentLine]);
           pagePara[pageNum].push([currentLine]);
 
-        }
-        // 否则纳入当前段落
-        else {
+        } else {
+          // 否则纳入当前段落
           paragraphs.slice(-1)[0].push(currentLine);
           pagePara[pageNum].slice(-1)[0].push(currentLine);
         }
+        //除外正常分栏折返，将顺序颠倒的行记录下来，一般是页面最后一行
+        if (nextLine && i < lines.length - 1 && i != 0
+          && currentLine.y < nextLine.y
+          && currentLine.x + currentLine.width > nextLine.x + tolerance
+        ) {
+          recordCombine[pageNum].push(currentLine);
+        }
+
+
         //记录字体位于前三
-        if (infoParas && infoParas.font.fontOrderByFrequency.indexOf(currentLine.fontName) < 3) {
+        /* if (infoParas && infoParas.font.fontOrderByFrequency.indexOf(currentLine.fontName) < 3) {
           if (currentLine.width > lastLine.width * 0.9
             && currentLine.x - lastLine.x < 2
             //跳过整句，句子完整不影响翻译。
@@ -2304,7 +2312,11 @@ export async function pdf2document(itmeID: number) {
               recordCombine[pageNum].push(currentLine);
             }
           }
-        }
+        } */
+      }
+      //如果没有顺序颠倒的行，就将最后一行记录下来
+      if (!recordCombine[pageNum].length) {
+        recordCombine[pageNum].push(lines.slice(-1)[0]);
       }
       paraCondition[pageNum] = paraCondArr;
     }

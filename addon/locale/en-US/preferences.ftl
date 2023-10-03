@@ -59,4 +59,5 @@ pref-switchService = use this serviceID
 pref-deleteService =  forbidden this serviceID
 pref-recoverService = recover All forbidden serviceID
 pref-Priority-help = Order or Bulk forbidden serviceID: Select one item, up/down Arrow to order; Select one or more items, press delete or backspace key to switch forbidden.
- 
+pref-sourceLang =  source language
+pref-targetLang = targe language

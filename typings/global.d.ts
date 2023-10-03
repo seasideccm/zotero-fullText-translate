@@ -91,7 +91,7 @@ declare type PDFLine = {
   height: number;
   _height: number[];
   width: number;
-  pageIndex?: number;
+  pageIndex: number;
   lineIndex?: number;
   lineSpaceTop: number;
   lineSpaceBottom: number;
