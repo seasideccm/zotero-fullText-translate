@@ -2,6 +2,7 @@
 import { getPref } from '../utils/prefs';
 import { pdfFontInfo } from './fontDetect';
 import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
+import { extractImage } from './extractImage';
 
 /* import * as pdfjsLib from "pdfjs-dist";
 import entry from "pdfjs-dist/build/pdf.worker.entry";
@@ -2101,17 +2102,16 @@ export async function pdf2document(itmeID: number) {
   const reader = Zotero.Reader.getByTabID(tabID) as any;
   await reader._waitForReader();
   await reader._initPromise;
-
-  await reader._internalReader._lastView.initializedPromise;
+  await reader._internalReader._primaryView.initializedPromise;
+  const view = reader._internalReader._primaryView;
+  //await reader._internalReader._lastView.initializedPromise;
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
-  const pdfDoc = await PDFViewerApplication.pdfLoadingTask.promise;
-  const page0 = await PDFViewerApplication.pdfViewer.firstPagePromise;
-  const testSeop = "testSeop";
+  await PDFViewerApplication.initializedPromise;
+  await PDFViewerApplication.pdfLoadingTask.promise;
+  extractImage();
   await PDFViewerApplication.pdfViewer.pagesPromise;
-
   const pages = PDFViewerApplication.pdfViewer._pages;
   const totalPageNum = pages.length;
-
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/gm, '').replace(/ - zotero:.+$/gm, '');
   let title: string | undefined;
   title = Zotero.Items.get(itmeID).parentItem?.getField("title") as string | undefined;
