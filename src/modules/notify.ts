@@ -79,7 +79,7 @@ async function onNotify(
         type == "tab" &&
         ids[0] != "zotero-pane"
     ) {
-        savefont(pdfFontInfo);
+        //savefont(pdfFontInfo);
         ztoolkit.log("保存字体信息");
     } else {
         return;

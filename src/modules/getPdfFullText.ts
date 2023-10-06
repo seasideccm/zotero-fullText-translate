@@ -2101,12 +2101,17 @@ export async function pdf2document(itmeID: number) {
   const reader = Zotero.Reader.getByTabID(tabID) as any;
   await reader._waitForReader();
   await reader._initPromise;
+
   await reader._internalReader._lastView.initializedPromise;
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
-  await PDFViewerApplication.pdfLoadingTask.promise;
+  const pdfDoc = await PDFViewerApplication.pdfLoadingTask.promise;
+  const page0 = await PDFViewerApplication.pdfViewer.firstPagePromise;
+  const testSeop = "testSeop";
   await PDFViewerApplication.pdfViewer.pagesPromise;
+
   const pages = PDFViewerApplication.pdfViewer._pages;
   const totalPageNum = pages.length;
+
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/gm, '').replace(/ - zotero:.+$/gm, '');
   let title: string | undefined;
   title = Zotero.Items.get(itmeID).parentItem?.getField("title") as string | undefined;
