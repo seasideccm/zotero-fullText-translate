@@ -11,16 +11,16 @@ export async function extractImage() {
 
     const pages = PDFViewerApplication.pdfViewer._pages.filter((e: any) => e.pdfPage);
     async function getImg(pages: any) {
+        const imgDataArr: any[] = [];
         for (const page of pages) {
-            const imgDataArr: any[] = [];
             const ops = await page.pdfPage.getOperatorList();
             for (let i = 0; i < ops.fnArray.length; i++) {
                 if (ops.fnArray[i] == 85 || ops.fnArray[i] == 86) {
                     const name = ops.argsArray[i][0];
-                    const common = await page.commonObjs.has(name);
+                    const common = await page.pdfPage.commonObjs.has(name);
                     const img = await (common
-                        ? page.commonObjs.get(name)
-                        : page.objs.get(name)
+                        ? page.pdfPage.commonObjs.get(name)
+                        : page.pdfPage.objs.get(name)
                     );
                     imgDataArr.push({
                         renderingId: page.renderingId,
@@ -31,17 +31,19 @@ export async function extractImage() {
                     });
                 }
             }
-            return imgDataArr;
         };
+        return imgDataArr;
     }
     const imageInfo: any[] = [];
-    if (await getImg(pages)) {
-        imageInfo.push(await getImg(pages));
+    let tempResult = await getImg(pages);
+    if (tempResult?.length) {
+        imageInfo.push(...tempResult);
     };
     await PDFViewerApplication.pdfViewer.pagesPromise;
-    const pages2 = PDFViewerApplication.pdfViewer._pages.filter((page: any) => !imageInfo?.map(e => e.renderingId).includes(page.renderingId));
-    if (await getImg(pages2)) {
-        imageInfo.push(await getImg(pages2));
+    const pages2 = PDFViewerApplication.pdfViewer._pages.filter((page: any) => !pages.map((e: any) => e.renderingId).includes(page.renderingId));
+    tempResult = await getImg(pages2);
+    if (tempResult?.length) {
+        imageInfo.push(...tempResult);
     };
     const testWindow = window;
 }
