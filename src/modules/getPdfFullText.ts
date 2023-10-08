@@ -2108,7 +2108,7 @@ export async function pdf2document(itmeID: number) {
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
   await PDFViewerApplication.initializedPromise;
   await PDFViewerApplication.pdfLoadingTask.promise;
-  extractImage();
+  extractImage(PDFViewerApplication);
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
   const totalPageNum = pages.length;
