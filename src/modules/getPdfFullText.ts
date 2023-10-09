@@ -2,7 +2,7 @@
 import { getPref } from '../utils/prefs';
 import { pdfFontInfo } from './fontDetect';
 import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
-import { extractImage } from './extractImage';
+import { getImageInfo, getFontInfo } from './imageAndFontInfo';
 
 /* import * as pdfjsLib from "pdfjs-dist";
 import entry from "pdfjs-dist/build/pdf.worker.entry";
@@ -2108,7 +2108,14 @@ export async function pdf2document(itmeID: number) {
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
   await PDFViewerApplication.initializedPromise;
   await PDFViewerApplication.pdfLoadingTask.promise;
-  extractImage(PDFViewerApplication);
+  PDFViewerApplication.pdfViewer.eventBus.on("pagerender", testFn);
+  function testFn() {
+    //PDFViewerApplication.pdfViewer.eventBus._off("pagerender", testFn);
+    ztoolkit.log("渲染前拦截");
+    const testP = PDFViewerApplication.pdfViewer._pages;
+  }
+  const imageDates = await getImageInfo(PDFViewerApplication);
+  const testfontInfo = await getFontInfo(PDFViewerApplication);
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
   const totalPageNum = pages.length;
