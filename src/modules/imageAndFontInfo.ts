@@ -1,18 +1,20 @@
 import ZoteroToolkit from "zotero-plugin-toolkit";
 
 export async function getImageInfo(PDFViewerApplication: any) {
-    const info = await getImageAndFontInfo(PDFViewerApplication);
+    const info = await getInfo(PDFViewerApplication);
     return info.imgDataArr;
 }
 export async function getFontInfo(PDFViewerApplication: any) {
-    const info = await getImageAndFontInfo(PDFViewerApplication);
+    const info = await getInfo(PDFViewerApplication);
     return info.fontInfo;
 }
 
-
-
-
 export async function getImageAndFontInfo(PDFViewerApplication: any) {
+    return await getInfo(PDFViewerApplication);
+}
+
+
+async function getInfo(PDFViewerApplication: any) {
     await PDFViewerApplication.pdfViewer.firstPagePromise;
     /* PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn());
     function testFn() {

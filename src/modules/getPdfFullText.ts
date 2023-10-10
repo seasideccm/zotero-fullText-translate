@@ -2108,11 +2108,27 @@ export async function pdf2document(itmeID: number) {
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
   await PDFViewerApplication.initializedPromise;
   await PDFViewerApplication.pdfLoadingTask.promise;
-  PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn());
-  function testFn() {
+  const testFn = (evt: any) => {
+    //PDFViewerApplication.pdfViewer.eventBus._off("pagerender", testFn);
+    const pageView = PDFViewerApplication.pdfViewer._pages[evt.pageNumber - 1];
+    const intentArgs = pageView._transport.getRenderingIntent("display", 1, null);
+    let intentState = pageView._intentStates.get(intentArgs.cacheKey);
+    if (!intentState) {
+      intentState = Object.create(null);
+      pageView._intentStates.set(intentArgs.cacheKey, intentState);
+    }
+    const optionalContentConfigPromise = pageView._transport.getOptionalContentConfig();
+    Promise.all([
+      intentState.displayReadyCapability.promise,
+      optionalContentConfigPromise,
+    ]).then(([transparency, optionalContentConfig]) => {
+      ztoolkit.log("渲染前拦截:渲染任务应该已经准备完成");
+    });
+
     ztoolkit.log("渲染前拦截");
     const testP = PDFViewerApplication.pdfViewer._pages;
-  }
+  };
+  PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn);
   const imageDates = await getImageInfo(PDFViewerApplication);
   const testfontInfo = await getFontInfo(PDFViewerApplication);
   await PDFViewerApplication.pdfViewer.pagesPromise;
