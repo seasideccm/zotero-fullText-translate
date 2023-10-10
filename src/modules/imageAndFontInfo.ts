@@ -1,4 +1,4 @@
-import ZoteroToolkit from "zotero-plugin-toolkit";
+
 
 export async function getImageInfo(PDFViewerApplication: any) {
     const info = await getInfo(PDFViewerApplication);
@@ -68,3 +68,38 @@ async function getInfo(PDFViewerApplication: any) {
         fontInfo: fontInfo,
     };
 }
+
+export const testFn = async (evt: any,) => {
+    ztoolkit.log("渲染前拦截，页面：", evt.pageNumber - 1);
+    const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID) as any;
+    const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
+    const pageId = evt.pageNumber - 1;
+    const page = PDFViewerApplication.pdfViewer._pages[pageId];
+    await page._optionalContentConfigPromise;
+
+    //const pdfView = evt.source;
+    //const intentArgs = page.pdfPage._transport.getRenderingIntent();
+    //const intentState = page.pdfPage._intentStates.get(intentArgs.cacheKey);
+    const test = 5;
+
+
+
+    //PDFViewerApplication.pdfViewer.eventBus._off("pagerender", testFn);
+    /*  const pageView = PDFViewerApplication.pdfViewer._pages[PDFViewerApplication.page];
+     const intentArgs = pageView._transport.getRenderingIntent("display", 1, null);
+     let intentState = pageView._intentStates.get(intentArgs.cacheKey);
+     if (!intentState) {
+       intentState = Object.create(null);
+       pageView._intentStates.set(intentArgs.cacheKey, intentState);
+     }
+     const optionalContentConfigPromise = pageView._transport.getOptionalContentConfig();
+     Promise.all([
+       intentState.displayReadyCapability.promise,
+       optionalContentConfigPromise,
+     ]).then(([transparency, optionalContentConfig]) => {
+       ztoolkit.log("渲染前拦截:渲染任务应该已经准备完成");
+     }); */
+
+
+    //const testP = PDFViewerApplication.pdfViewer._pages;
+};

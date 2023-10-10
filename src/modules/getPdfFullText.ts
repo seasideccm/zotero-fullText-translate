@@ -2,7 +2,7 @@
 import { getPref } from '../utils/prefs';
 import { pdfFontInfo } from './fontDetect';
 import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
-import { getImageInfo, getFontInfo } from './imageAndFontInfo';
+import { getImageInfo, getFontInfo, testFn } from './imageAndFontInfo';
 
 /* import * as pdfjsLib from "pdfjs-dist";
 import entry from "pdfjs-dist/build/pdf.worker.entry";
@@ -2102,33 +2102,22 @@ export async function pdf2document(itmeID: number) {
   const reader = Zotero.Reader.getByTabID(tabID) as any;
   await reader._waitForReader();
   await reader._initPromise;
+  const n = 0;
+  /* while ((!reader._iframeWindow || !reader._iframeWindow.wrappedJSObject.PDFViewerApplication) && n++ < 50) {
+    await Zotero.Promise.delay(100);
+  } */
   await reader._internalReader._primaryView.initializedPromise;
-  const view = reader._internalReader._primaryView;
+  const pdfView = reader._internalReader._primaryView;
   //await reader._internalReader._lastView.initializedPromise;
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
-  await PDFViewerApplication.initializedPromise;
-  await PDFViewerApplication.pdfLoadingTask.promise;
-  const testFn = (evt: any) => {
-    //PDFViewerApplication.pdfViewer.eventBus._off("pagerender", testFn);
-    const pageView = PDFViewerApplication.pdfViewer._pages[evt.pageNumber - 1];
-    const intentArgs = pageView._transport.getRenderingIntent("display", 1, null);
-    let intentState = pageView._intentStates.get(intentArgs.cacheKey);
-    if (!intentState) {
-      intentState = Object.create(null);
-      pageView._intentStates.set(intentArgs.cacheKey, intentState);
-    }
-    const optionalContentConfigPromise = pageView._transport.getOptionalContentConfig();
-    Promise.all([
-      intentState.displayReadyCapability.promise,
-      optionalContentConfigPromise,
-    ]).then(([transparency, optionalContentConfig]) => {
-      ztoolkit.log("渲染前拦截:渲染任务应该已经准备完成");
-    });
 
-    ztoolkit.log("渲染前拦截");
-    const testP = PDFViewerApplication.pdfViewer._pages;
-  };
+  await PDFViewerApplication.initializedPromise;
   PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn);
+  await PDFViewerApplication.pdfLoadingTask.promise;
+  //await reader._iframeWindow.wrappedJSObject.viewerInstance._viewer._pdfjsPromise;
+
+
+
   const imageDates = await getImageInfo(PDFViewerApplication);
   const testfontInfo = await getFontInfo(PDFViewerApplication);
   await PDFViewerApplication.pdfViewer.pagesPromise;
