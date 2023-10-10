@@ -43,6 +43,7 @@ async function getInfo(PDFViewerApplication: any) {
                 const obj = await page.pdfPage.objs.has(name);
                 if (obj) {
                     const img = await page.pdfPage.objs.get(name);
+                    //const imgData = this.getObject(objId);  class CanvasGraphics 
                     imgDataArr.push({
                         renderingId: page.renderingId,
                         fnId: i,
@@ -69,14 +70,14 @@ async function getInfo(PDFViewerApplication: any) {
     };
 }
 
-const getTransform = async (pageIndex: number) => {
+const getTransform = async (pageNumber: number) => {
     const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID) as any;
     const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
-    const page = PDFViewerApplication.pdfViewer._pages[pageIndex];
+    const page = PDFViewerApplication.pdfViewer._pages.filter((page: any) => page.id == pageNumber);
     //await page._optionalContentConfigPromise;
     const intent = "display", printAnnotationStorage = null;
     let annotationMode;
-    if (page.annotationLayer.renderForms) {
+    if (page.annotationLayer?.renderForms) {
         annotationMode = 2;
     } else {
         annotationMode = 1;
@@ -86,6 +87,7 @@ const getTransform = async (pageIndex: number) => {
     for (const internalRenderTask of intentState.renderTasks) {
         ztoolkit.log("拦截到渲染任务");
         const IT = internalRenderTask;
+        //const objs=page.pdfPage.objs.get(name) 
         //const gfx = internalRenderTask.gfx;
         //const graphicsReady = gfx.graphicsReady;
     }
@@ -93,8 +95,8 @@ const getTransform = async (pageIndex: number) => {
 
 
 export const testFn = async (evt: any) => {
-    ztoolkit.log("渲染前拦截，页面：", evt.pageNumber - 1);
-    const pageIndex = evt.pageNumber - 1;
-    await getTransform(pageIndex);
+    ztoolkit.log("渲染前拦截，页面：", evt.pageNumber);
+
+    await getTransform(evt.pageNumber);
     const test = 5;
 };
