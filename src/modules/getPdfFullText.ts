@@ -2112,8 +2112,8 @@ export async function pdf2document(itmeID: number) {
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
 
   await PDFViewerApplication.initializedPromise;
-  PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn);
   await PDFViewerApplication.pdfLoadingTask.promise;
+  PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn);
   //await reader._iframeWindow.wrappedJSObject.viewerInstance._viewer._pdfjsPromise;
 
 
