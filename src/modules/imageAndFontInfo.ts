@@ -87,6 +87,9 @@ const getTransform = async (pageNumber: number) => {
     for (const internalRenderTask of intentState.renderTasks) {
         ztoolkit.log("拦截到渲染任务");
         const IT = internalRenderTask;
+        await intentState.displayReadyCapability.promise;
+        const gfx = internalRenderTask.gfx;
+
         //const objs=page.pdfPage.objs.get(name) 
         //const gfx = internalRenderTask.gfx;
         //const graphicsReady = gfx.graphicsReady;
