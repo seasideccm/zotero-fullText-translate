@@ -73,7 +73,7 @@ async function getInfo(PDFViewerApplication: any) {
 const getTransform = async (pageNumber: number) => {
     const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID) as any;
     const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
-    const page = PDFViewerApplication.pdfViewer._pages.filter((page: any) => page.id == pageNumber);
+    const page = PDFViewerApplication.pdfViewer._pages.filter((page: any) => page.id == pageNumber)[0];
     //await page._optionalContentConfigPromise;
     const intent = "display", printAnnotationStorage = null;
     let annotationMode;
