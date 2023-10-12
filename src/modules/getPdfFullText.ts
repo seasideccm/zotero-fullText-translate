@@ -2140,8 +2140,10 @@ export async function pdf2document(itmeID: number) {
   //每页的行数组作为元素再组成页面的数组
   //字符 ""单独为一行，帮助判断段落
 
+
   const itemsArr: PDFItem[][] = [];
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
+    PDFViewerApplication.pdfViewer.currentPageNumber = pageNum + 1;
     const pdfPage = pages[pageNum].pdfPage;
     const textContent = await pdfPage.getTextContent();
     const items = textContent.items;
@@ -2155,12 +2157,11 @@ export async function pdf2document(itmeID: number) {
       delete e.chars;
     });
     itemsArr.push(items as PDFItem[]);
-    reader.navigateToFirstPage();
-    await PDFViewerApplication.pdfViewer.onePageRendered;
-    ztoolkit.log("第一页");
-    reader.navigateToNextPage();
-    await PDFViewerApplication.pdfViewer.onePageRendered;
-    ztoolkit.log("又一页");
+    if (pages[pageNum].renderTask?.promise) {
+      await pages[pageNum].renderTask.promise;
+    }
+    ztoolkit.log("第 ", PDFViewerApplication.pdfViewer.currentPageNumber, " 页");
+    //reader.navigateToNextPage();
     //reader._internalReader.navigateToNextPage()
   }
   const linesArr: PDFLine[][] = [];
