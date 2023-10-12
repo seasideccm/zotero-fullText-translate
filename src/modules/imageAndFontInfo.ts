@@ -303,7 +303,7 @@ const getTransform = async (pageNumber: number) => {
             const y = ctxImg[0].transform[5];
             const pageId = ctxImg[0].pageNumber;
             const imgName = ctxImg[0].imageName;
-            ztoolkit.log("x,y,id,mame", x, yx, pageId, imgName);
+            ztoolkit.log("x,y,id,mame", x, y, pageId, imgName);
         });
     }
 };
