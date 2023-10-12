@@ -203,8 +203,8 @@ async function getInfo(PDFViewerApplication: any) {
         fontInfo: fontInfo,
     };
 }
-let gfx;
-const ctxImg = [];
+//let gfx;
+export const ctxImg: any[] = [];
 const getTransform = async (pageNumber: number) => {
     const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID) as any;
     const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
@@ -223,103 +223,91 @@ const getTransform = async (pageNumber: number) => {
         ztoolkit.log("拦截到渲染任务");
         const IT = internalRenderTask;
         await intentState.displayReadyCapability.promise;
-        gfx = internalRenderTask.gfx;
+        const gfx = internalRenderTask.gfx;
         const test = () => {
             ztoolkit.log("修改函数");
         };
         gfx["testFn"] = test;
         gfx.finished_85 = new PromiseCapability();
         gfx.pageNumber = pageNumber;
+        /* eslint-disable no-inner-declarations */
 
-        gfx.__proto__.executeOperatorList = executeOperatorListMod;
+        const executeOperatorListMod = (
+            operatorList,
+            executionStartIdx,
+            continueCallback,
+            stepper
+        ) => {
+            const argsArray = operatorList.argsArray;
+            const fnArray = operatorList.fnArray;
+            let i = executionStartIdx || 0;
+            const argsArrayLen = argsArray.length;
+            // Sometimes the OperatorList to execute is empty.
+            if (argsArrayLen === i) {
+                return i;
+            }
+            const chunkOperations =
+                argsArrayLen - i > 10 &&
+                typeof continueCallback === "function";
+            const endTime = chunkOperations ? Date.now() + 15 : 0;
+            let steps = 0;
+            const commonObjs = gfx.commonObjs;
+            const objs = gfx.objs;
+            let fnId;
+            // eslint-disable-next-line
+            while (true) {
+                if (stepper !== undefined && i === stepper.nextBreakPoint) {
+                    stepper.breakIt(i, continueCallback);
+                    return i;
+                }
+                fnId = fnArray[i];
+                if (fnId !== OPS.dependency) {
+                    // eslint-disable-next-line prefer-spread
+                    gfx[fnId].apply(gfx, argsArray[i]);
+                } else {
+                    for (const depObjId of argsArray[i]) {
+                        const objsPool = depObjId.startsWith("g_") ? commonObjs : objs;
+                        // If the promise isn't resolved yet, add the continueCallback
+                        // to the promise and bail out.
+                        if (!objsPool.has(depObjId)) {
+                            objsPool.get(depObjId, continueCallback);
+                            return i;
+                        }
+                    }
+                }
+                if (fnId == 85 && gfx.finished_85) {
+                    gfx.finished_85.resolve();
+                    ctxImg.push({
+                        pageNumber: gfx.pageNumber,
+                        imageName: argsArray[i][0],
+                        transform: [...gfx.ctx.mozCurrentTransform],
+                    });
+                }
+                i++;
+                if (i === argsArrayLen) {
+                    return i;
+                }
+                if (chunkOperations && ++steps > 10) {
+                    if (Date.now() > endTime) {
+                        continueCallback();
+                        return i;
+                    }
+                    steps = 0;
+                }
+            }
+        };
+        gfx.executeOperatorList = executeOperatorListMod;
+        //gfx.__proto__.executeOperatorList = executeOperatorListMod;
         gfx.finished_85.promise.then(() => {
-            const x = ctxImg[0].ctx.mozCurrentTransform[4];
-            const y = ctxImg[0].ctx.mozCurrentTransform[5];
+            const x = ctxImg[0].transform[4];
+            const y = ctxImg[0].transform[5];
+            const pageId = ctxImg[0].pageNumber;
+            const imgName = ctxImg[0].imageName;
+            ztoolkit.log("x,y,id,mame", x, yx, pageId, imgName);
         });
     }
 };
-function executeOperatorListMod(
-    operatorList,
-    executionStartIdx,
-    continueCallback,
-    stepper
-) {
-    const argsArray = operatorList.argsArray;
-    const fnArray = operatorList.fnArray;
-    let i = executionStartIdx || 0;
-    const argsArrayLen = argsArray.length;
 
-    // Sometimes the OperatorList to execute is empty.
-    if (argsArrayLen === i) {
-        return i;
-    }
-
-    const chunkOperations =
-        argsArrayLen - i > 10 &&
-        typeof continueCallback === "function";
-    const endTime = chunkOperations ? Date.now() + 15 : 0;
-    let steps = 0;
-
-    const commonObjs = gfx.commonObjs;
-    const objs = gfx.objs;
-    let fnId;
-    // eslint-disable-next-line
-    while (true) {
-        if (stepper !== undefined && i === stepper.nextBreakPoint) {
-            stepper.breakIt(i, continueCallback);
-            return i;
-        }
-
-        fnId = fnArray[i];
-
-        if (fnId !== OPS.dependency) {
-            // eslint-disable-next-line prefer-spread
-            gfx[fnId].apply(gfx, argsArray[i]);
-
-        } else {
-            for (const depObjId of argsArray[i]) {
-                const objsPool = depObjId.startsWith("g_") ? commonObjs : objs;
-
-                // If the promise isn't resolved yet, add the continueCallback
-                // to the promise and bail out.
-                if (!objsPool.has(depObjId)) {
-                    objsPool.get(depObjId, continueCallback);
-                    return i;
-                }
-            }
-        }
-        if (fnId == 85 && gfx.finished_85) {
-            gfx.finished_85.resolve();
-            ctxImg.push({
-                pageNumber: gfx.pageNumber,
-                imageName: argsArray[i][0],
-                ctx: gfx.ctx,
-            });
-        }
-
-        i++;
-
-
-
-        // If the entire operatorList was executed, stop as were done.
-        if (i === argsArrayLen) {
-            return i;
-        }
-
-        // If the execution took longer then a certain amount of time and
-        // `continueCallback` is specified, interrupt the execution.
-        if (chunkOperations && ++steps > 10) {
-            if (Date.now() > endTime) {
-                continueCallback();
-                return i;
-            }
-            steps = 0;
-        }
-
-        // If the operatorList isn't executed completely yet OR the execution
-        // time was short enough, do another execution round.
-    }
-}
 export const testFn = async (evt: any) => {
     ztoolkit.log("渲染前拦截，页面：", evt.pageNumber);
     await getTransform(evt.pageNumber);

@@ -3,6 +3,7 @@ import { getPref } from '../utils/prefs';
 import { pdfFontInfo } from './fontDetect';
 import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
 import { getImageInfo, getFontInfo, testFn } from './imageAndFontInfo';
+import { ctxImg } from './imageAndFontInfo';
 
 /* import * as pdfjsLib from "pdfjs-dist";
 import entry from "pdfjs-dist/build/pdf.worker.entry";
@@ -2154,8 +2155,12 @@ export async function pdf2document(itmeID: number) {
       delete e.chars;
     });
     itemsArr.push(items as PDFItem[]);
+    reader.navigateToFirstPage();
+    await PDFViewerApplication.pdfViewer.onePageRendered;
+    ztoolkit.log("第一页");
     reader.navigateToNextPage();
     await PDFViewerApplication.pdfViewer.onePageRendered;
+    ztoolkit.log("又一页");
     //reader._internalReader.navigateToNextPage()
   }
   const linesArr: PDFLine[][] = [];
@@ -2633,6 +2638,13 @@ export async function pdf2document(itmeID: number) {
     docs.unshift(pdfTitle);
   } */
   if (isCloseReader) {
+    if (ctxImg.length) {
+      const x = ctxImg[0].transform[4];
+      const y = ctxImg[0].transform[5];
+      const pageId = ctxImg[0].pageNumber;
+      const imgName = ctxImg[0].imageName;
+    }
+
     reader.close();
   }
   let doc = docs.join('');
