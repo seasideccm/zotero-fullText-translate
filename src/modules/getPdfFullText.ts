@@ -2114,6 +2114,7 @@ export async function pdf2document(itmeID: number) {
 
   await PDFViewerApplication.initializedPromise;
   await PDFViewerApplication.pdfLoadingTask.promise;
+  const pdfDocument = PDFViewerApplication.pdfDocument;
   PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn);
   //await reader._iframeWindow.wrappedJSObject.viewerInstance._viewer._pdfjsPromise;
 
@@ -2122,6 +2123,16 @@ export async function pdf2document(itmeID: number) {
   const imageDates = await getImageInfo(PDFViewerApplication);
   const testfontInfo = await getFontInfo(PDFViewerApplication);
   await PDFViewerApplication.pdfViewer.pagesPromise;
+  const testPage = await pdfDocument.getPage(1);
+  const recognizerData = await Zotero.PDFWorker.getRecognizerData(itmeID);
+  const fullText = await Zotero.PDFWorker.getFullText(itmeID);
+  //const gftFn = () => { ztoolkit.log("更换成功"); };
+  //Zotero.PDFWorker.getFullText = gftFn;
+
+
+  //const pageStructureText = await testPage.getStructuredText({ handler, task, data })
+
+
   const pages = PDFViewerApplication.pdfViewer._pages;
   const totalPageNum = pages.length;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/gm, '').replace(/ - zotero:.+$/gm, '');
