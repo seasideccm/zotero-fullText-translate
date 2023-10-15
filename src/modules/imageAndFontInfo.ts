@@ -149,27 +149,23 @@ export async function getImageAndFontInfo(PDFViewerApplication: any) {
 }
 
 
-async function getInfo(PDFViewerApplication: any) {
+export async function getInfo(PDFViewerApplication: any) {
     await PDFViewerApplication.pdfViewer.firstPagePromise;
-    /* PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn());
-    function testFn() {
-
-        ztoolkit.log("渲染前拦截");
-
-
-        const testP = PDFViewerApplication.pdfViewer._pages;
-    } */
     const imgDataArr: any[] = [];
     const pageRenderingIdChecked: any[] = [];
     const fontInfo: any = {};
-    const firstPage: any = PDFViewerApplication.pdfViewer._pages.filter((e: any) => e.id == 1)[0];
-    await getImg(firstPage);
+    /*     const firstPage: any = PDFViewerApplication.pdfViewer._pages.filter((e: any) => e.id == 1)[0];
+        await getOpsInfo(firstPage); */
     await PDFViewerApplication.pdfViewer.pagesPromise;
     const pages: any[] = PDFViewerApplication.pdfViewer._pages.filter((e: any) => e.id != 1);
     for (const page of pages) {
-        await getImg(page);
+        await getOpsInfo(page);
     }
-    async function getImg(page: any) {
+
+
+
+
+    async function getOpsInfo(page: any) {
         if (!page.pdfPage) { return; }
         const ops = await page.pdfPage.getOperatorList();
         for (let i = 0; i < ops.fnArray.length; i++) {
@@ -186,7 +182,6 @@ async function getInfo(PDFViewerApplication: any) {
                         imgName: name,
                         img: img
                     };
-
                 }
                 for (let j = i - 1; j > 0; j--) {
                     if (ops.fnArray[j] == 12) {
@@ -207,7 +202,6 @@ async function getInfo(PDFViewerApplication: any) {
         }
         pageRenderingIdChecked.push(page.renderingId);
     }
-    //await getImg(pages);
     return {
         imgDataArr: imgDataArr,
         fontInfo: fontInfo,
@@ -324,22 +318,34 @@ export const testFn = async (evt: any) => {
 };
 
 
-export const getPageData = async (pageNumber?: number) => {
-    let pageIndex;
-    if (pageNumber) {
-        pageIndex = pageNumber - 1;
-    }
+export const getPageData = async (pageIndex: number) => {
+    //pageIndex begin 0
     const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID) as any;
     const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
-    const pdfView = reader._internalReader._primaryView;
     await PDFViewerApplication.pdfViewer.pagesPromise;
+    const pdfView = reader._internalReader._primaryView;
     if (!pdfView._pdfPages[pageIndex]) {
-        await Zotero.Promise.delay(100);
+        let ready = false;
+        PDFViewerApplication.pdfViewer.currentPageNumber = pageIndex + 1;
+        while (!ready) {
+            if (pdfView._pages[pageIndex] && pdfView._pages[pageIndex].originalPage.renderTask?.promise) {
+                await pdfView._pages[pageIndex].originalPage.renderTask.promise;
+            } else {
+                await Zotero.Promise.delay(100);
+            }
+            if (pdfView._pdfPages[pageIndex]) {
+                ready = true;
+            }
+        }
     }
     const pageData = pdfView._pdfPages[pageIndex];
     pageData.pageIndex = pageIndex;
     return pageData;
-
 };
 
 
+// navigate to this page, wait the page render finished
+/* PDFViewerApplication.pdfViewer.currentPageNumber = pageNum + 1;
+if (pages[pageNum].renderTask?.promise) {
+    await pages[pageNum].renderTask.promise;
+} */

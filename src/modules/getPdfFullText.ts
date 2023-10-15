@@ -2,7 +2,7 @@
 import { getPref } from '../utils/prefs';
 import { pdfFontInfo } from './fontDetect';
 import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
-import { getImageInfo, getFontInfo, testFn, getPageData } from './imageAndFontInfo';
+import { getImageInfo, getFontInfo, testFn, getInfo, getPageData } from './imageAndFontInfo';
 import { ctxImg } from './imageAndFontInfo';
 
 /* import * as pdfjsLib from "pdfjs-dist";
@@ -2108,12 +2108,14 @@ export async function pdf2document(itmeID: number) {
   await PDFViewerApplication.initializedPromise;
   await PDFViewerApplication.pdfLoadingTask.promise;
   //页面渲染准备完毕
-  PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn);
-  const imageDates = await getImageInfo(PDFViewerApplication);
-  const testfontInfo = await getFontInfo(PDFViewerApplication);
+  //PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn);
+  //const imageDates = await getImageInfo(PDFViewerApplication);
+  //const testfontInfo = await getFontInfo(PDFViewerApplication);
   //等待所有页面准备完毕后获取页面
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
+  //pdfView 是 new PDFView() 创建的实例。它是一个 PDF 视图对象，用于显示和操作 PDF 文档
+  const pdfView = reader._internalReader._primaryView;
   const totalPageNum = pages.length;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/gm, '').replace(/ - zotero:.+$/gm, '');
   let title: string | undefined;
@@ -2121,8 +2123,7 @@ export async function pdf2document(itmeID: number) {
   if (!title && titleTemp.length && !titleTemp.includes("untitled")) {
     title = titleTemp;
   }
-  // 读取所有页面lines
-  //函数内全局变量
+
   const pageLines: any = {};
   const _paraArr = [];
   const docs: string[] = [];
@@ -2130,11 +2131,8 @@ export async function pdf2document(itmeID: number) {
   //文本元素合并为行，组成行数组
   //每页的行数组作为元素再组成页面的数组
   //字符 ""单独为一行，帮助判断段落
-
-
   const itemsArr: PDFItem[][] = [];
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
-    PDFViewerApplication.pdfViewer.currentPageNumber = pageNum + 1;
     const pdfPage = pages[pageNum].pdfPage;
     const textContent = await pdfPage.getTextContent();
     const items = textContent.items;
@@ -2148,17 +2146,18 @@ export async function pdf2document(itmeID: number) {
       delete e.chars;
     });
     itemsArr.push(items as PDFItem[]);
-    if (pages[pageNum].renderTask?.promise) {
-      await pages[pageNum].renderTask.promise;
-    }
     ztoolkit.log("第 ", PDFViewerApplication.pdfViewer.currentPageNumber, " 页");
     //reader.navigateToNextPage();
     //reader._internalReader.navigateToNextPage()
   }
+  const infos = await getInfo(PDFViewerApplication);
 
+  const pageDateArr = [];
+  for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
+    const pageDate = await getPageData(pageNum);
+    pageDateArr.push(pageDate);
+  }
 
-  const pageDatas = await getPageData(1);
-  const test = "test";
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
   let refMarker = 0;
