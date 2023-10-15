@@ -2,7 +2,7 @@
 import { getPref } from '../utils/prefs';
 import { pdfFontInfo } from './fontDetect';
 import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
-import { getImageInfo, getFontInfo, testFn } from './imageAndFontInfo';
+import { getImageInfo, getFontInfo, testFn, getPageData } from './imageAndFontInfo';
 import { ctxImg } from './imageAndFontInfo';
 
 /* import * as pdfjsLib from "pdfjs-dist";
@@ -2103,36 +2103,16 @@ export async function pdf2document(itmeID: number) {
   const reader = Zotero.Reader.getByTabID(tabID) as any;
   await reader._waitForReader();
   await reader._initPromise;
-  const n = 0;
-  /* while ((!reader._iframeWindow || !reader._iframeWindow.wrappedJSObject.PDFViewerApplication) && n++ < 50) {
-    await Zotero.Promise.delay(100);
-  } */
   await reader._internalReader._primaryView.initializedPromise;
-  const pdfView = reader._internalReader._primaryView;
-  //await reader._internalReader._lastView.initializedPromise;
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
-
   await PDFViewerApplication.initializedPromise;
   await PDFViewerApplication.pdfLoadingTask.promise;
-  const pdfDocument = PDFViewerApplication.pdfDocument;
+  //页面渲染准备完毕
   PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn);
-  //await reader._iframeWindow.wrappedJSObject.viewerInstance._viewer._pdfjsPromise;
-
-
-
   const imageDates = await getImageInfo(PDFViewerApplication);
   const testfontInfo = await getFontInfo(PDFViewerApplication);
+  //等待所有页面准备完毕后获取页面
   await PDFViewerApplication.pdfViewer.pagesPromise;
-  const testPage = await pdfDocument.getPage(1);
-  const recognizerData = await Zotero.PDFWorker.getRecognizerData(itmeID);
-  const fullText = await Zotero.PDFWorker.getFullText(itmeID);
-  //const gftFn = () => { ztoolkit.log("更换成功"); };
-  //Zotero.PDFWorker.getFullText = gftFn;
-
-
-  //const pageStructureText = await testPage.getStructuredText({ handler, task, data })
-
-
   const pages = PDFViewerApplication.pdfViewer._pages;
   const totalPageNum = pages.length;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/gm, '').replace(/ - zotero:.+$/gm, '');
@@ -2175,6 +2155,10 @@ export async function pdf2document(itmeID: number) {
     //reader.navigateToNextPage();
     //reader._internalReader.navigateToNextPage()
   }
+
+
+  const pageDatas = await getPageData(1);
+  const test = "test";
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
   let refMarker = 0;

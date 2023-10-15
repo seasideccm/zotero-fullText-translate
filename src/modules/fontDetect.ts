@@ -19,5 +19,11 @@ export async function pdfFont() {
             pdfFontInfo[loadedName] = name;
             ztoolkit.log("pdfLoadingTask._worker._port:", "loadedName", loadedName, ", name:", name);
         }
+
+        //获取pageDate
+        if (event.data.data && event.data.data.structuredText) {
+            ztoolkit.log("页面结构化数据获取成功: ", event.data.data.pageLabel);
+        }
+
     });
 }

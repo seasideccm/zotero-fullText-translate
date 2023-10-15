@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 //@ts-nocheck
 
 const OPS = {
@@ -175,16 +176,25 @@ async function getInfo(PDFViewerApplication: any) {
             if (ops.fnArray[i] == 85 || ops.fnArray[i] == 86) {
                 const name = ops.argsArray[i][0];
                 const obj = await page.pdfPage.objs.has(name);
+                let imgObj;
                 if (obj) {
                     const img = await page.pdfPage.objs.get(name);
                     //const imgData = this.getObject(objId);  class CanvasGraphics 
-                    imgDataArr.push({
+                    imgObj = {
                         renderingId: page.renderingId,
                         fnId: i,
                         imgName: name,
                         img: img
-                    });
+                    };
+
                 }
+                for (let j = i - 1; j > 0; j--) {
+                    if (ops.fnArray[j] == 12) {
+                        imgObj.transform = [...ops.argsArray[j]];
+                        break;
+                    }
+                }
+                imgDataArr.push(imgObj);
             }
             if (ops.fnArray[i] == 37) {
                 const loadedName = ops.argsArray[i][0];
@@ -312,3 +322,24 @@ export const testFn = async (evt: any) => {
     ztoolkit.log("渲染前拦截，页面：", evt.pageNumber);
     await getTransform(evt.pageNumber);
 };
+
+
+export const getPageData = async (pageNumber?: number) => {
+    let pageIndex;
+    if (pageNumber) {
+        pageIndex = pageNumber - 1;
+    }
+    const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID) as any;
+    const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
+    const pdfView = reader._internalReader._primaryView;
+    await PDFViewerApplication.pdfViewer.pagesPromise;
+    if (!pdfView._pdfPages[pageIndex]) {
+        await Zotero.Promise.delay(100);
+    }
+    const pageData = pdfView._pdfPages[pageIndex];
+    pageData.pageIndex = pageIndex;
+    return pageData;
+
+};
+
+
