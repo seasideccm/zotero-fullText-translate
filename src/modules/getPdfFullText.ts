@@ -1,9 +1,8 @@
 
 import { getPref } from '../utils/prefs';
-import { pdfFontInfo } from './fontDetect';
 import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
-import { getImageInfo, getFontInfo, testFn, getInfo, getPageData } from './imageAndFontInfo';
-import { ctxImg } from './imageAndFontInfo';
+import { getInfo, getPageData, combineParagraphsWords } from './imageAndFontInfo';
+
 
 /* import * as pdfjsLib from "pdfjs-dist";
 import entry from "pdfjs-dist/build/pdf.worker.entry";
@@ -12,6 +11,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = entry; */
 
 /* eslint-disable no-useless-escape */
 const tolerance = 2;
+let pdfFontInfo: any;
 
 /* export const p2d = async () => {
   //报错 ReferenceError: console is not defined
@@ -2107,10 +2107,7 @@ export async function pdf2document(itmeID: number) {
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
   await PDFViewerApplication.initializedPromise;
   await PDFViewerApplication.pdfLoadingTask.promise;
-  //页面渲染准备完毕
-  //PDFViewerApplication.pdfViewer.eventBus._on("pagerender", testFn);
-  //const imageDates = await getImageInfo(PDFViewerApplication);
-  //const testfontInfo = await getFontInfo(PDFViewerApplication);
+
   //等待所有页面准备完毕后获取页面
   await PDFViewerApplication.pdfViewer.pagesPromise;
   const pages = PDFViewerApplication.pdfViewer._pages;
@@ -2146,17 +2143,21 @@ export async function pdf2document(itmeID: number) {
       delete e.chars;
     });
     itemsArr.push(items as PDFItem[]);
-    ztoolkit.log("第 ", PDFViewerApplication.pdfViewer.currentPageNumber, " 页");
-    //reader.navigateToNextPage();
-    //reader._internalReader.navigateToNextPage()
+    const xxx = findColumnX(items);
   }
-  const infos = await getInfo(PDFViewerApplication);
+  const pdfInfo = await getInfo(PDFViewerApplication);
+  pdfFontInfo = pdfInfo.fontInfo;
+
+
+
 
   const pageDateArr = [];
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     const pageDate = await getPageData(pageNum);
     pageDateArr.push(pageDate);
   }
+  combineParagraphsWords(pageDateArr);
+  boxByParagraphs(pageDateArr);
 
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
@@ -2633,13 +2634,7 @@ export async function pdf2document(itmeID: number) {
     docs.unshift(pdfTitle);
   } */
   if (isCloseReader) {
-    if (ctxImg.length) {
-      const x = ctxImg[0].transform[4];
-      const y = ctxImg[0].transform[5];
-      const pageId = ctxImg[0].pageNumber;
-      const imgName = ctxImg[0].imageName;
-    }
-
+    ztoolkit.log("关闭pdf阅读窗口前检查");
     reader.close();
   }
   let doc = docs.join('');
