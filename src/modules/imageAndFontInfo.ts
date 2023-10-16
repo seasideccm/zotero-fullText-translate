@@ -125,11 +125,15 @@ export async function combineParagraphsWords(pageDateArr: any[]) {
 }
 
 
-export const boxByParagraphs = (paragraphs: any[]) => {
+export const boxByParagraphs = (pageDateArr: any[]) => {
+    pageDateArr.filter((pageDate: any) => {
+        const { paragraphs } = pageDate.structuredText;
+        const temp = frequency(paragraphs.map((para: any) => Math.round(para.rect[0] * 10) / 10));
+        const xfrequency = temp.objFrequency;
+        const xorderByFrequency = temp.itemOrderByFrequency;
 
-    const temp = frequency(paragraphs.map(para => Math.round(para.rect[0] * 10) / 10));
-    const xfrequency = temp.objFrequency;
-    const xorderByFrequency = temp.itemOrderByFrequency;
+    });
+
     /*     const validBox: any[] = [];
         const invalidBox: any[] = [];
         paragraphs.filter((para:any)=>{

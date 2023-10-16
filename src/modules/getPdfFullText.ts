@@ -1,7 +1,7 @@
 
 import { getPref } from '../utils/prefs';
 import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
-import { getInfo, getPageData, combineParagraphsWords } from './imageAndFontInfo';
+import { getInfo, getPageData, combineParagraphsWords, boxByParagraphs } from './imageAndFontInfo';
 
 
 /* import * as pdfjsLib from "pdfjs-dist";
@@ -2158,6 +2158,8 @@ export async function pdf2document(itmeID: number) {
   }
   combineParagraphsWords(pageDateArr);
   boxByParagraphs(pageDateArr);
+  const tree = await pages[0].pdfPage.getStructTree();
+  const test = tree;
 
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性
