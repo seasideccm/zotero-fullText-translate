@@ -9,6 +9,7 @@ import { baidufieldModify } from "./baidufieldModify";
 import { franc } from "franc-min";
 import { langCode_francVsZotero, langCodeNameSpeakers } from "../utils/config";
 import { html2md, md2html } from "./mdHtmlConvert";
+import { imageToAnnotation } from "./imageToAnnotation";
 
 let htmlToMd: any, mdToHtml: any;
 // 装饰函数
@@ -84,6 +85,15 @@ export class fullTextTranslate {
       label: getString("menuitem-pdf2Note"),
       commandListener: (async (ev) => {
         await this.pdf2Note();       //fullTextTranslate.pdf2Note();
+      }),
+      icon: menuIcon,
+    });
+
+    ztoolkit.Menu.register("item", {
+      tag: "menuitem",
+      label: "添加图片注释",
+      commandListener: (async (ev) => {
+        await imageToAnnotation();       //fullTextTranslate.pdf2Note();
       }),
       icon: menuIcon,
     });
@@ -167,13 +177,18 @@ export class fullTextTranslate {
       return [];
     }
     let pdfIDs: number[] = [];
+
     for (let item of items) {
+      //如果是常规条目，不做处理
+      //如果是子条目，获取其父条目，即常规条目
+      //如果是无父条目的pdf，直接获取其id
       if (!item.isRegularItem() && item.parentItem) {
         item = item.parentItem;
       } else if (!item.isRegularItem() && item.isPDFAttachment() && !item.parentItem) {
         pdfIDs.push(item.id);
         continue;
       }
+      //通过常规条目获取子条目，筛选出pdf，然后获取其id
       for (const id of item.getAttachments()) {
         if (Zotero.Items.get(id).isPDFAttachment()) {
           pdfIDs.push(id);

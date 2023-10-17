@@ -2113,6 +2113,16 @@ export async function pdf2document(itmeID: number) {
   const pages = PDFViewerApplication.pdfViewer._pages;
   //pdfView 是 new PDFView() 创建的实例。它是一个 PDF 视图对象，用于显示和操作 PDF 文档
   const pdfView = reader._internalReader._primaryView;
+  /*   const params = {
+      "ids": [
+        "AGJD9PAM"
+      ],
+      "x": 415,
+      "y": 354,
+      "view": true
+    };
+    pdfView._onOpenAnnotationContextMenu(params).bind(pdfView);
+    const test1 = "test"; */
   const totalPageNum = pages.length;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/gm, '').replace(/ - zotero:.+$/gm, '');
   let title: string | undefined;
