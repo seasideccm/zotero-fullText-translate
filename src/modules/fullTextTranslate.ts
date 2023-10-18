@@ -188,8 +188,10 @@ export class fullTextTranslate {
         pdfIDs.push(item.id);
         continue;
       }
-      //通过常规条目获取子条目，筛选出pdf，然后获取其id
-      for (const id of item.getAttachments()) {
+      //通过常规条目获取子条目，筛选出 pdf，然后获取其id
+      const attachmentIDs = item.getAttachments();
+      for (const id of attachmentIDs) {
+        //筛选pdf
         if (Zotero.Items.get(id).isPDFAttachment()) {
           pdfIDs.push(id);
         }
