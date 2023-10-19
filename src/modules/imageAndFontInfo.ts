@@ -5,6 +5,7 @@ export async function getInfo() {
     const imgDataArr: any[] = [];
     const pageRenderingIdChecked: any[] = [];
     const fontInfo: any = {};
+    const fontInfoOO: any = {};
     const pages: any[] = (await prepareReader("pagesLoaded"))("pages");
     for (const page of pages) {
         await getOpsInfo(page);
@@ -12,14 +13,15 @@ export async function getInfo() {
     return {
         imgDataArr: imgDataArr,
         fontInfo: fontInfo,
+        fontInfoOO: fontInfoOO
     };
     async function getOpsInfo(page: any) {
         if (!page.pdfPage) { return; }
-        const isExtractOringImg = true;
+        const isExtractOringImg = false;
         const ops = await page.pdfPage.getOperatorList();
         if (ops.fnArray.filter((e: any) => e == 85).length > 100) {
             ztoolkit.log("本页图片太多，可能为矢量图，或者大量小图形，跳过提取");
-            return;
+            //return;
         }
         for (let i = 0; i < ops.fnArray.length; i++) {
             if (ops.fnArray[i] == 85 || ops.fnArray[i] == 86) {
@@ -53,6 +55,14 @@ export async function getInfo() {
                 if (common) {
                     const font: any = await page.pdfPage.commonObjs.get(loadedName);
                     fontInfo[font.loadedName] = font.name;
+                    //测试，font.loadedName是否对应多个 font.name
+                    const tempObj: any = {};
+                    tempObj[font.name] = 1;
+                    fontInfoOO[font.loadedName] ?
+                        (fontInfoOO[font.loadedName][font.name] ?
+                            fontInfoOO[font.loadedName][font.name] = fontInfoOO[font.loadedName][font.name] + 1
+                            : fontInfoOO[font.loadedName][font.name] = 1)
+                        : fontInfoOO[font.loadedName] = tempObj;
                 }
             }
         }

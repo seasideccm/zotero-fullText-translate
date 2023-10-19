@@ -2130,7 +2130,10 @@ export async function pdf2document(itmeID: number) {
   //每页的行数组作为元素再组成页面的数组
   //字符 ""单独为一行，帮助判断段落
   const itemsArr: PDFItem[][] = [];
+  const font_g_t_All: any = {};
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
+    const font_g_t: any = {};
+    const font_g_t_page: any[] = [];
     const pdfPage = pages[pageNum].pdfPage;
     const textContent = await pdfPage.getTextContent();
     const items = textContent.items;
@@ -2141,8 +2144,26 @@ export async function pdf2document(itmeID: number) {
       e.transform[0] = Math.round(e.transform[0] * 1000) / 1000;
       e.height = Math.round(e.height * 1000) / 1000;
       e.width = Math.round(e.width * 1000) / 1000;
+      // 同一页面中字符的字体总是从 T1_0开始，对应的str的字体是整篇文档排序的 "g_d0_f2"
+      //所以一个页面中无需判断字符字体的与str字体的多重对应，
+      //记录每页字体对应信息，方便 structureText合并段落时根据实际字体处理粗斜体
+      //另外str只要一个字体，所以所有chars字体必然相同，仅需提取一个字符字体即可
+      /* if (e.chars) {
+        e.chars.filter((char: any) => {          
+          if (font_g_t[char.fontName] && font_g_t[char.fontName] != e.fontName) {
+            font_g_t_page.push(JSON.parse(JSON.stringify(font_g_t)));
+            font_g_t = {};
+          }
+          font_g_t[char.fontName] = e.fontName;
+        });
+      } */
+      if (e.chars) {
+        font_g_t[e.chars[0].fontName] = e.fontName;
+      }
       delete e.chars;
     });
+    //font_g_t_page.push(JSON.parse(JSON.stringify(font_g_t)));
+    font_g_t_All[pageNum] = JSON.parse(JSON.stringify(font_g_t));
     itemsArr.push(items as PDFItem[]);
   }
 
