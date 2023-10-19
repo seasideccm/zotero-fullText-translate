@@ -15,22 +15,29 @@ export async function getInfo() {
     };
     async function getOpsInfo(page: any) {
         if (!page.pdfPage) { return; }
+        const isExtractOringImg = true;
         const ops = await page.pdfPage.getOperatorList();
+        if (ops.fnArray.filter((e: any) => e == 85).length > 100) {
+            ztoolkit.log("本页图片太多，可能为矢量图，或者大量小图形，跳过提取");
+            return;
+        }
         for (let i = 0; i < ops.fnArray.length; i++) {
             if (ops.fnArray[i] == 85 || ops.fnArray[i] == 86) {
-                const name = ops.argsArray[i][0];
-                const obj = await page.pdfPage.objs.has(name);
-                let imgObj: any;
-                if (obj) {
-                    const imgData = await page.pdfPage.objs.get(name);
-                    //const imgData = this.getObject(objId);  class CanvasGraphics 
-                    imgObj = {
-                        pageId: page.id,
-                        pageLabel: page.pageLabel,
-                        fnId: i,
-                        imgName: name,
-                        imgData: imgData
-                    };
+                const imgObj: any = {
+                    pageId: page.id,
+                    pageLabel: page.pageLabel,
+                    fnId: ops.fnArray[i],
+                    fnArrayIndex: i,
+                };
+                if (isExtractOringImg) {
+                    const name = ops.argsArray[i][0];
+                    const hasImgData = await page.pdfPage.objs.has(name);
+                    if (hasImgData) {
+                        const imgData = await page.pdfPage.objs.get(name);
+                        //const imgData = this.getObject(objId);  class CanvasGraphics 
+                        imgObj.imgName = name;
+                        imgObj.imgData = imgData;
+                    }
                 }
                 for (let j = i - 1; j > 0; j--) {
                     if (ops.fnArray[j] == 12) {
