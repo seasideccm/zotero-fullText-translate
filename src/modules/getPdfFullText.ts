@@ -11,7 +11,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = entry; */
 
 /* eslint-disable no-useless-escape */
 const tolerance = 2;
-let pdfFontInfo: any;
+
 
 /* export const p2d = async () => {
   //报错 ReferenceError: console is not defined
@@ -1083,7 +1083,7 @@ const mergePDFItemsToPDFLine = (items: PDFItem[]) => {
   return lineArr;
 };
 
-const makeLine = (lineArr: PDFItem[][]) => {
+const makeLine = async (lineArr: PDFItem[][]) => {
   // 行数组中的元素合并成行，
   //判断上下标，粗斜体
   const linesCombined = [];
@@ -1098,6 +1098,7 @@ const makeLine = (lineArr: PDFItem[][]) => {
     const mainFont = lineMainFont(lineItem);
     const fontInfo = fontStyle(lineItem[0], lineItem, fontInfoObj);
     lastLine.fontName = mainFont;
+    const pdfFontInfo = (await getInfo()).fontInfo;
     let lastLineFontStyle = pdfItemStyle(mainFont, pdfFontInfo, fontStyleCollection);
     if (!lastLineFontStyle) {
       if (fontInfo.lineFontStyle) {
@@ -2113,16 +2114,6 @@ export async function pdf2document(itmeID: number) {
   const pages = PDFViewerApplication.pdfViewer._pages;
   //pdfView 是 new PDFView() 创建的实例。它是一个 PDF 视图对象，用于显示和操作 PDF 文档
   const pdfView = reader._internalReader._primaryView;
-  /*   const params = {
-      "ids": [
-        "AGJD9PAM"
-      ],
-      "x": 415,
-      "y": 354,
-      "view": true
-    };
-    pdfView._onOpenAnnotationContextMenu(params).bind(pdfView);
-    const test1 = "test"; */
   const totalPageNum = pages.length;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/gm, '').replace(/ - zotero:.+$/gm, '');
   let title: string | undefined;
@@ -2153,12 +2144,7 @@ export async function pdf2document(itmeID: number) {
       delete e.chars;
     });
     itemsArr.push(items as PDFItem[]);
-    const xxx = findColumnX(items);
   }
-  const pdfInfo = await getInfo(PDFViewerApplication);
-  pdfFontInfo = pdfInfo.fontInfo;
-
-
 
 
   const pageDateArr = [];
@@ -2176,7 +2162,7 @@ export async function pdf2document(itmeID: number) {
   let refMarker = 0;
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     const lines1 = mergePDFItemsToPDFLine(itemsArr[pageNum])!;
-    const lines = makeLine(lines1);
+    const lines = await makeLine(lines1);
     linesArr.push(lines);
     lineSpace(lines);
     pageLines[pageNum] = lines.map((e: PDFLine) => {

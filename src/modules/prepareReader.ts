@@ -1,8 +1,8 @@
 import { fullTextTranslate } from './fullTextTranslate';
 
 
-export async function prepareReader(result: "waitForReader" | "initializedReader" | "initializedPrimaryView" | "initializedPDFViewerApplication" | "pdfLoaded"
-  | "pagesLoaded" | "pages" | "pdfView" | "internalReader"
+export async function prepareReader(result: "beforReaderInit" | "waitForReader" | "initializedReader" | "initializedPDFView" | "initializedPDFViewerApplication" | "pdfLoaded" | "firstPageLoaded"
+  | "pagesLoaded"
   , itmeID?: number) {
   let tabID;
   //参数itemID未传递
@@ -34,43 +34,65 @@ export async function prepareReader(result: "waitForReader" | "initializedReader
   }
   Zotero_Tabs.select(tabID);
   const reader = Zotero.Reader.getByTabID(tabID) as any;
-  if (!result) {
-    return reader;
+  if (result == "beforReaderInit") {
+    return getObj;
   }
   await reader._waitForReader();
   if (result == "waitForReader") {
-    return reader;
+    return getObj;
   }
   await reader._initPromise;
   if (result == "initializedReader") {
-    return reader;
+    return getObj;
   }
-  await reader._internalReader._primaryView.initializedPromise;
-  if (result == "initializedPrimaryView") {
-    return reader;
+  const internalReader = reader._internalReader;
+  const PDFView = internalReader._primaryView;
+  const pdfPages = PDFView._pdfPages;
+  await PDFView.initializedPromise;
+  if (result == "initializedPDFView") {
+    return getObj;
   }
   const PDFViewerApplication = (reader._iframeWindow as any).wrappedJSObject.PDFViewerApplication;
   await PDFViewerApplication.initializedPromise;
+  const pdfViewer = PDFViewerApplication.pdfViewer;
   if (result == "initializedPDFViewerApplication") {
-    return PDFViewerApplication;
+    return getObj;
   }
   await PDFViewerApplication.pdfLoadingTask.promise;
+  const pdfDocument = PDFViewerApplication.pdfDocument;
+  const pages = pdfViewer._pages;
   if (result == "pdfLoaded") {
-    return PDFViewerApplication;
+    return getObj;
+  }
+  await PDFViewerApplication.pdfViewer.firstPagePromise;
+  if (result == "firstPageLoaded") {
+    return getObj;
   }
   await PDFViewerApplication.pdfViewer.pagesPromise;
   if (result == "pagesLoaded") {
-    return PDFViewerApplication;
+    return getObj;
+  } else {
+    return getObj;
   }
-  if (result == "pages") {
-    const pages = PDFViewerApplication.pdfViewer._pages;
-    return pages;
-  }
-  if (result == "pdfView") {
-    return reader._internalReader._primaryView;
-  }
-  if (result == "internalReader") {
-    return reader._internalReader;
-  }
+
+  function getObj(obj: "reader" | "internalReader" | "PDFView"
+    | "PDFViewerApplication" | "pdfViewer" | "pages" | "pdfPages" | "pdfDocument") {
+    switch (obj) {
+      case "reader": return reader;
+      case "internalReader": return internalReader;
+      case "PDFView": return PDFView;
+      case "pdfViewer": return pdfViewer;
+      case "pages": return pages;
+      case "pdfPages": return pdfPages;
+      case "pdfDocument": return pdfDocument;
+      case "PDFViewerApplication": return PDFViewerApplication;
+      default:
+        return reader;
+    }
+  };
+
+
 }
+
+
 

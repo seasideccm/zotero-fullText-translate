@@ -1,15 +1,11 @@
 import { frequency } from "./getPdfFullText";
+import { prepareReader } from "./prepareReader";
 
-export async function getInfo(PDFViewerApplication: any) {
-    await PDFViewerApplication.pdfViewer.firstPagePromise;
+export async function getInfo() {
     const imgDataArr: any[] = [];
     const pageRenderingIdChecked: any[] = [];
     const fontInfo: any = {};
-    /*     const firstPage: any = PDFViewerApplication.pdfViewer._pages.filter((e: any) => e.id == 1)[0];
-        await getOpsInfo(firstPage); */
-    await PDFViewerApplication.pdfViewer.pagesPromise;
-    //const pages: any[] = PDFViewerApplication.pdfViewer._pages.filter((e: any) => e.id != 1);
-    const pages: any[] = PDFViewerApplication.pdfViewer._pages;
+    const pages: any[] = (await prepareReader("pagesLoaded"))("pages");
     for (const page of pages) {
         await getOpsInfo(page);
     }
@@ -29,7 +25,8 @@ export async function getInfo(PDFViewerApplication: any) {
                     const imgData = await page.pdfPage.objs.get(name);
                     //const imgData = this.getObject(objId);  class CanvasGraphics 
                     imgObj = {
-                        renderingId: page.renderingId,
+                        pageId: page.id,
+                        pageLabel: page.pageLabel,
                         fnId: i,
                         imgName: name,
                         imgData: imgData
