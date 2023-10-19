@@ -1,18 +1,25 @@
-import { getSortIndex } from "./transformTools";
+import { getSortIndex, applyTransform } from "./transformTools";
 import { getInfo } from "./imageAndFontInfo";
 import { prepareReader } from "./prepareReader";
 export async function imageToAnnotation() {
     const imgDataArr = (await getInfo()).imgDataArr;
     if (!imgDataArr.length) { return; }
-    const positionPdf: any = {};
     imgDataArr.forEach((imgData: any) => {
-        const p1x = imgData.transform[4];
+        const rect: number[] = [];
+        const transform = imgData.transform;
+        /*pdf坐标系以左下角为（0,0），每个对象均视为单位大小1，
+        根据该对象的transform确定坐标系中的位置,
+        对左下角和右上角两点应用transform，得到坐标的具体值*/
+        const p1 = applyTransform([0, 0], transform);
+        const p2 = applyTransform([1, 1], transform);
+        rect.push(p1[0], p1[1], p2[0], p2[1]);
+
+        /* const p1x = imgData.transform[4];
         const p1y = imgData.transform[5];
         const p2x = imgData.imgData.width;
-        const p2y = imgData.imgData.height;
+        const p2y = imgData.imgData.height; */
+        const positionPdf: any = {};
         positionPdf.pageIndex = imgData.pageId - 1;
-        const rect = [p1x, p1y, p2x, p2y];
-
         positionPdf.rects = [rect];
         makeAnnotation(positionPdf);
     });
