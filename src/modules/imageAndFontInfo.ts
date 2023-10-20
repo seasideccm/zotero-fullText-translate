@@ -17,6 +17,7 @@ export async function getInfo() {
         fontInfoOO: fontInfoOO,
         pathDataArr: pathDataArr
     };
+
     async function getOpsInfo(page: any) {
         if (!page.pdfPage) { return; }
         const isExtractOringImg = false;
@@ -68,8 +69,16 @@ export async function getInfo() {
                 }
             }
             if (ops.fnArray[i] == 91) {
+                const args = ops.argsArray[i];
                 const pathObj: any = {
-                    pathArgs: ops.argsArray[i],
+                    constructPathArgs: {
+                        ops: args[0],
+                        //args[1]数组元素依次为 x，y，width，height
+                        //第二点坐标 const xw = x + width;  const yh = y + height;                        
+                        args: args[1],
+                        // const minMaxForBezier = isScalingMatrix ? minMax.slice(0) : null;
+                        minMax: args[2]
+                    },
                     pageId: page.id,
                     pageLabel: page.pageLabel,
                     fnId: ops.fnArray[i],
@@ -80,6 +89,11 @@ export async function getInfo() {
                         pathObj.transform = [...ops.argsArray[j]];
                         pathObj.transform_fnId = ops.fnArray[j];
                         pathObj.transform_fnArrayIndex = j;
+                        break;
+                    }
+                    //stroke: 20, fill: 22, endText: 32, restore 11,
+                    if ([11, 20, 22, 32].includes(ops.fnArray[j])) {
+                        //如果该路径前无transform，则使用默认transform
                         break;
                     }
                 }
