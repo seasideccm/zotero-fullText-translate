@@ -3,7 +3,7 @@ import { prepareReader } from "./prepareReader";
 
 export async function getInfo() {
     const imgDataArr: any[] = [];
-    const lineDataArr: any[] = [];
+    const pathDataArr: any[] = [];
     const pageRenderingIdChecked: any[] = [];
     const fontInfo: any = {};
     const fontInfoOO: any = {};
@@ -15,7 +15,7 @@ export async function getInfo() {
         imgDataArr: imgDataArr,
         fontInfo: fontInfo,
         fontInfoOO: fontInfoOO,
-        lineDataArr: lineDataArr
+        pathDataArr: pathDataArr
     };
     async function getOpsInfo(page: any) {
         if (!page.pdfPage) { return; }
@@ -67,23 +67,29 @@ export async function getInfo() {
                         : fontInfoOO[font.loadedName] = tempObj;
                 }
             }
-            if (ops.fnArray[i] == 14) {
-                const lineObj: any = {
-                    lineToArgs: ops.argsArray[i],
+            if (ops.fnArray[i] == 91) {
+                const pathObj: any = {
+                    pathArgs: ops.argsArray[i],
                     pageId: page.id,
                     pageLabel: page.pageLabel,
                     fnId: ops.fnArray[i],
                     fnArrayIndex: i,
                 };
-                if (ops.fnArray[i - 1] && ops.fnArray[i - 1] == 13) {
-                    lineObj.moveToArgs = ops.fnArray[i - 1];
+                for (let j = i - 1; j > 0; j--) {
+                    if (ops.fnArray[j] == 12) {
+                        pathObj.transform = [...ops.argsArray[j]];
+                        pathObj.transform_fnId = ops.fnArray[j];
+                        pathObj.transform_fnArrayIndex = j;
+                        break;
+                    }
                 }
-                lineDataArr.push(lineObj);
+                pathDataArr.push(pathObj);
             }
         }
         pageRenderingIdChecked.push(page.renderingId);
     }
 }
+
 
 export const getPageData = async (pageIndex: number) => {
     //pageIndex begin from 0

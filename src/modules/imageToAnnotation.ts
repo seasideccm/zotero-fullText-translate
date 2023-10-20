@@ -2,7 +2,8 @@ import { getSortIndex, applyTransform } from "./transformTools";
 import { getInfo } from "./imageAndFontInfo";
 import { prepareReader } from "./prepareReader";
 export async function imageToAnnotation() {
-    const imgDataArr = (await getInfo()).imgDataArr;
+    const infoDataArr = (await getInfo());
+    const imgDataArr = infoDataArr.imgDataArr;
     if (!imgDataArr.length) { return; }
     imgDataArr.forEach((imgData: any) => {
         const rect: number[] = [];
@@ -23,6 +24,23 @@ export async function imageToAnnotation() {
         positionPdf.rects = [rect];
         makeAnnotation(positionPdf);
     });
+    const pathDataArr = infoDataArr.pathDataArr;
+    pathDataArr.forEach((pathData: any) => {
+        const rect: number[] = [];
+        const transform = pathData.transform;
+        const p1x = Math.min(...pathData.pathArgs.filter((e: any, i: number) => i % 2 == 0));
+        const p1y = Math.min(...pathData.pathArgs.filter((e: any, i: number) => i % 2 == 1));
+        const p2x = Math.max(...pathData.pathArgs.filter((e: any, i: number) => i % 2 == 0));
+        const p2y = Math.max(...pathData.pathArgs.filter((e: any, i: number) => i % 2 == 1));
+        const p1 = applyTransform([p1x, p1y], transform);
+        const p2 = applyTransform([p2x, p2y], transform);
+        rect.push(p1[0], p1[1], p2[0], p2[1]);
+        const positionPdf: any = {};
+        positionPdf.pageIndex = pathData.pageId - 1;
+        positionPdf.rects = [rect];
+        makeAnnotation(positionPdf);
+    });
+
 }
 
 export async function makeAnnotation(positionPdf: any[], type?: string, color?: string, pageLabel?: string
