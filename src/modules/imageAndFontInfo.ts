@@ -3,6 +3,7 @@ import { prepareReader } from "./prepareReader";
 
 export async function getInfo() {
     const imgDataArr: any[] = [];
+    const lineDataArr: any[] = [];
     const pageRenderingIdChecked: any[] = [];
     const fontInfo: any = {};
     const fontInfoOO: any = {};
@@ -13,7 +14,8 @@ export async function getInfo() {
     return {
         imgDataArr: imgDataArr,
         fontInfo: fontInfo,
-        fontInfoOO: fontInfoOO
+        fontInfoOO: fontInfoOO,
+        lineDataArr: lineDataArr
     };
     async function getOpsInfo(page: any) {
         if (!page.pdfPage) { return; }
@@ -64,6 +66,19 @@ export async function getInfo() {
                             : fontInfoOO[font.loadedName][font.name] = 1)
                         : fontInfoOO[font.loadedName] = tempObj;
                 }
+            }
+            if (ops.fnArray[i] == 14) {
+                const lineObj: any = {
+                    lineToArgs: ops.argsArray[i],
+                    pageId: page.id,
+                    pageLabel: page.pageLabel,
+                    fnId: ops.fnArray[i],
+                    fnArrayIndex: i,
+                };
+                if (ops.fnArray[i - 1] && ops.fnArray[i - 1] == 13) {
+                    lineObj.moveToArgs = ops.fnArray[i - 1];
+                }
+                lineDataArr.push(lineObj);
             }
         }
         pageRenderingIdChecked.push(page.renderingId);

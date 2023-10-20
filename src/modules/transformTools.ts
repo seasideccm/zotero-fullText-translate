@@ -152,6 +152,14 @@ export function applyTransform(p, m) {
 	return [xt, yt];
 }
 
+/* const p1 = [0, 0];
+const p2 = [335.5, 28.25];
+const transform = [1, 0, 0, 1, 169.25, 673.5];
+const pp1 = applyTransform(p1, transform);
+const pp2 = applyTransform(p2, transform);
+console.log(pp1);
+console.log(pp2); */
+
 function rectsDist([ax1, ay1, ax2, ay2], [bx1, by1, bx2, by2]) {
 	const left = bx2 < ax1;
 	const right = ax2 < bx1;

@@ -2167,7 +2167,7 @@ export async function pdf2document(itmeID: number) {
     itemsArr.push(items as PDFItem[]);
   }
 
-
+  const infoDataArr = await getInfo();
   const pageDateArr = [];
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     const pageDate = await getPageData(pageNum);
