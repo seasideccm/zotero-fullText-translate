@@ -21,7 +21,7 @@ export async function pdfButton() {
         ignoreIfExists: true,
         namespace: "html",
         tag: "button",
-        id: config.addonRef,
+        id: config.addonRef + "-translate",
         classList: ["toolbarButton"],
         styles: {
             // 解决图标
@@ -34,7 +34,7 @@ export async function pdfButton() {
             padding: "4px 3px 4px 22px"
         },
         attributes: {
-            title: config.addonName,
+            title: config.addonName + "-translate",
             tabindex: "-1",
         },
         // 长按是解析图表，点击是切换
@@ -104,38 +104,6 @@ export async function pdfButton() {
         ]
     }, ref) as HTMLButtonElement;
 
-    const clearAnnotationsButton = ztoolkit.UI.insertElementBefore({
-        ignoreIfExists: true,
-        namespace: "html",
-        tag: "button",
-        id: config.addonRef,
-        classList: ["toolbarButton"],
-        styles: {
-            // 解决图标
-            backgroundImage: `url(chrome://${config.addonRef}/content/icons/favicon.png)`,
-            backgroundSize: "16px 16px",
-            backgroundPosition: "35% center",
-            backgroundRepeat: "no-repeat",
-            width: "45px",
-            //filter: "grayscale(100%)",
-            padding: "4px 3px 4px 22px"
-        },
-        attributes: {
-            title: config.addonName,
-            tabindex: "-1",
-        },
-        listeners: [
-            {
-                type: "click",
-                listener: () => {
-                    clearAnnotations();
-                }
-            },
-        ],
-
-    }, ref) as HTMLButtonElement;
-
-
 }
 
 export async function clearAnnotationsButton() {
@@ -155,7 +123,7 @@ export async function clearAnnotationsButton() {
         ignoreIfExists: true,
         namespace: "html",
         tag: "button",
-        id: config.addonRef,
+        id: config.addonRef + "clearAnnotations",
         classList: ["toolbarButton"],
         styles: {
             // 解决图标
@@ -168,7 +136,7 @@ export async function clearAnnotationsButton() {
             padding: "4px 3px 4px 22px"
         },
         attributes: {
-            title: config.addonName,
+            title: config.addonName + "-clearAnnotations",
             tabindex: "-1",
         },
         listeners: [

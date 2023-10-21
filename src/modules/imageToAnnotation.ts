@@ -14,23 +14,46 @@ export async function imageToAnnotation() {
         makeAnnotation(positionPdf);
     });
 
-    const pathDataArr = infoDataArr.pathDataArr;
-    pathDataArr.forEach((pathData: any) => {
-        const transform = pathData.transform || [1, 0, 0, 1, 0, 0];
-        const args = pathData.constructPathArgs.args;
-        const noCurveOPS = pathData.constructPathArgs.ops.filter((e: any) => ![15, 16, 17].includes(e));
-        if (!noCurveOPS.length) {
-            return false;
-        }
-        //筛选数组索引奇偶的最大最小值，作为矩形的两点坐标
-        const p1x = Math.min(...args.filter((e: any, i: number) => i % 2 == 0));
-        const p1y = Math.min(...args.filter((e: any, i: number) => i % 2 == 1));
-        const p2x = Math.max(...args.filter((e: any, i: number) => i % 2 == 0));
-        const p2y = Math.max(...args.filter((e: any, i: number) => i % 2 == 1));
+    const tableArr = infoDataArr.tableArr;
+    tableArr.forEach((tablePathData: any[]) => {
+        const p1sx: number[] = [];
+        const p1sy: number[] = [];
+        const p2sx: number[] = [];
+        const p2sy: number[] = [];
+        const pageId = tablePathData[0].pageId;
+        tablePathData.forEach((pathData: any) => {
+            const args = pathData.constructPathArgs.args;
 
-        const positionPdf: any = getPosition([p1x, p1y, p2x, p2y], transform, pathData.pageId - 1);
+            //曲线先绕过
+            const noneCurveOPS = pathData.constructPathArgs.ops.filter((e: any) => [15, 16, 17].includes(e));
+            if (noneCurveOPS.length) {
+                return false;
+            }
+            //表格先可以是矩形，参数是起点和宽高
+            if (pathData.constructPathArgs.ops[0] == 19) {
+                p1sx.push(args[0]);
+                p1sy.push(args[1]);
+                p2sx.push(args[0] + args[2]);
+                p2sy.push(args[1] + args[3]);
+            }
+            //直线坐标是两个点
+            const nolineOPS = pathData.constructPathArgs.ops.filter((e: any) => ![13, 14, 18].includes(e));
+            if (!nolineOPS.length) {
+                p1sx.push(...args.filter((e: number, i: number) => i % 2 == 0));
+                p1sy.push(...args.filter((e: number, i: number) => i % 2 == 1));
+                p2sx.push(...args.filter((e: number, i: number) => i % 2 == 0));
+                p2sy.push(...args.filter((e: number, i: number) => i % 2 == 1));
+            }
+        });
+        const p1x = Math.min(...p1sx);
+        const p1y = Math.min(...p1sy);
+        const p2x = Math.max(...p2sx);
+        const p2y = Math.max(...p2sy);
+        const transform = tablePathData[0].transform || [1, 0, 0, 1, 0, 0];
+        const positionPdf: any = getPosition([p1x, p1y, p2x, p2y], transform, pageId - 1);
         makeAnnotation(positionPdf);
     });
+
     function getPosition(p: number[], m: number[], pageIndex: any) {
         const p1 = applyTransform([p[0], p[1]], m);
         const p2 = applyTransform([p[2], p[3]], m);
@@ -78,7 +101,7 @@ export async function makeAnnotation(positionPdf: any[], type?: string, color?: 
         savedAnnotation.addTag(tag);
     }
     await savedAnnotation.saveTx();
-    const test = "test";
+
 }
 
 export async function clearAnnotations() {
@@ -86,6 +109,17 @@ export async function clearAnnotations() {
     const attachment = reader._item;
     if (!attachment.isPDFAttachment()) { return; }
     const annotationManager = reader._internalReader._annotationManager;
-    annotationManager._annotations.length = 0;
+    const annotations: any[] = annotationManager._annotations;
+    const ids = annotations.map((a: any) => a.id).filter((id: any) => id);
+    //隐藏
+    //annotationManager._annotations.length = 0;
+    //annotationManager.render();
+    //id号
+    //reader.annotationItemIDs.length = 0;
+    //初始注释来源
+    //reader._state.annotations
+    //await annotation.eraseTx()此处非函数？？
+    annotationManager._onDelete(ids);
+    annotations.length = 0;
     annotationManager.render();
 }

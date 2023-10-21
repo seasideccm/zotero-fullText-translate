@@ -5,11 +5,14 @@ import { RenderingStates } from "../utils/config";
 export async function getPDFInfo() {
     const imgDataArr: any[] = [];
     const pathDataArr: any[] = [];
+    const tableArr: any[] = [];
     const pageRenderingIdChecked: any[] = [];
     const fontInfo: any = {};
     const fontInfoOO: any = {};
     const pages: any[] = (await prepareReader("pagesLoaded"))("pages");
+    const pdfViewer: any = (await prepareReader("pagesLoaded"))("pdfViewer");
     for (const page of pages) {
+        pdfViewer.currentPageNumber = page.id;
         while (!(page.renderingState == RenderingStates.FINISHED)) {
             await Zotero.Promise.delay(50);
         }
@@ -19,14 +22,14 @@ export async function getPDFInfo() {
         imgDataArr: imgDataArr,
         fontInfo: fontInfo,
         fontInfoOO: fontInfoOO,
-        pathDataArr: pathDataArr
+        tableArr: tableArr
     };
 
     async function getOpsInfo(page: any) {
         if (!page.pdfPage) { return; }
+        const view = page.pdfPage.view;
         //todo 通过选项选择是否提取高清大图
         const isExtractOringImg = false;
-
         /* const ctx = page.canvas.getContext("2d", {
             alpha: false
         });
@@ -86,6 +89,10 @@ export async function getPDFInfo() {
                         break;
                     }
                 }
+                //左下角靠近边缘则舍弃
+                if (imgObj.transform[4] <= 10 || imgObj.transform[5] <= 10) {
+                    continue;
+                }
                 imgDataArr.push(imgObj);
             }
             if (ops.fnArray[i] == 37) {
@@ -104,10 +111,26 @@ export async function getPDFInfo() {
                         : fontInfoOO[font.loadedName] = tempObj;
                 }
             }
+            //表格
+
             if (ops.fnArray[i] == 91) {
                 const args = ops.argsArray[i];
+                //曲线先绕过
+                const isCurveOPS = args[0].filter((e: any) => [15, 16, 17].includes(e));
+                if (isCurveOPS.length) {
+                    continue;
+                }
+                //暂时只看起点
+                /*  if(args[0][0]==19){
+ 
+                 } else{
+                     
+                 } */
+                if (args[1][0] < 10 || args[1][1] < 10) {
+                    continue;
+                }
+
                 const pathObj: any = {
-                    //originTransform: transform,
                     constructPathArgs: {
                         ops: args[0],
                         //args[1]数组元素依次为 x，y，width，height
@@ -121,20 +144,41 @@ export async function getPDFInfo() {
                     fnId: ops.fnArray[i],
                     fnArrayIndex: i,
                 };
-                for (let j = i - 1; j >= 0 && j > i - 10; j--) {
-                    if (ops.fnArray[j] == 12) {
-                        pathObj.transform = [...ops.argsArray[j]];
-                        pathObj.transform_fnId = ops.fnArray[j];
-                        pathObj.transform_fnArrayIndex = j;
-                        break;
+                /*                 for (let j = i - 1; j >= 0 && j > i - 10; j--) {
+                                    if (ops.fnArray[j] == 12) {
+                                        pathObj.transform = [...ops.argsArray[j]];
+                                        pathObj.transform_fnId = ops.fnArray[j];
+                                        pathObj.transform_fnArrayIndex = j;
+                                        break;
+                                    }
+                                    //stroke: 20, fill: 22, endText: 32, restore 11,
+                                    if ([11, 20, 22, 32].includes(ops.fnArray[j])) {
+                                        //如果该路径前无transform，则使用默认transform
+                                        break;
+                                    }
+                                } */
+                if (args[0][0] == 19) {
+                    pathObj.type = "rectangle";
+                    if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "rectangle") {
+                        tableArr.push([...pathDataArr]);
+                        pathDataArr.length = 0;
                     }
-                    //stroke: 20, fill: 22, endText: 32, restore 11,
-                    if ([11, 20, 22, 32].includes(ops.fnArray[j])) {
-                        //如果该路径前无transform，则使用默认transform
-                        break;
+                } else {
+                    pathObj.type = "line";
+                    if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "line") {
+                        tableArr.push([...pathDataArr]);
+                        pathDataArr.length = 0;
                     }
                 }
                 pathDataArr.push(pathObj);
+            }
+            //一个表格绘制结束，暂时以开始文本绘制为标志
+            if ([31, 44, 32].includes(ops.fnArray[i])) {
+                if (pathDataArr.length) {
+                    //tableArr.push(JSON.parse(JSON.stringify(pathDataArr) ))
+                    tableArr.push([...pathDataArr]);
+                    pathDataArr.length = 0;
+                }
             }
         }
         pageRenderingIdChecked.push(page.renderingId);
