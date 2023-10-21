@@ -27,7 +27,14 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
       } else {
         //查找pdf标签，找不到则退出      
         const tab = Zotero_Tabs._tabs.find(x => x.type === 'reader');
-        tabID = tab?.id;
+        if (tab) {
+          tabID = tab.id;
+        } else {
+          const item = Zotero.getActiveZoteroPane().getSelectedItems()[0];
+          itmeID = item.getAttachments().filter(id => Zotero.Items.get(id).isPDFAttachment())[0];
+          await Zotero.Reader.open(itmeID);
+          tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
+        }
       }
     }
   } else {
@@ -46,8 +53,8 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
     tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
   }
 
-  Zotero_Tabs.select(tabID);
-  const reader = Zotero.Reader.getByTabID(tabID) as any;
+  Zotero_Tabs.select(tabID as string);
+  const reader = Zotero.Reader.getByTabID(tabID as string) as any;
   if (result == "beforReaderInit") {
     return getObj;
   }

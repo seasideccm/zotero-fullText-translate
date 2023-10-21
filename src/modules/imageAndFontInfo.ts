@@ -1,7 +1,8 @@
 import { frequency } from "./getPdfFullText";
 import { prepareReader } from "./prepareReader";
+import { RenderingStates } from "../utils/config";
 
-export async function getInfo() {
+export async function getPDFInfo() {
     const imgDataArr: any[] = [];
     const pathDataArr: any[] = [];
     const pageRenderingIdChecked: any[] = [];
@@ -9,6 +10,9 @@ export async function getInfo() {
     const fontInfoOO: any = {};
     const pages: any[] = (await prepareReader("pagesLoaded"))("pages");
     for (const page of pages) {
+        while (!(page.renderingState == RenderingStates.FINISHED)) {
+            await Zotero.Promise.delay(50);
+        }
         await getOpsInfo(page);
     }
     return {
@@ -20,7 +24,32 @@ export async function getInfo() {
 
     async function getOpsInfo(page: any) {
         if (!page.pdfPage) { return; }
+        //todo 通过选项选择是否提取高清大图
         const isExtractOringImg = false;
+
+        /* const ctx = page.canvas.getContext("2d", {
+            alpha: false
+        });
+        const outputScale = page.outputScale;
+        const transform = outputScale.scaled
+            ? [outputScale.sx, 0, 0, outputScale.sy, 0, 0]
+            : null;
+
+        const ctxTransform = [...ctx.mozCurrentTransform];
+        const isTransform = ctxTransform[0] == 1 && ctxTransform[1] == 0 && ctxTransform[2] == 0 && ctxTransform[3] == 1
+            && ctxTransform[4] == 0 && ctxTransform[5] == 0;
+        //原始 Transform == [ 1, 0, 0, 1, 0, 0 ]
+        let transform;
+        if (isTransform) {
+            //不能改变ctx矩阵，先保存，再恢复
+            ctx.save();
+            ctx.transform(...page.viewport.transform);
+            transform = [...ctx.mozCurrentTransform];
+            ctx.restore();
+        } else {
+            transform = ctxTransform;
+        } */
+        //const transform = [...page.viewport.transform];
         const ops = await page.pdfPage.getOperatorList();
         if (ops.fnArray.filter((e: any) => e == 85).length > 100) {
             ztoolkit.log("本页图片太多，可能为矢量图，或者大量小图形，跳过提取");
@@ -29,6 +58,7 @@ export async function getInfo() {
         for (let i = 0; i < ops.fnArray.length; i++) {
             if (ops.fnArray[i] == 85 || ops.fnArray[i] == 86) {
                 const imgObj: any = {
+                    //originTransform: transform,
                     pageId: page.id,
                     pageLabel: page.pageLabel,
                     fnId: ops.fnArray[i],
@@ -44,9 +74,15 @@ export async function getInfo() {
                         imgObj.imgData = imgData;
                     }
                 }
-                for (let j = i - 1; j > 0; j--) {
+                //j > i - 4;
+                for (let j = i - 1; j > i - 4 && j >= 0; j--) {
                     if (ops.fnArray[j] == 12) {
                         imgObj.transform = [...ops.argsArray[j]];
+                        break;
+                    }
+                    //stroke: 20, fill: 22, endText: 32, restore 11,
+                    if ([11, 20, 22, 32, 91, 44].includes(ops.fnArray[j])) {
+                        //如果该路径前无transform，则使用默认transform
                         break;
                     }
                 }
@@ -71,6 +107,7 @@ export async function getInfo() {
             if (ops.fnArray[i] == 91) {
                 const args = ops.argsArray[i];
                 const pathObj: any = {
+                    //originTransform: transform,
                     constructPathArgs: {
                         ops: args[0],
                         //args[1]数组元素依次为 x，y，width，height
@@ -84,7 +121,7 @@ export async function getInfo() {
                     fnId: ops.fnArray[i],
                     fnArrayIndex: i,
                 };
-                for (let j = i - 1; j > 0; j--) {
+                for (let j = i - 1; j >= 0 && j > i - 10; j--) {
                     if (ops.fnArray[j] == 12) {
                         pathObj.transform = [...ops.argsArray[j]];
                         pathObj.transform_fnId = ops.fnArray[j];

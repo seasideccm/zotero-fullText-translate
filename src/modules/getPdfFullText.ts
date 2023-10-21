@@ -1,7 +1,7 @@
 
 import { getPref } from '../utils/prefs';
 import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
-import { getInfo, getPageData, combineParagraphsWords, boxByParagraphs } from './imageAndFontInfo';
+import { getPDFInfo, getPageData, combineParagraphsWords, boxByParagraphs } from './imageAndFontInfo';
 
 
 /* import * as pdfjsLib from "pdfjs-dist";
@@ -1098,7 +1098,7 @@ const makeLine = async (lineArr: PDFItem[][]) => {
     const mainFont = lineMainFont(lineItem);
     const fontInfo = fontStyle(lineItem[0], lineItem, fontInfoObj);
     lastLine.fontName = mainFont;
-    const pdfFontInfo = (await getInfo()).fontInfo;
+    const pdfFontInfo = (await getPDFInfo()).fontInfo;
     let lastLineFontStyle = pdfItemStyle(mainFont, pdfFontInfo, fontStyleCollection);
     if (!lastLineFontStyle) {
       if (fontInfo.lineFontStyle) {
@@ -2167,7 +2167,7 @@ export async function pdf2document(itmeID: number) {
     itemsArr.push(items as PDFItem[]);
   }
 
-  const infoDataArr = await getInfo();
+  const infoDataArr = await getPDFInfo();
   const pageDateArr = [];
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     const pageDate = await getPageData(pageNum);

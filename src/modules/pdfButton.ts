@@ -1,6 +1,7 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
+import { clearAnnotations } from "./imageToAnnotation";
 
 export let title: string;
 export async function pdfButton() {
@@ -101,6 +102,84 @@ export async function pdfButton() {
                 }
             }
         ]
+    }, ref) as HTMLButtonElement;
+
+    const clearAnnotationsButton = ztoolkit.UI.insertElementBefore({
+        ignoreIfExists: true,
+        namespace: "html",
+        tag: "button",
+        id: config.addonRef,
+        classList: ["toolbarButton"],
+        styles: {
+            // 解决图标
+            backgroundImage: `url(chrome://${config.addonRef}/content/icons/favicon.png)`,
+            backgroundSize: "16px 16px",
+            backgroundPosition: "35% center",
+            backgroundRepeat: "no-repeat",
+            width: "45px",
+            //filter: "grayscale(100%)",
+            padding: "4px 3px 4px 22px"
+        },
+        attributes: {
+            title: config.addonName,
+            tabindex: "-1",
+        },
+        listeners: [
+            {
+                type: "click",
+                listener: () => {
+                    clearAnnotations();
+                }
+            },
+        ],
+
+    }, ref) as HTMLButtonElement;
+
+
+}
+
+export async function clearAnnotationsButton() {
+    const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
+    let _window: any;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    while (!(_window = reader?._iframeWindow?.wrappedJSObject)) {
+        await Zotero.Promise.delay(10);
+    }
+    const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
+    title = tab.tab.title;
+    title = title.replace(/( - [^-]+){1,2}$/m, "");
+    const parent = _window.document.querySelector("#reader-ui .toolbar .center")!;
+    const ref = parent.querySelector(".highlight") as HTMLDivElement;
+    const clearAnnotationsButton = ztoolkit.UI.insertElementBefore({
+        ignoreIfExists: true,
+        namespace: "html",
+        tag: "button",
+        id: config.addonRef,
+        classList: ["toolbarButton"],
+        styles: {
+            // 解决图标
+            backgroundImage: `url(chrome://${config.addonRef}/content/icons/favicon.png)`,
+            backgroundSize: "16px 16px",
+            backgroundPosition: "35% center",
+            backgroundRepeat: "no-repeat",
+            width: "45px",
+            //filter: "grayscale(100%)",
+            padding: "4px 3px 4px 22px"
+        },
+        attributes: {
+            title: config.addonName,
+            tabindex: "-1",
+        },
+        listeners: [
+            {
+                type: "click",
+                listener: () => {
+                    clearAnnotations();
+                }
+            },
+        ],
+
     }, ref) as HTMLButtonElement;
 
 }

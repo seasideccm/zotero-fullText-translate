@@ -2,13 +2,13 @@
 export const specialCharacters = {
   '\u0000': '－', '\u0001': '?', '\u0002': '×', '\u0003': '?',
   '\u0004': '?', '\u0005': '?', '\u0006': '?', '\u0007': '?',
-  '\u0008': '?', '\u000f': '●',
+  '\u0008': '?', '\u000f': '●', "\u0015": "≥",
 };
 //特殊字符对应显示为unicode码
 export const specialCharaDisplay = {
   '\u0000': '\\u0000', '\u0001': '\\u0001', '\u0002': '\\u0002', '\u0003': '\\u0003',
   '\u0004': '\\u0004', '\u0005': '\\u0005', '\u0006': '\\u0006', '\u0007': '\\u0007',
-  '\u0008': '\\u0008'
+  '\u0008': '\\u0008', "\u0015": "\\u0015"
 };
 export const pdfCharasReplace = {
   "¼": "=",
@@ -17,6 +17,7 @@ export const pdfCharasReplace = {
   '\\u0003': '－',
   '\\u0004': '*',
   '\\u000f': '●',
+  "\\u0015": "≥",
 };
 export const boldFontStyle = ["AdvTT7d6ad6bc", "AdvP4ADA8D", "AdvP4AA440", "AdvP978E", "AdvP405AA6", "AdvPi3", "AdvTTecf15426.B", "AdvP418142"];
 export const italicFontStyle = ["AdvP9794", 'AdvTT52d06db3.I',];
@@ -27,6 +28,37 @@ export const fontStyleCollection = {
   italicFontStyle: italicFontStyle,
   boldItalicFontStyle: boldItalicFontStyle,
 };
+
+export const RenderingStates = {
+  INITIAL: 0,
+  RUNNING: 1,
+  PAUSED: 2,
+  FINISHED: 3,
+};
+
+export class OutputScale {
+  [x: string]: number;
+  constructor() {
+    const pixelRatio = window.devicePixelRatio || 1;
+
+    /**
+     * @type {number} Horizontal scale.
+     */
+    this.sx = pixelRatio;
+
+    /**
+     * @type {number} Vertical scale.
+     */
+    this.sy = pixelRatio;
+  }
+
+  /**
+   * @type {boolean} Returns `true` when scaling is required, `false` otherwise.
+   */
+  /* get scaled() {
+    return this.sx !== 1 || this.sy !== 1;} */
+
+}
 
 
 export const langCode_francVsZotero = {
