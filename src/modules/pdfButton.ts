@@ -1,9 +1,27 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
-import { clearAnnotations } from "./imageToAnnotation";
+import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
 
 export let title: string;
+
+const children = [
+    {
+        tag: "span",
+        classList: ["dropmarker"],
+        styles: {
+            background: "url(assets/icons/searchbar-dropmarker@2x.4ebeb64c.png) no-repeat 0 0/100%",
+            display: "inline-block",
+            height: "4px",
+            margin: "6px 0",
+            marginInlineStart: "2px",
+            position: "relative",
+            verticalAlign: "top",
+            width: "7px",
+            zIndex: "1"
+        }
+    }
+];
 export async function pdfButton() {
     const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
     let _window: any;
@@ -85,23 +103,7 @@ export async function pdfButton() {
                 }
             },
         ],
-        children: [
-            {
-                tag: "span",
-                classList: ["dropmarker"],
-                styles: {
-                    background: "url(assets/icons/searchbar-dropmarker@2x.4ebeb64c.png) no-repeat 0 0/100%",
-                    display: "inline-block",
-                    height: "4px",
-                    margin: "6px 0",
-                    marginInlineStart: "2px",
-                    position: "relative",
-                    verticalAlign: "top",
-                    width: "7px",
-                    zIndex: "1"
-                }
-            }
-        ]
+        children: children
     }, ref) as HTMLButtonElement;
 
 }
@@ -123,7 +125,7 @@ export async function clearAnnotationsButton() {
         ignoreIfExists: true,
         namespace: "html",
         tag: "button",
-        id: config.addonRef + "clearAnnotations",
+        id: config.addonRef + "_imgTableTool",
         classList: ["toolbarButton"],
         styles: {
             // 解决图标
@@ -136,17 +138,71 @@ export async function clearAnnotationsButton() {
             padding: "4px 3px 4px 22px"
         },
         attributes: {
-            title: config.addonName + "-clearAnnotations",
+            title: config.addonName + "-imgTableTool",
             tabindex: "-1",
         },
-        listeners: [
+        /* listeners: [
             {
                 type: "click",
                 listener: () => {
                     clearAnnotations();
                 }
             },
+        ], */
+        listeners: [
+            {
+                type: "click",
+                listener: () => {
+                    const menupopup: any = ztoolkit.UI.appendElement({
+                        tag: "menupopup",
+                        id: config.addonRef + "_menupopupImgTableTool",
+                        namespace: "xul",
+                        children: [
+                        ]
+                    }, document.querySelector("#browser")!) as XUL.MenuPopup;
+                    // 1. add Img and Table to Annotation
+                    const menuitem0 = ztoolkit.UI.appendElement({
+                        tag: "menuitem",
+                        attributes: {
+                            label: getString("menuitem-addImgTableAnnotation"),
+                        }
+                    }, menupopup);
+                    menuitem0.addEventListener("command", async () => {
+                        await imageToAnnotation();
+                    });
+                    const menuitem2 = ztoolkit.UI.appendElement({
+                        tag: "menuitem",
+                        attributes: {
+                            label: getString("menuitem-hiddenAllAnnotations"),
+                        }
+                    }, menupopup);
+                    menuitem2.addEventListener("command", () => {
+                        clearAnnotations("hidden");
+                    });
+                    const menuitem3 = ztoolkit.UI.appendElement({
+                        tag: "menuitem",
+                        attributes: {
+                            label: getString("menuitem-showAllAnnotations"),
+                        }
+                    }, menupopup);
+                    menuitem3.addEventListener("command", () => {
+                        clearAnnotations("show");
+                    });
+                    // 2. 删除所有注释
+                    const menuitem1 = ztoolkit.UI.appendElement({
+                        tag: "menuitem",
+                        attributes: {
+                            label: getString("menuitem-clearAllAnnotations"),
+                        }
+                    }, menupopup);
+                    menuitem1.addEventListener("command", () => {
+                        clearAnnotations("delete");
+                    });
+                    menupopup.openPopup(clearAnnotationsButton, 'after_start', 0, 0, false, false);
+                }
+            },
         ],
+        children: children
 
     }, ref) as HTMLButtonElement;
 

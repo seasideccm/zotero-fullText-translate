@@ -1,7 +1,7 @@
 
 import { getPref } from '../utils/prefs';
 import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
-import { getPDFInfo, getPageData, combineParagraphsWords, boxByParagraphs } from './imageAndFontInfo';
+import { getPDFInfo, getPageData, combineParagraphsWords, boxByParagraphs } from './imageTableFontInfo';
 
 
 /* import * as pdfjsLib from "pdfjs-dist";

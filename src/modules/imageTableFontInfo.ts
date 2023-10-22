@@ -78,21 +78,28 @@ export async function getPDFInfo() {
                     }
                 }
                 //j > i - 4;
-                for (let j = i - 1; j > i - 4 && j >= 0; j--) {
+                const transform: number[][] = [];
+                for (let j = i - 1; j > i - 12 && j >= 0; j--) {
+                    //绘制img之前可能不止一个transform
+                    //多个transform好比pdf套着作为图片的pdf
                     if (ops.fnArray[j] == 12) {
-                        imgObj.transform = [...ops.argsArray[j]];
-                        break;
+                        transform.push([...ops.argsArray[j]] as number[]);
                     }
                     //stroke: 20, fill: 22, endText: 32, restore 11,
-                    if ([11, 20, 22, 32, 91, 44].includes(ops.fnArray[j])) {
+                    if ([11, 20, 22, 32, 44].includes(ops.fnArray[j])) {
                         //如果该路径前无transform，则使用默认transform
                         break;
                     }
                 }
-                //左下角靠近边缘则舍弃
-                if (imgObj.transform[4] <= 10 || imgObj.transform[5] <= 10) {
+                //图片自身有transform，宽高，transform决定了图片在pdf页面上的位置。此处无需过滤。
+                //每个对象均为单位大小，即[0,0,1,1],左下角【0,0】，右上角【1,1】
+                //例如 transform  [ 245.952, 0, 0, 184.608, 0, 0 ]意思是x轴缩放245.952倍，y轴缩放184.608倍，没有旋转，没有位移
+                //
+                /* if (imgObj.transform[4] <= view[2] * 0.05 || imgObj.transform[4] >= view[2] * 0.95
+                    || imgObj.transform[5] <= view[3] * 0.05 || imgObj.transform[5] >= view[3] * 0.95) {
                     continue;
-                }
+                } */
+                imgObj.transform = transform;
                 imgDataArr.push(imgObj);
             }
             if (ops.fnArray[i] == 37) {
@@ -112,32 +119,24 @@ export async function getPDFInfo() {
                 }
             }
             //表格
-
             if (ops.fnArray[i] == 91) {
-                const args = ops.argsArray[i];
-                //曲线先绕过
-                const isCurveOPS = args[0].filter((e: any) => [15, 16, 17].includes(e));
-                if (isCurveOPS.length) {
-                    continue;
-                }
-                //暂时只看起点
-                /*  if(args[0][0]==19){
- 
-                 } else{
-                     
-                 } */
-                if (args[1][0] < 10 || args[1][1] < 10) {
-                    continue;
-                }
+                const args: any = ops.argsArray[i];
+                const operators: any = args[0];
+                const fnArgs: any = args[1];
+                const minMax = args[2];
+                //路径类型 曲线、矩形、直线
+                const isCurveOPS = args[0].filter((e: any) => [15, 16, 17].includes(e)).length ? true : false;
+                const isRectangleOPS = args[0].includes(19) && !args[0].includes(14) && !isCurveOPS ? true : false;
+                const isLineOPS = !args[0].includes(19) && args[0].includes(14) && !isCurveOPS ? true : false;
 
                 const pathObj: any = {
                     constructPathArgs: {
-                        ops: args[0],
+                        ops: operators,
                         //args[1]数组元素依次为 x，y，width，height
                         //第二点坐标 const xw = x + width;  const yh = y + height;                        
-                        args: args[1],
+                        args: fnArgs,
                         // const minMaxForBezier = isScalingMatrix ? minMax.slice(0) : null;
-                        minMax: args[2]
+                        minMax: minMax,
                     },
                     pageId: page.id,
                     pageLabel: page.pageLabel,
@@ -157,35 +156,89 @@ export async function getPDFInfo() {
                                         break;
                                     }
                                 } */
-                if (args[0][0] == 19) {
-                    pathObj.type = "rectangle";
-                    if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "rectangle") {
-                        tableArr.push([...pathDataArr]);
-                        pathDataArr.length = 0;
+
+                if (isCurveOPS) {
+                    continue;
+                }
+                if (isLineOPS) {
+                    //find 找到一个数即可，可为零，线的参数为点坐标
+                    if (
+                        splitArrByOddEvenIndex(fnArgs, 0).filter((e: number) => e < view[2] * 0.05 || e > view[2] * 0.95).length
+                        || splitArrByOddEvenIndex(fnArgs, 1).filter((e: number) => e < view[3] * 0.05 || e > view[3] * 0.95).length
+                    ) {
+                        continue;
                     }
-                } else {
                     pathObj.type = "line";
-                    if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "line") {
-                        tableArr.push([...pathDataArr]);
-                        pathDataArr.length = 0;
+                    if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "rectangle") {
+                        moveToTable(pathDataArr);
                     }
                 }
+                if (isRectangleOPS) {
+                    if (fnArgs[0] < view[2] * 0.05 || fnArgs[0] > view[2] * 0.95
+                        || fnArgs[0] + fnArgs[2] < view[2] * 0.05 || fnArgs[0] + fnArgs[2] > view[2] * 0.95
+                        || fnArgs[1] < view[3] * 0.05 || fnArgs[1] > view[3] * 0.95
+                        || fnArgs[1] + fnArgs[3] < view[3] * 0.05 || fnArgs[1] + fnArgs[3] > view[3] * 0.95) {
+                        continue;
+                    }
+                    pathObj.type = "rectangle";
+                    //矩形宽高
+                    pathObj.width = fnArgs[2];
+                    pathObj.height = fnArgs[3];
+                    if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "line") {
+                        moveToTable(pathDataArr);
+                    }
+                }
+
+                /* if (isRectangleOPS) {
+                    
+                } else if (isLineOPS) {
+                    
+                }; */
                 pathDataArr.push(pathObj);
             }
-            //一个表格绘制结束，暂时以开始文本绘制为标志
-            if ([31, 44, 32].includes(ops.fnArray[i])) {
+            //绘制标志
+            if ([20, 21, 22, 23, 24, 25, 26, 27].includes(ops.fnArray[i])) {
                 if (pathDataArr.length) {
-                    //tableArr.push(JSON.parse(JSON.stringify(pathDataArr) ))
-                    tableArr.push([...pathDataArr]);
-                    pathDataArr.length = 0;
+                    pathDataArr.slice(-1)[0].isPaint = true;
                 }
             }
+            //一个表格绘制结束，暂时以开始文本绘制...为标志
+            //91，28,29,30是剪切
+            if ([31, 44, 32, 69, 71, 74, 75, 63, 65, 28, 29, 30].includes(ops.fnArray[i])) {
+                //舍弃仅有1条路径数组
+                if (pathDataArr.length) {
+                    //tableArr.push(JSON.parse(JSON.stringify(pathDataArr) ))
+                    //舍弃未绘制的路径
+                    moveToTable(pathDataArr);
+                }
+                pathDataArr.length = 0;
+            }
+        }
+        if (pathDataArr.length) {
+            moveToTable(pathDataArr);
         }
         pageRenderingIdChecked.push(page.renderingId);
+
+        function moveToTable(pathDataArr: any[]) {
+            const tempArr = pathDataArr.filter((e: any) => e.isPaint);
+            if (tempArr.length) {
+                tableArr.push([...tempArr]);
+            }
+            pathDataArr.length = 0;
+        }
     }
 }
 
 
+/**
+ * 
+ * @param arr 
+ * @param oddOrEven 1=odd 奇数 一般是坐标 y, 0=Even 偶数，一般是坐标 x
+ * @returns 
+ */
+export function splitArrByOddEvenIndex(arr: any[], oddOrEven: 0 | 1) {
+    return arr.filter((e: any, i: number) => i % 2 == oddOrEven);
+}
 export const getPageData = async (pageIndex: number) => {
     //pageIndex begin from 0
     const reader = Zotero.Reader.getByTabID(Zotero_Tabs.selectedID) as any;

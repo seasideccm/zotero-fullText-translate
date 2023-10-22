@@ -193,3 +193,83 @@ function rectsDist([ax1, ay1, ax2, ay2], [bx1, by1, bx2, by2]) {
 
 	return 0;
 }
+
+
+export function overlaps(rect1, rect2, rotation) {
+	if ([0, 180].includes(rotation)) {
+		return (rect1[1] <= rect2[1] && rect2[1] <= rect1[3]
+			|| rect2[1] <= rect1[1] && rect1[1] <= rect2[3]);
+	}
+	return (
+		rect1[0] <= rect2[0] && rect2[0] <= rect1[2]
+		|| rect2[0] <= rect1[0] && rect1[0] <= rect2[2]
+	);
+}
+
+// Returns a rectangle [x1, y1, x2, y2] corresponding to the
+// intersection of rect1 and rect2. If no intersection, returns 'null'
+// The rectangle coordinates of rect1, rect2 should be [x1, y1, x2, y2]
+//两个矩形相交 const rect1=[0,0,10,10]，const rect2 =[5,5,15,15]
+//得到 [5, 5, 10, 10]
+export function intersect(rect1, rect2) {
+	const xLow = Math.max(
+		Math.min(rect1[0], rect1[2]),
+		Math.min(rect2[0], rect2[2])
+	);
+	const xHigh = Math.min(
+		Math.max(rect1[0], rect1[2]),
+		Math.max(rect2[0], rect2[2])
+	);
+	if (xLow > xHigh) {
+		return null;
+	}
+	const yLow = Math.max(
+		Math.min(rect1[1], rect1[3]),
+		Math.min(rect2[1], rect2[3])
+	);
+	const yHigh = Math.min(
+		Math.max(rect1[1], rect1[3]),
+		Math.max(rect2[1], rect2[3])
+	);
+	if (yLow > yHigh) {
+		return null;
+	}
+
+	return [xLow, yLow, xHigh, yHigh];
+}
+
+export function quickIntersectRect(r1, r2) {
+	return !(
+		r2[0] > r1[2]
+		|| r2[2] < r1[0]
+		|| r2[1] > r1[3]
+		|| r2[3] < r1[1]
+	);
+}
+
+export function expandBoundingBox(r1, r2, page) {
+	const [left, bottom, right, top] = page.originalPage.viewport.viewBox;
+	Math.max(Math.min(r1[0], r2[0]), left),
+		Math.max(Math.min(r1[1], r2[1]), bottom),
+		Math.min(Math.max(r1[0], r2[0]), right),
+		Math.min(Math.max(r1[1], r2[1]), top);
+}
+
+function charHeight(char) {
+	return ([0, 180].includes(char.rotation) && char.rect[3] - char.rect[1]
+		|| [90, 270].includes(char.rotation) && char.rect[2] - char.rect[0]);
+}
+
+function getBoundingRect(objs, from, to) {
+	const objs2 = objs.slice(from, to + 1);
+	return [
+		Math.min(...objs2.map(x => x.rect[0])),
+		Math.min(...objs2.map(x => x.rect[1])),
+		Math.max(...objs2.map(x => x.rect[2])),
+		Math.max(...objs2.map(x => x.rect[3])),
+	];
+}
+
+function roundRect(rect) {
+	return rect.map(n => Math.round(n * 1000) / 1000);
+}
