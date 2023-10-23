@@ -247,12 +247,14 @@ export function quickIntersectRect(r1, r2) {
 	);
 }
 
+
+
 export function expandBoundingBox(r1, r2, page) {
 	const [left, bottom, right, top] = page.originalPage.viewport.viewBox;
-	Math.max(Math.min(r1[0], r2[0]), left),
-		Math.max(Math.min(r1[1], r2[1]), bottom),
-		Math.min(Math.max(r1[0], r2[0]), right),
-		Math.min(Math.max(r1[1], r2[1]), top);
+	return [Math.max(Math.min(r1[0], r2[0]), left),
+	Math.max(Math.min(r1[1], r2[1]), bottom),
+	Math.min(Math.max(r1[0], r2[0]), right),
+	Math.min(Math.max(r1[1], r2[1]), top)];
 }
 
 function charHeight(char) {

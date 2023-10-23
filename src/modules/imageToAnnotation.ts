@@ -1,6 +1,7 @@
-import { getSortIndex, applyTransform } from "./transformTools";
+import { getSortIndex, applyTransform, quickIntersectRect, expandBoundingBox } from "./transformTools";
 import { getPDFInfo } from "./imageTableFontInfo";
 import { prepareReader } from "./prepareReader";
+import { isContext } from "vm";
 export async function imageToAnnotation() {
     const infoDataArr = await getPDFInfo();
     const imgDataArr = infoDataArr.imgDataArr;
@@ -8,15 +9,16 @@ export async function imageToAnnotation() {
     const pages = (await prepareReader("pagesLoaded"))("pages");
 
     imgDataArr.forEach((imgData: any) => {
-        const transform = imgData.transform;
         /*pdf坐标系以左下角为（0,0），每个对象均视为单位大小1，
         根据该对象的transform确定坐标系中的位置,
         对左下角和右上角两点应用transform，得到坐标的具体值*/
 
         //const positionPdf: any = getPosition([0, 0, 1, 1], transform, imgData.pageId - 1);
-        //初始rect,逐次应用transform，每次返回rect，重新对rect赋值
+        //初始rect,如果有多个transform则依次应用，顺序不能乱，
+        //每次返回rect，重新对rect赋值
+        const transform: number[][] = imgData.transform;
         if (!transform.length) {
-            return;
+            transform.push([1, 0, 0, 1, 0, 0]);
         }
         let rect: number[] = [0, 0, 1, 1];
         transform.filter((e: any) => { rect = getPosition(rect, e); });
@@ -31,6 +33,7 @@ export async function imageToAnnotation() {
     tableArr.forEach((tablePathData: any[]) => {
         const view = pages[tablePathData[0].pageId - 1].pdfPage.view;
         const type = tablePathData[0].type;
+        const pageLabel = tablePathData[0].pageLabel;
         //先跳过曲线
         if (type == "curve") { return; }
         const p1sx: number[] = [];
@@ -39,34 +42,50 @@ export async function imageToAnnotation() {
         const p2sy: number[] = [];
         const pageId = tablePathData[0].pageId;
         tablePathData.forEach((pathData: any) => {
-            const args = pathData.constructPathArgs.args;
-
-            //曲线先绕过
-            const noneCurveOPS = pathData.constructPathArgs.ops.filter((e: any) => [15, 16, 17].includes(e));
-            if (noneCurveOPS.length) {
-                return false;
+            //每个路径可能都有自己的transform
+            //如果多个路径共用一个transform，todo
+            const transform: number[][] = pathData.transform;
+            if (!transform.length) {
+                transform.push([1, 0, 0, 1, 0, 0]);//单位矩阵，坐标保持不变
             }
-            //表格先可以是矩形，参数是起点和宽高
+            const args = pathData.constructPathArgs.args;
+            //表格线可以是矩形，参数是起点和宽高,可能不止4个参数
             if (pathData.type == "rectangle") {
-                p1sx.push(...args.filter((e: number, i: number) => i % 4 == 0));
-                p1sy.push(...args.filter((e: number, i: number) => i % 4 == 1));
-                p2sx.push(...p1sx.map((e: number, i: number) => e + args[i * 4 + 2]));
-                p2sy.push(...p1sy.map((e: number, i: number) => e + args[i * 4 + 3]));
+                for (let i = 0; i < args.length;) {
+                    const x1 = args[i++];
+                    const y1 = args[i++];
+                    const x2 = x1 + args[i++];
+                    const y2 = y1 + args[i++];
+                    let rect: number[] = [x1, y1, x2, y2];
+                    transform.filter((e: any) => { rect = getPosition(rect, e); });
+                    p1sx.push(rect[0]);
+                    p1sy.push(rect[1]);
+                    p2sx.push(rect[2]);
+                    p2sy.push(rect[3]);
+                }
             }
             //直线坐标是两个点
-
             if (pathData.type == "line") {
-                p1sx.push(...args.filter((e: number, i: number) => i % 4 == 0));
-                p1sy.push(...args.filter((e: number, i: number) => i % 4 == 1));
-                p2sx.push(...args.filter((e: number, i: number) => i % 4 == 2));
-                p2sy.push(...args.filter((e: number, i: number) => i % 4 == 3));
+                for (let i = 0; i < args.length;) {
+                    const x1 = args[i++];
+                    const y1 = args[i++];
+                    const x2 = args[i++];
+                    const y2 = args[i++];
+                    let rect: number[] = [x1, y1, x2, y2];
+                    transform.filter((e: any) => { rect = getPosition(rect, e); });
+                    p1sx.push(rect[0]);
+                    p1sy.push(rect[1]);
+                    p2sx.push(rect[2]);
+                    p2sy.push(rect[3]);
+                }
             }
         });
+        //同类型路径，各点矩阵变换后的集合，取最大图形
         const p1x = Math.min(...p1sx);
         const p1y = Math.min(...p1sy);
         const p2x = Math.max(...p2sx);
         const p2y = Math.max(...p2sy);
-        //提取路径时已经根据矩形和线条归类，剔除了曲线，超过边界
+        //接近边界者认为非正文
         if (p1x < view[2] * 0.05 || p1x > view[2] * 0.95
             || p2x < view[2] * 0.05 || p2x > view[2] * 0.95
             || p1y < view[3] * 0.05 || p1y > view[3] * 0.95
@@ -74,19 +93,16 @@ export async function imageToAnnotation() {
             return;
         }
 
-        //跳过宽和高度小于1cm
-        if (Math.abs(p2x - p1x) <= 10 && Math.abs(p2y - p1y) <= 10) {
-            return;//退出当前循环，继续下一个元素
-        }
-
-        const transform = tablePathData[0].transform || [1, 0, 0, 1, 0, 0];
-        const rect = getPosition([p1x, p1y, p2x, p2y], transform);
-        //判断相交
-        const positionPdf: any = {
+        const rect = [p1x, p1y, p2x, p2y];
+        //判断相交 todo
+        const positionPdf: {
+            rects: number[][];
+            pageIndex: number;
+        } = {
             rects: [rect],
             pageIndex: pageId - 1
         };
-        makeAnnotation(positionPdf);
+        makeAnnotation(positionPdf, pageLabel);
     });
 
     function getPosition(p: number[], m: number[]) {
@@ -97,9 +113,19 @@ export async function imageToAnnotation() {
 
 }
 
-export async function makeAnnotation(positionPdf: any[], type?: string, color?: string, pageLabel?: string
-    , sortIndex?: string, tag?: string) {
+export async function makeAnnotation(
+    positionPdf: {
+        rects: number[][];
+        pageIndex: number;
+    },
+    pageLabel?: string,
+    type?: string,
+    color?: string,
+    sortIndex?: string,
+    tag?: string
+) {
     const reader = (await prepareReader("pagesLoaded"))("reader");
+    const pages = (await prepareReader("pagesLoaded"))("pages");
     const attachment = reader._item;
     if (!attachment.isPDFAttachment()) { return; }
     const annotationManager = reader._internalReader._annotationManager;
@@ -107,6 +133,24 @@ export async function makeAnnotation(positionPdf: any[], type?: string, color?: 
     if (annotationManager._readOnly) {
         return null;
     }
+    const oldannotationRects = oldannotations.map((e: any) => e.position.rects[0]).filter((e: any) => e);
+    const rect = positionPdf.rects[0];
+    //判断相交,并
+    const rectOlds = oldannotationRects.filter((rectOld: number[]) => quickIntersectRect(rectOld, rect));
+
+    if (rectOlds.length) {
+        let expandRect: number[] = [...rect];
+        rectOlds.filter((rectOld: number[]) => { expandRect = expandBoundingBox(expandRect, rectOld, pages[positionPdf.pageIndex]); });
+        positionPdf.rects[0] = expandRect;
+    } else {
+        //跳过宽或高小于1cm的形状
+        if (Math.abs(rect[2] - rect[0]) <= 10 || Math.abs(rect[3] - rect[1]) <= 10) {
+            return null;
+        }
+    }
+
+
+
     const annotation: any = {};
     annotation.color = color || "#ffd400";
     annotation.type = type || "image";
