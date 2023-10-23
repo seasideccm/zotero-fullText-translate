@@ -121,6 +121,25 @@ export async function clearAnnotationsButton() {
     title = title.replace(/( - [^-]+){1,2}$/m, "");
     const parent = _window.document.querySelector("#reader-ui .toolbar .center")!;
     const ref = parent.querySelector(".highlight") as HTMLDivElement;
+
+    const menuitemArr = [
+        {
+            label: "menuitem-showSelectedAnnotations",
+            func: clearAnnotations,
+            args: ["show", "selected"]
+        },
+        {
+            label: "menuitem-deleteSelectedAnnotations",
+            func: clearAnnotations,
+            args: ["delete", "selected"]
+        },
+        {
+            label: "menuitem-hiddenSelectedAnnotations",
+            func: clearAnnotations,
+            args: ["hidden", "selected"]
+        },
+    ];
+
     const clearAnnotationsButton = ztoolkit.UI.insertElementBefore({
         ignoreIfExists: true,
         namespace: "html",
@@ -153,14 +172,16 @@ export async function clearAnnotationsButton() {
             {
                 type: "click",
                 listener: () => {
-                    const menupopup: any = ztoolkit.UI.appendElement({
+                    const menupopup: any = makeMenupopup("_menupopupImgTableTool");
+                    /* const menupopup: any = ztoolkit.UI.appendElement({
                         tag: "menupopup",
                         id: config.addonRef + "_menupopupImgTableTool",
                         namespace: "xul",
                         children: [
                         ]
-                    }, document.querySelector("#browser")!) as XUL.MenuPopup;
+                    }, document.querySelector("#browser")!) as XUL.MenuPopup; */
                     // 1. add Img and Table to Annotation
+
                     const menuitem0 = ztoolkit.UI.appendElement({
                         tag: "menuitem",
                         attributes: {
@@ -170,6 +191,13 @@ export async function clearAnnotationsButton() {
                     menuitem0.addEventListener("command", async () => {
                         await imageToAnnotation();
                     });
+                    ztoolkit.UI.appendElement({
+                        tag: "menuseparator",
+                    }, menupopup);
+                    menuitemArr.map((e: any) => makeMenuitem(e, menupopup));
+                    ztoolkit.UI.appendElement({
+                        tag: "menuseparator",
+                    }, menupopup);
                     const menuitem2 = ztoolkit.UI.appendElement({
                         tag: "menuitem",
                         attributes: {
@@ -177,7 +205,7 @@ export async function clearAnnotationsButton() {
                         }
                     }, menupopup);
                     menuitem2.addEventListener("command", () => {
-                        clearAnnotations("hidden");
+                        clearAnnotations("hidden", "all");
                     });
                     const menuitem3 = ztoolkit.UI.appendElement({
                         tag: "menuitem",
@@ -186,17 +214,17 @@ export async function clearAnnotationsButton() {
                         }
                     }, menupopup);
                     menuitem3.addEventListener("command", () => {
-                        clearAnnotations("show");
+                        clearAnnotations("show", "all");
                     });
                     // 2. 删除所有注释
                     const menuitem1 = ztoolkit.UI.appendElement({
                         tag: "menuitem",
                         attributes: {
-                            label: getString("menuitem-clearAllAnnotations"),
+                            label: getString("menuitem-deleteAllAnnotations"),
                         }
                     }, menupopup);
                     menuitem1.addEventListener("command", () => {
-                        clearAnnotations("delete");
+                        clearAnnotations("delete", "all");
                     });
                     menupopup.openPopup(clearAnnotationsButton, 'after_start', 0, 0, false, false);
                 }
@@ -207,3 +235,27 @@ export async function clearAnnotationsButton() {
     }, ref) as HTMLButtonElement;
 
 }
+
+const makeMenupopup = (idPostfix: string) => {
+    const menupopup = ztoolkit.UI.appendElement({
+        tag: "menupopup",
+        id: config.addonRef + idPostfix,
+        namespace: "xul",
+        children: [
+        ]
+    }, document.querySelector("#browser")!) as XUL.MenuPopup;
+    return menupopup;
+};
+
+
+const makeMenuitem = (option: { label: string, func: (...args: string[]) => void, args: string[]; }, menupopup: any,) => {
+    ztoolkit.UI.appendElement({
+        tag: "menuitem",
+        attributes: {
+            label: getString(option.label),
+        }
+    }, menupopup).addEventListener("command", () => {
+        option.func(...option.args);
+    });
+};
+

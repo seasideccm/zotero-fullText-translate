@@ -4,8 +4,9 @@ import { prepareReader } from "./prepareReader";
 export async function imageToAnnotation() {
     const infoDataArr = await getPDFInfo();
     const imgDataArr = infoDataArr.imgDataArr;
-    if (!imgDataArr.length) { return; }
+    const tableArr = infoDataArr.tableArr;
     const pages = (await prepareReader("pagesLoaded"))("pages");
+
     imgDataArr.forEach((imgData: any) => {
         const transform = imgData.transform;
         /*pdf坐标系以左下角为（0,0），每个对象均视为单位大小1，
@@ -26,7 +27,6 @@ export async function imageToAnnotation() {
         makeAnnotation(positionPdf);
     });
 
-    const tableArr = infoDataArr.tableArr;
     const cache: number[][] = [];
     tableArr.forEach((tablePathData: any[]) => {
         const view = pages[tablePathData[0].pageId - 1].pdfPage.view;
@@ -155,30 +155,46 @@ export async function makeAnnotation(positionPdf: any[], type?: string, color?: 
 
 }
 
-export async function clearAnnotations(action: "delete" | "show" | "hidden") {
+export async function clearAnnotations(action: "delete" | "show" | "hidden", range: "all" | "selected") {
     const reader = (await prepareReader("pagesLoaded"))("reader");
     const attachment = reader._item;
     if (!attachment.isPDFAttachment()) { return; }
     const annotationManager = reader._internalReader._annotationManager;
     const annotations: any[] = annotationManager._annotations;
-    const ids = annotations.map((a: any) => a.id).filter((id: any) => id);
-    //隐藏
-    //annotationManager._annotations.length = 0;
-    //annotationManager.render();
-    //id号
-    //reader.annotationItemIDs.length = 0;
-    //初始注释来源
-    //reader._state.annotations
-    //await annotation.eraseTx()此处非函数？？
+    const allIDs = annotations.map((a: any) => a.id).filter((id: any) => id);
+    const selectedAnnotationIDs = reader._internalReader._primaryView._selectedAnnotationIDs;
+    let ids: any;
+    if (range == "all") {
+        ids = allIDs;
+    } else {
+        ids = selectedAnnotationIDs;
+    }
+    const affectedAnnotations = annotations.filter((e: any) => ids.includes(e.id));
     if (action == "delete") {
         annotationManager._onDelete(ids);
-        annotations.length = 0;
+        if (range == "all") {
+            annotations.length = 0;
+        } else {
+            reader._internalReader.deleteAnnotations(ids);
+        }
     }
     if (action == "show") {
-        annotations.filter(x => { x._hidden = false; });
+        if (range == "selected") {
+            if (annotationManager.hiddenSelectedIDs) {
+                const temp = annotations.filter((e: any) => annotationManager.hiddenSelectedIDs.includes(e.id));
+                temp.filter(x => { x._hidden = false; });
+            } else {
+                return;
+            }
+        } else {
+            affectedAnnotations.filter(x => { x._hidden = false; });
+        }
     }
     if (action == "hidden") {
-        annotations.filter(x => { x._hidden = true; });
+        affectedAnnotations.filter(x => { x._hidden = true; });
+        if (range == "selected") {
+            annotationManager.hiddenSelectedIDs = ids;
+        }
     }
     annotationManager.render();
 
