@@ -55,7 +55,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   });
   fullTextTranslate.getHtmlMdInterconvert();
 
-  popupWin.startCloseTimer(5000);
+  popupWin.startCloseTimer(3000);
 
 }
 

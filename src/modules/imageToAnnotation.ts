@@ -16,7 +16,7 @@ export async function imageToAnnotation() {
         //const positionPdf: any = getPosition([0, 0, 1, 1], transform, imgData.pageId - 1);
         //初始rect,如果有多个transform则依次应用，顺序不能乱，
         //每次返回rect，重新对rect赋值
-        const transform: number[][] = imgData.transform;
+        const transform: number[][] = JSON.parse(JSON.stringify(imgData.transform));
         if (!transform.length) {
             transform.push([1, 0, 0, 1, 0, 0]);
         }
@@ -44,7 +44,7 @@ export async function imageToAnnotation() {
         tablePathData.forEach((pathData: any) => {
             //每个路径可能都有自己的transform
             //如果多个路径共用一个transform，todo
-            const transform: number[][] = pathData.transform;
+            const transform: number[][] = JSON.parse(JSON.stringify(pathData.transform));;
             if (!transform.length) {
                 transform.push([1, 0, 0, 1, 0, 0]);//单位矩阵，坐标保持不变
             }
@@ -69,22 +69,32 @@ export async function imageToAnnotation() {
                 for (let i = 0; i < args.length;) {
                     const x1 = args[i++];
                     const y1 = args[i++];
-                    const x2 = args[i++];
-                    const y2 = args[i++];
-                    let rect: number[] = [x1, y1, x2, y2];
-                    transform.filter((e: any) => { rect = getPosition(rect, e); });
-                    p1sx.push(rect[0]);
-                    p1sy.push(rect[1]);
-                    p2sx.push(rect[2]);
-                    p2sy.push(rect[3]);
+
+                    let p: number[] = [x1, y1];
+                    transform.filter((e: any) => { p = applyTransform(p, e); });
+                    p1sx.push(p[0]);
+                    p1sy.push(p[1]);
+
                 }
             }
         });
         //同类型路径，各点矩阵变换后的集合，取最大图形
-        const p1x = Math.min(...p1sx);
-        const p1y = Math.min(...p1sy);
-        const p2x = Math.max(...p2sx);
-        const p2y = Math.max(...p2sy);
+        let p1x = 0;
+        let p1y = 0;
+        let p2x = 0;
+        let p2y = 0;
+        if (type == "rectangle") {
+            p1x = Math.min(...p1sx);
+            p1y = Math.min(...p1sy);
+            p2x = Math.max(...p2sx);
+            p2y = Math.max(...p2sy);
+        }
+        if (type == "line") {
+            p1x = Math.min(...p1sx);
+            p1y = Math.min(...p1sy);
+            p2x = Math.max(...p1sx);
+            p2y = Math.max(...p1sy);
+        }
         //接近边界者认为非正文
         if (p1x < view[2] * 0.05 || p1x > view[2] * 0.95
             || p2x < view[2] * 0.05 || p2x > view[2] * 0.95

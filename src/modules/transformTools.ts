@@ -247,15 +247,37 @@ export function quickIntersectRect(r1, r2) {
 	);
 }
 
+export function adjacentRect(r1: number[], r2: number[]) {
+	//未考虑负数和旋转
+	return ((
+		r2[0] >= r1[2]
+		|| r2[2] <= r1[0]
+		|| r2[1] >= r1[3]
+		|| r2[3] <= r1[1]
+	) && (
+			r2[0] == r1[2]
+			|| r2[2] == r1[0]
+			|| r2[1] == r1[3]
+			|| r2[3] == r1[1]
+		));
+}
 
 
+/**
+ * 拓展两个矩形的边界 如果坐标超出边界，取边界值
+ * @param r1 
+ * @param r2 
+ * @param page 
+ * @returns 
+ */
 export function expandBoundingBox(r1, r2, page) {
-	const [left, bottom, right, top] = page.originalPage.viewport.viewBox;
+	const [left, bottom, right, top] = page.originalPage.viewport.viewBox || [0, 0, 595276, 799.37];
 	return [Math.max(Math.min(r1[0], r2[0]), left),
 	Math.max(Math.min(r1[1], r2[1]), bottom),
-	Math.min(Math.max(r1[0], r2[0]), right),
-	Math.min(Math.max(r1[1], r2[1]), top)];
+	Math.min(Math.max(r1[2], r2[2]), right),
+	Math.min(Math.max(r1[3], r2[3]), top)];
 }
+
 
 function charHeight(char) {
 	return ([0, 180].includes(char.rotation) && char.rect[3] - char.rect[1]
