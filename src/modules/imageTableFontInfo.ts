@@ -346,9 +346,10 @@ export async function getOpsInfo(page: any) {
             rect.push(Math.max(...p1sy));
         }
         //接近边界者认为非正文
+
         if (rect[0] < view[2] * 0.05 || rect[0] > view[2] * 0.95
-            || rect[1] < view[2] * 0.05 || rect[1] > view[2] * 0.95
-            || rect[2] < view[3] * 0.05 || rect[2] > view[3] * 0.95
+            || rect[1] < view[3] * 0.05 || rect[1] > view[3] * 0.95
+            || rect[2] < view[2] * 0.05 || rect[2] > view[2] * 0.95
             || rect[3] < view[3] * 0.05 || rect[3] > view[3] * 0.95) {
             return;
         }
