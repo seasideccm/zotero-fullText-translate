@@ -262,6 +262,12 @@ export function adjacentRect(r1: number[], r2: number[]) {
 		));
 }
 
+export function getPosition(p: number[], m: number[]) {
+	const p1 = applyTransform([p[0], p[1]], m);
+	const p2 = applyTransform([p[2], p[3]], m);
+	return [p1[0], p1[1], p2[0], p2[1]];
+}
+
 
 /**
  * 拓展两个矩形的边界 如果坐标超出边界，取边界值
@@ -271,7 +277,7 @@ export function adjacentRect(r1: number[], r2: number[]) {
  * @returns 
  */
 export function expandBoundingBox(r1, r2, page) {
-	const [left, bottom, right, top] = page.originalPage.viewport.viewBox || [0, 0, 595276, 799.37];
+	const [left, bottom, right, top] = page.originalPage?.viewport?.viewBox || page.viewport?.viewBox || [0, 0, 595.276, 799.37];
 	return [Math.max(Math.min(r1[0], r2[0]), left),
 	Math.max(Math.min(r1[1], r2[1]), bottom),
 	Math.min(Math.max(r1[2], r2[2]), right),

@@ -1,127 +1,55 @@
-import { getSortIndex, applyTransform, quickIntersectRect, expandBoundingBox } from "./transformTools";
-import { getPDFInfo } from "./imageTableFontInfo";
+import { getSortIndex, applyTransform, quickIntersectRect, expandBoundingBox, getPosition } from "./transformTools";
+import { getOpsInfo } from "./imageTableFontInfo";
 import { prepareReader } from "./prepareReader";
-import { isContext } from "vm";
+
 export async function imageToAnnotation() {
-    const infoDataArr = await getPDFInfo();
-    const imgDataArr = infoDataArr.imgDataArr;
-    const tableArr = infoDataArr.tableArr;
-    const pages = (await prepareReader("pagesLoaded"))("pages");
+    const pages: any[] = (await prepareReader("pagesLoaded"))("pages");
+    for (const page of pages) {
+        const infoDataArr = await getOpsInfo(page);
+        const imgDataArr = infoDataArr.imgDataArr;
+        const tableArr = infoDataArr.tableArr;
+        const pageLabel = page.pageLabel;
 
-    imgDataArr.forEach((imgData: any) => {
-        /*pdf坐标系以左下角为（0,0），每个对象均视为单位大小1，
-        根据该对象的transform确定坐标系中的位置,
-        对左下角和右上角两点应用transform，得到坐标的具体值*/
+        imgDataArr.forEach((imgData: any) => {
+            /*pdf坐标系以左下角为（0,0），每个对象均视为单位大小1，
+            根据该对象的transform确定坐标系中的位置,
+            对左下角和右上角两点应用transform，得到坐标的具体值*/
 
-        //const positionPdf: any = getPosition([0, 0, 1, 1], transform, imgData.pageId - 1);
-        //初始rect,如果有多个transform则依次应用，顺序不能乱，
-        //每次返回rect，重新对rect赋值
-        const transform: number[][] = JSON.parse(JSON.stringify(imgData.transform));
-        if (!transform.length) {
-            transform.push([1, 0, 0, 1, 0, 0]);
-        }
-        let rect: number[] = [0, 0, 1, 1];
-        transform.filter((e: any) => { rect = getPosition(rect, e); });
-        const positionPdf: any = {
-            rects: [rect],
-            pageIndex: imgData.pageId - 1
-        };
-        makeAnnotation(positionPdf);
-    });
-
-    const cache: number[][] = [];
-    tableArr.forEach((tablePathData: any[]) => {
-        const view = pages[tablePathData[0].pageId - 1].pdfPage.view;
-        const type = tablePathData[0].type;
-        const pageLabel = tablePathData[0].pageLabel;
-        //先跳过曲线
-        if (type == "curve") { return; }
-        const p1sx: number[] = [];
-        const p1sy: number[] = [];
-        const p2sx: number[] = [];
-        const p2sy: number[] = [];
-        const pageId = tablePathData[0].pageId;
-        tablePathData.forEach((pathData: any) => {
-            //每个路径可能都有自己的transform
-            //如果多个路径共用一个transform，todo
-            const transform: number[][] = JSON.parse(JSON.stringify(pathData.transform));;
+            //const positionPdf: any = getPosition([0, 0, 1, 1], transform, imgData.pageId - 1);
+            //初始rect,如果有多个transform则依次应用，顺序不能乱，
+            //每次返回rect，重新对rect赋值
+            const transform: number[][] = JSON.parse(JSON.stringify(imgData.transform));
             if (!transform.length) {
-                transform.push([1, 0, 0, 1, 0, 0]);//单位矩阵，坐标保持不变
+                transform.push([1, 0, 0, 1, 0, 0]);
             }
-            const args = pathData.constructPathArgs.args;
-            //表格线可以是矩形，参数是起点和宽高,可能不止4个参数
-            if (pathData.type == "rectangle") {
-                for (let i = 0; i < args.length;) {
-                    const x1 = args[i++];
-                    const y1 = args[i++];
-                    const x2 = x1 + args[i++];
-                    const y2 = y1 + args[i++];
-                    let rect: number[] = [x1, y1, x2, y2];
-                    transform.filter((e: any) => { rect = getPosition(rect, e); });
-                    p1sx.push(rect[0]);
-                    p1sy.push(rect[1]);
-                    p2sx.push(rect[2]);
-                    p2sy.push(rect[3]);
-                }
-            }
-            //直线坐标是两个点
-            if (pathData.type == "line") {
-                for (let i = 0; i < args.length;) {
-                    const x1 = args[i++];
-                    const y1 = args[i++];
-
-                    let p: number[] = [x1, y1];
-                    transform.filter((e: any) => { p = applyTransform(p, e); });
-                    p1sx.push(p[0]);
-                    p1sy.push(p[1]);
-
-                }
-            }
+            let rect: number[] = [0, 0, 1, 1];
+            transform.filter((e: any) => { rect = getPosition(rect, e); });
+            const positionPdf: any = {
+                rects: [rect],
+                pageIndex: imgData.pageId - 1
+            };
+            makeAnnotation(positionPdf, pageLabel);
         });
-        //同类型路径，各点矩阵变换后的集合，取最大图形
-        let p1x = 0;
-        let p1y = 0;
-        let p2x = 0;
-        let p2y = 0;
-        if (type == "rectangle") {
-            p1x = Math.min(...p1sx);
-            p1y = Math.min(...p1sy);
-            p2x = Math.max(...p2sx);
-            p2y = Math.max(...p2sy);
-        }
-        if (type == "line") {
-            p1x = Math.min(...p1sx);
-            p1y = Math.min(...p1sy);
-            p2x = Math.max(...p1sx);
-            p2y = Math.max(...p1sy);
-        }
-        //接近边界者认为非正文
-        if (p1x < view[2] * 0.05 || p1x > view[2] * 0.95
-            || p2x < view[2] * 0.05 || p2x > view[2] * 0.95
-            || p1y < view[3] * 0.05 || p1y > view[3] * 0.95
-            || p2y < view[3] * 0.05 || p2y > view[3] * 0.95) {
-            return;
-        }
 
-        const rect = [p1x, p1y, p2x, p2y];
-        //判断相交 todo
-        const positionPdf: {
-            rects: number[][];
-            pageIndex: number;
-        } = {
-            rects: [rect],
-            pageIndex: pageId - 1
-        };
-        makeAnnotation(positionPdf, pageLabel);
-    });
+        //const cache: number[][] = [];
+        tableArr.forEach((tableData: any) => {
 
-    function getPosition(p: number[], m: number[]) {
-        const p1 = applyTransform([p[0], p[1]], m);
-        const p2 = applyTransform([p[2], p[3]], m);
-        return [p1[0], p1[1], p2[0], p2[1]];
+            const rect: number[] = tableData.rect_pdf;
+            const positionPdf: {
+                rects: number[][];
+                pageIndex: number;
+            } = {
+                rects: [rect],
+                pageIndex: tableData.pageId - 1
+            };
+            makeAnnotation(positionPdf, pageLabel);
+        });
+
+
     }
-
 }
+
+
 
 export async function makeAnnotation(
     positionPdf: {

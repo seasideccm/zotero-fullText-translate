@@ -1,213 +1,312 @@
 import { frequency } from "./getPdfFullText";
-import { prepareReader } from "./prepareReader";
-import { RenderingStates } from "../utils/config";
+import { applyTransform, expandBoundingBox, getPosition } from "./transformTools";
 
-export async function getPDFInfo() {
+export async function getOpsInfo(page: any) {
     const imgDataArr: any[] = [];
     const pathDataArr: any[] = [];
-    const tableArr: any[] = [];
-    const pageRenderingIdChecked: any[] = [];
+    const tableDataArr: any[] = [];
+
     const fontInfo: any = {};
-    const fontInfoOO: any = {};
-    const pages: any[] = (await prepareReader("pagesLoaded"))("pages");
-    const pdfViewer: any = (await prepareReader("pagesLoaded"))("pdfViewer");
-    for (const page of pages) {
-        pdfViewer.currentPageNumber = page.id;
-        while (!(page.renderingState == RenderingStates.FINISHED)) {
-            await Zotero.Promise.delay(50);
-        }
-        await getOpsInfo(page);
+    const fontInfoObj: any = {};
+    //todo 通过选项选择是否提取高清大图
+    const isExtractOringImg = false;
+    const ops = await page.pdfPage.getOperatorList();
+    const fnArray = ops.fnArray;
+    const argsArray = ops.argsArray;
+    if (fnArray.filter((e: any) => e == 85).length > 100) {
+        ztoolkit.log("本页图片太多，可能为矢量图，或者大量小图形，跳过提取");
+        //return;
     }
+    //stroke: 20, fill: 22, endText: 32, restore 11,
+    const endMarkersBackward = [20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
+    const endMarkersForward = [11, 20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
+    for (let i = 0; i < fnArray.length; i++) {
+        //图片
+        if (fnArray[i] == 85 || fnArray[i] == 86) {
+            const imgObj: any = {
+                //originTransform: transform,
+                pageId: page.id,
+                pageLabel: page.pageLabel,
+                fnId: fnArray[i],
+                fnArrayIndex: i,
+            };
+            if (isExtractOringImg) {
+                const name = argsArray[i][0];
+                const hasImgData = await page.pdfPage.objs.has(name);
+                if (hasImgData) {
+                    const imgData = await page.pdfPage.objs.get(name);
+                    //const imgData = this.getObject(objId);  class CanvasGraphics 
+                    imgObj.imgName = name;
+                    imgObj.imgData = imgData;
+                }
+            }
+            const transform: number[][] = [];
+            for (let j = i - 1; j > i - 12 && j >= 0; j--) {
+                //绘制img之前可能不止一个transform
+                //多个transform好比pdf套着作为图片的pdf
+                if (fnArray[j] == 12) {
+                    transform.push([...argsArray[j]] as number[]);
+                }
+                if (endMarkersBackward.includes(fnArray[j])) {
+                    //如果该路径前无transform，则使用默认transform
+                    break;
+                }
+            }
+            //图片自身有transform，宽高，transform决定了图片在pdf页面上的位置。此处无需过滤。
+            //每个对象均为单位大小，即[0,0,1,1],左下角【0,0】，右上角【1,1】
+            //例如 transform  [ 245.952, 0, 0, 184.608, 0, 0 ]意思是x轴缩放245.952倍，y轴缩放184.608倍，没有旋转，没有位移
+            //
+            /* if (imgObj.transform[4] <= view[2] * 0.05 || imgObj.transform[4] >= view[2] * 0.95
+                || imgObj.transform[5] <= view[3] * 0.05 || imgObj.transform[5] >= view[3] * 0.95) {
+                continue;
+            } */
+            imgObj.transform = transform;
+            imgDataArr.push(imgObj);
+        }
+        //字体
+        if (fnArray[i] == 37) {
+            const loadedName = argsArray[i][0];
+            const common = await page.pdfPage.commonObjs.has(loadedName);
+            if (common) {
+                const font: any = await page.pdfPage.commonObjs.get(loadedName);
+                fontInfo[font.loadedName] = font.name;
+                //测试，font.loadedName是否对应多个 font.name
+                const tempObj: any = {};
+                tempObj[font.name] = 1;
+                tempObj.pageId = page.id;
+                tempObj.pageLabel = page.pageLabel;
+                tempObj.fnId = fnArray[i];
+                tempObj.fnArrayIndex = i;
+
+                fontInfoObj[font.loadedName] ?
+                    (fontInfoObj[font.loadedName][font.name] ?
+                        fontInfoObj[font.loadedName][font.name] = fontInfoObj[font.loadedName][font.name] + 1
+                        : fontInfoObj[font.loadedName][font.name] = 1)
+                    : fontInfoObj[font.loadedName] = tempObj;
+            }
+        }
+        //表格
+        if (fnArray[i] == 91) {
+            const args: any = argsArray[i];
+            const fn: any = args[0];
+            const fnArgs: any = args[1];
+            const minMax = args[2];
+            //路径类型 曲线、矩形、直线
+            const isCurve = fn.filter((e: any) => [15, 16, 17].includes(e)).length ? true : false;
+            const isRectangle = fn.includes(19) && !fn.includes(14) && !isCurve ? true : false;
+            const isLine = !fn.includes(19) && fn.includes(14) && !isCurve ? true : false;
+
+            //fnArgs数组元素依次为 x，y，width，height
+            //第二点坐标 const xw = x + width;  const yh = y + height;
+            // const minMaxForBezier = isScalingMatrix ? minMax.slice(0) : null;
+            const pathObj: any = {
+                constructPathArgs: {
+                    ops: fn,
+                    args: fnArgs,
+                    minMax: minMax,
+                },
+                pageId: page.id,
+                pageLabel: page.pageLabel,
+                fnId: fnArray[i],
+                fnArrayIndex: i,
+            };
+            const transform: number[][] = [];
+            for (let j = i - 1; j >= 0; j--) {
+                if (fnArray[j] == 12) {
+                    transform.push([...argsArray[j]]);
+                }
+                //剪切可以有transform
+                if (endMarkersBackward.includes(fnArray[j])) {
+                    break;
+                }
+            }
+            //向前查看是否为 clip 剪切
+            for (let j = i + 1; j < fnArray.length; j++) {
+                if (fnArray[j] == 29) {
+                    pathObj.isClip = true;
+                    break;
+                }
+                if (endMarkersForward.includes(fnArray[j])) {
+                    break;
+                }
+            }
+            pathObj.transform = transform;
+            if (isCurve) {
+                pathObj.type = "curve";
+                if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "curve") {
+                    tableDataArr.push([...pathDataArr]);
+                    pathDataArr.length = 0;
+                }
+                //continue;
+            }
+            if (isLine) {
+                pathObj.type = "line";
+                //如果数组中最后一个对象的类型不是线条，则将数组push到表格中，暂时认为一个表格绘制完毕
+                //但表格可能绘制底纹，绘制矩形，近乎零高矩形方式绘制线段，线段
+                //最后通过是否重叠，相交来处理
+                if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "line") {
+                    tableDataArr.push([...pathDataArr]);
+                    pathDataArr.length = 0;
+                }
+            }
+            if (isRectangle) {
+                pathObj.type = "rectangle";
+                //矩形宽高
+                /* pathObj.width = fnArgs[2];
+                pathObj.height = fnArgs[3]; */
+                if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "rectangle") {
+                    tableDataArr.push([...pathDataArr]);
+                    pathDataArr.length = 0;
+                }
+            }
+            pathDataArr.push(pathObj);
+        }
+        /* 向后遇到路径绘制结束标志后，之后还可能有同类型绘制，
+        因此，将路径信息对象标记为已绘制，暂存入pathDataArr中，
+        等待给类存入tableDataArr表格数组中 */
+        if ([20, 21, 22, 23, 24, 25, 26, 27].includes(fnArray[i])) {
+            if (pathDataArr.length) {
+                pathDataArr.slice(-1)[0].isPaint = true;
+            }
+        }
+        //向后遇到非路径绘制的其他结束标志后，认为本次表格绘制结束，但可能是剪切
+        //28,29,30是剪切
+        if ([31, 44, 32, 69, 71, 74, 75, 63, 65].includes(fnArray[i])) {
+            if (pathDataArr.length) {
+                tableDataArr.push([...pathDataArr]);
+                pathDataArr.length = 0;
+            }
+
+        }
+        if (i == fnArray.length - 1) {
+            if (pathDataArr.length) {
+                tableDataArr.push([...pathDataArr]);
+                pathDataArr.length = 0;
+            }
+        }
+    }
+
+    //makeTable
+    const tableArrTemp: any[] = [];
+    tableDataArr.forEach((tablePathData: any[]) => {
+        const view = page.pdfPage.view;
+        const type = tablePathData[0].type;
+        //先跳过曲线
+        if (type == "curve") { return; }
+        const p1sx: number[] = [];
+        const p1sy: number[] = [];
+        const p2sx: number[] = [];
+        const p2sy: number[] = [];
+        const tablePathObj: any = {
+
+            pageId: page.id,
+            pageLabel: page.pageLabel,
+            fnIds: [],
+            fnArrayIndexs: [],
+
+        };
+        tablePathData.forEach((pathData: any) => {
+            tablePathObj.fnIds.push(pathData.fnId);
+            tablePathObj.fnArrayIndexs.push(pathData.fnArrayIndex);
+            //每个路径可能都有自己的transform
+            //如果多个路径共用一个transform，todo
+            const transform: number[][] = JSON.parse(JSON.stringify(pathData.transform));;
+            if (!transform.length) {
+                transform.push([1, 0, 0, 1, 0, 0]);//单位矩阵，坐标保持不变
+            }
+            const args = pathData.constructPathArgs.args;
+            //表格线可以是矩形，参数是起点和宽高,可能不止4个参数
+            if (pathData.type == "rectangle") {
+                for (let i = 0; i < args.length;) {
+                    const x1 = args[i++];
+                    const y1 = args[i++];
+                    const x2 = x1 + args[i++];
+                    const y2 = y1 + args[i++];
+                    let rect: number[] = [x1, y1, x2, y2];
+                    transform.filter((e: any) => { rect = getPosition(rect, e); });
+                    p1sx.push(rect[0]);
+                    p1sy.push(rect[1]);
+                    p2sx.push(rect[2]);
+                    p2sy.push(rect[3]);
+                }
+            }
+            //直线坐标是两个点
+            if (pathData.type == "line") {
+                for (let i = 0; i < args.length;) {
+                    const x1 = args[i++];
+                    const y1 = args[i++];
+                    let p: number[] = [x1, y1];
+                    transform.filter((e: any) => { p = applyTransform(p, e); });
+                    p1sx.push(p[0]);
+                    p1sy.push(p[1]);
+                }
+            }
+        });
+        //同类型路径，各点矩阵变换后的集合，取最大图形
+        const rect: number[] = [];
+        if (type == "rectangle") {
+            rect.push(Math.min(...p1sx));
+            rect.push(Math.min(...p1sy));
+            rect.push(Math.max(...p2sx));
+            rect.push(Math.max(...p2sy));
+        }
+        if (type == "line") {
+            rect.push(Math.min(...p1sx));
+            rect.push(Math.min(...p1sy));
+            rect.push(Math.max(...p1sx));
+            rect.push(Math.max(...p1sy));
+        }
+        //接近边界者认为非正文
+        if (rect[0] < view[2] * 0.05 || rect[0] > view[2] * 0.95
+            || rect[1] < view[2] * 0.05 || rect[1] > view[2] * 0.95
+            || rect[2] < view[3] * 0.05 || rect[2] > view[3] * 0.95
+            || rect[3] < view[3] * 0.05 || rect[3] > view[3] * 0.95) {
+            return;
+        }
+
+        tablePathObj.rect_pdf = rect;
+        tableArrTemp.push(tablePathObj);
+    });
+    //递归合并 rect
+    const tableArr = combineRect(tableArrTemp);
+    function combineRect(obj: any[]) {
+        obj.forEach((e: any) => {
+            const r1 = e.rect_pdf;
+            for (let i = 0; i < obj.length; i++) {
+                if (e == obj[i] || obj[i].rect_pdf.length == 0) {
+                    i++;
+                    continue;
+                }
+                const r2 = obj[i].rect_pdf;
+                if (quickIntersectRect(r1, r2) || adjacentRect(r1, r2)) {
+                    e.rect_pdf = expandBoundingBox(r1, r2, page) || r2;
+                    obj[i].rect_pdf.length = 0;
+                }
+            }
+        });
+
+        const over = obj.filter((e: any) => e.rect_pdf.length == 0);
+        const newObj = obj.filter((e: any) => e.rect_pdf.length);
+        if (!over.length) {
+            return newObj;
+        } else {
+            return combineRect(newObj);
+        }
+
+
+
+    }
+
+
+
+
     return {
         imgDataArr: imgDataArr,
         fontInfo: fontInfo,
-        fontInfoOO: fontInfoOO,
+        fontInfoObj: fontInfoObj,
         tableArr: tableArr
     };
-
-    async function getOpsInfo(page: any) {
-        if (!page.pdfPage) { return; }
-        //const view = page.pdfPage.view;
-        //todo 通过选项选择是否提取高清大图
-        const isExtractOringImg = false;
-        const ops = await page.pdfPage.getOperatorList();
-        const fnArray = ops.fnArray;
-        const argsArray = ops.argsArray;
-        if (fnArray.filter((e: any) => e == 85).length > 100) {
-            ztoolkit.log("本页图片太多，可能为矢量图，或者大量小图形，跳过提取");
-            //return;
-        }
-        //stroke: 20, fill: 22, endText: 32, restore 11,
-        const endMarkersBackward = [20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
-        const endMarkersForward = [11, 20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
-        for (let i = 0; i < fnArray.length; i++) {
-            if (fnArray[i] == 85 || fnArray[i] == 86) {
-                const imgObj: any = {
-                    //originTransform: transform,
-                    pageId: page.id,
-                    pageLabel: page.pageLabel,
-                    fnId: fnArray[i],
-                    fnArrayIndex: i,
-                };
-                if (isExtractOringImg) {
-                    const name = argsArray[i][0];
-                    const hasImgData = await page.pdfPage.objs.has(name);
-                    if (hasImgData) {
-                        const imgData = await page.pdfPage.objs.get(name);
-                        //const imgData = this.getObject(objId);  class CanvasGraphics 
-                        imgObj.imgName = name;
-                        imgObj.imgData = imgData;
-                    }
-                }
-                //j > i - 4;
-                const transform: number[][] = [];
-                for (let j = i - 1; j > i - 12 && j >= 0; j--) {
-                    //绘制img之前可能不止一个transform
-                    //多个transform好比pdf套着作为图片的pdf
-                    if (fnArray[j] == 12) {
-                        transform.push([...argsArray[j]] as number[]);
-                    }
-                    if (endMarkersBackward.includes(fnArray[j])) {
-                        //如果该路径前无transform，则使用默认transform
-                        break;
-                    }
-                }
-                //图片自身有transform，宽高，transform决定了图片在pdf页面上的位置。此处无需过滤。
-                //每个对象均为单位大小，即[0,0,1,1],左下角【0,0】，右上角【1,1】
-                //例如 transform  [ 245.952, 0, 0, 184.608, 0, 0 ]意思是x轴缩放245.952倍，y轴缩放184.608倍，没有旋转，没有位移
-                //
-                /* if (imgObj.transform[4] <= view[2] * 0.05 || imgObj.transform[4] >= view[2] * 0.95
-                    || imgObj.transform[5] <= view[3] * 0.05 || imgObj.transform[5] >= view[3] * 0.95) {
-                    continue;
-                } */
-                imgObj.transform = transform;
-                imgDataArr.push(imgObj);
-            }
-            //字体
-            if (fnArray[i] == 37) {
-                const loadedName = argsArray[i][0];
-                const common = await page.pdfPage.commonObjs.has(loadedName);
-                if (common) {
-                    const font: any = await page.pdfPage.commonObjs.get(loadedName);
-                    fontInfo[font.loadedName] = font.name;
-                    //测试，font.loadedName是否对应多个 font.name
-                    const tempObj: any = {};
-                    tempObj[font.name] = 1;
-                    fontInfoOO[font.loadedName] ?
-                        (fontInfoOO[font.loadedName][font.name] ?
-                            fontInfoOO[font.loadedName][font.name] = fontInfoOO[font.loadedName][font.name] + 1
-                            : fontInfoOO[font.loadedName][font.name] = 1)
-                        : fontInfoOO[font.loadedName] = tempObj;
-                }
-            }
-
-            //表格
-            if (fnArray[i] == 91) {
-                const args: any = argsArray[i];
-                const fn: any = args[0];
-                const fnArgs: any = args[1];
-                const minMax = args[2];
-                //路径类型 曲线、矩形、直线
-                const isCurve = fn.filter((e: any) => [15, 16, 17].includes(e)).length ? true : false;
-                const isRectangle = fn.includes(19) && !fn.includes(14) && !isCurve ? true : false;
-                const isLine = !fn.includes(19) && fn.includes(14) && !isCurve ? true : false;
-
-                //fnArgs数组元素依次为 x，y，width，height
-                //第二点坐标 const xw = x + width;  const yh = y + height;
-                // const minMaxForBezier = isScalingMatrix ? minMax.slice(0) : null;
-                const pathObj: any = {
-                    constructPathArgs: {
-                        ops: fn,
-                        args: fnArgs,
-                        minMax: minMax,
-                    },
-                    pageId: page.id,
-                    pageLabel: page.pageLabel,
-                    fnId: fnArray[i],
-                    fnArrayIndex: i,
-                };
-                const transform: number[][] = [];
-                for (let j = i - 1; j >= 0; j--) {
-                    if (fnArray[j] == 12) {
-                        transform.push([...argsArray[j]]);
-                    }
-                    //剪切可以有transform
-                    if (endMarkersBackward.includes(fnArray[j])) {
-                        break;
-                    }
-                }
-                //向前查看是否为 clip 剪切
-                for (let j = i + 1; j < fnArray.length; j++) {
-                    if (fnArray[j] == 29) {
-                        pathObj.isClip = true;
-                        break;
-                    }
-                    if (endMarkersForward.includes(fnArray[j])) {
-                        break;
-                    }
-                }
-                pathObj.transform = transform;
-                if (isCurve) {
-                    pathObj.type = "curve";
-                    if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "curve") {
-                        tableArr.push([...pathDataArr]);
-                    }
-                    //continue;
-                }
-                if (isLine) {
-                    pathObj.type = "line";
-                    //如果数组中最后一个对象的类型不是线条，则将数组push到表格中，暂时认为一个表格绘制完毕
-                    //但表格可能绘制底纹，绘制矩形，近乎零高矩形方式绘制线段，线段
-                    //最后通过是否重叠，相交来处理
-                    if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "line") {
-                        tableArr.push([...pathDataArr]);
-                    }
-                }
-                if (isRectangle) {
-                    pathObj.type = "rectangle";
-                    //矩形宽高
-                    pathObj.width = fnArgs[2];
-                    pathObj.height = fnArgs[3];
-                    if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "rectangle") {
-                        tableArr.push([...pathDataArr]);
-                    }
-                }
-                pathDataArr.push(pathObj);
-            }
-            /* 向后遇到路径绘制结束标志后，之后还可能有同类型绘制，
-            因此，将路径信息对象标记为已绘制，暂存入pathDataArr中，
-            等待给类存入tableArr表格数组中 */
-            if ([20, 21, 22, 23, 24, 25, 26, 27].includes(fnArray[i])) {
-                if (pathDataArr.length) {
-                    pathDataArr.slice(-1)[0].isPaint = true;
-                }
-            }
-            //向后遇到非路径绘制的其他结束标志后，认为本次表格绘制结束，但可能是剪切
-            //28,29,30是剪切
-            if ([31, 44, 32, 69, 71, 74, 75, 63, 65].includes(fnArray[i])) {
-                if (pathDataArr.length) {
-                    tableArr.push([...pathDataArr]);
-                }
-
-            }
-        }
-        if (pathDataArr.length) {
-            tableArr.push([...pathDataArr]);
-        }
-        pageRenderingIdChecked.push(page.renderingId);
-
-        function moveToTable(pathDataArr: any[]) {
-            //不应舍弃未绘制的路径，暂时不用该函数
-            const tempArr = pathDataArr.filter((e: any) => e.isPaint);
-            if (tempArr.length) {
-                tableArr.push([...tempArr]);
-            }
-            pathDataArr.length = 0;
-        }
-    }
 }
-
-
 /**
  * 
  * @param arr 
