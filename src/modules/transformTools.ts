@@ -276,8 +276,8 @@ export function getPosition(p: number[], m: number[]) {
  * @param page 
  * @returns 
  */
-export function expandBoundingBox(r1, r2, page) {
-	const [left, bottom, right, top] = page.originalPage?.viewport?.viewBox || page.viewport?.viewBox || [0, 0, 595.276, 799.37];
+export async function expandBoundingBox(r1, r2, page) {
+	const [left, bottom, right, top] = page.viewport?.viewBox || (await page.pdfPage.getViewport()).viewBox;
 	return [Math.max(Math.min(r1[0], r2[0]), left),
 	Math.max(Math.min(r1[1], r2[1]), bottom),
 	Math.min(Math.max(r1[2], r2[2]), right),

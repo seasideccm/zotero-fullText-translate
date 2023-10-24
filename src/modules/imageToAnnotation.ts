@@ -1,4 +1,4 @@
-import { getSortIndex, applyTransform, quickIntersectRect, expandBoundingBox, getPosition } from "./transformTools";
+import { getSortIndex, quickIntersectRect, expandBoundingBox, getPosition } from "./transformTools";
 import { getOpsInfo } from "./imageTableFontInfo";
 import { prepareReader } from "./prepareReader";
 
@@ -71,14 +71,23 @@ export async function makeAnnotation(
     if (annotationManager._readOnly) {
         return null;
     }
-    const oldannotationRects = oldannotations.map((e: any) => e.position.rects[0]).filter((e: any) => e);
+    const oldannotationsSamePage = oldannotations.filter((e: any) => e.position.pageIndex == positionPdf.pageIndex);
     const rect = positionPdf.rects[0];
+    oldannotationsSamePage.filter(async (e: any) => {
+        const r1: number[] = e.position.rects[0];
+        if (quickIntersectRect(r1, rect) || adjacentRect(r1, rect)) {
+            const expandRect: number[] = await expandBoundingBox(r1, rect, pages[positionPdf.pageIndex]);
+            e.position.rects[0] = [...expandRect];
+            //annotationManager._save(e);
+            annotationManager.updateAnnotations([e]);
+        }
+    });
     //判断相交,并
-    const rectOlds = oldannotationRects.filter((rectOld: number[]) => quickIntersectRect(rectOld, rect));
+    const rectOlds = oldannotationRects.filter((rectOld: number[]) => quickIntersectRect(rectOld, rect) || adjacentRect(rectOld, rect));
 
     if (rectOlds.length) {
         let expandRect: number[] = [...rect];
-        rectOlds.filter((rectOld: number[]) => { expandRect = expandBoundingBox(expandRect, rectOld, pages[positionPdf.pageIndex]); });
+        rectOlds.filter(async (rectOld: number[]) => { expandRect = await expandBoundingBox(expandRect, rectOld, pages[positionPdf.pageIndex]); });
         positionPdf.rects[0] = expandRect;
     } else {
         //跳过宽或高小于1cm的形状
@@ -99,21 +108,6 @@ export async function makeAnnotation(
     if (oldannotations.find((e: any) => e.sortIndex == annotation.sortIndex)) {
         return;
     }
-    //判断是否包裹被包裹
-    /* const idsWraped=[]
-    const wrap = (){
-        oldannotations.filter((e:any)=>{
-           const oldRect = e.position
-        })
-    }
-    
-        if(wrapOld==1){
-            return;
-        }
-        if(wrapOld>1){
-            annotationManager._onDelete(idsWraped);
-        } */
-
     annotation.text = annotation.text || '';
     annotation.comment = annotation.comment || '';
     annotation.tags = [];

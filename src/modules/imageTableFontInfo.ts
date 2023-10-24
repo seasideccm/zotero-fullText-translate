@@ -1,5 +1,5 @@
 import { frequency } from "./getPdfFullText";
-import { applyTransform, expandBoundingBox, getPosition } from "./transformTools";
+import { applyTransform, expandBoundingBox, getPosition, quickIntersectRect, adjacentRect } from "./transformTools";
 
 export async function getOpsInfo(page: any) {
     const imgDataArr: any[] = [];
