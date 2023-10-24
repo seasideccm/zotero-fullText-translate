@@ -141,6 +141,8 @@ export async function clearAnnotationsButton() {
     ];
 
     const clearAnnotationsButton = ztoolkit.UI.insertElementBefore({
+        enableElementJSONLog: false,
+        enableElementDOMLog: false,
         ignoreIfExists: true,
         namespace: "html",
         tag: "button",

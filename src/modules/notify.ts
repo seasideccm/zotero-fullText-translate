@@ -38,7 +38,7 @@ async function onNotify(
     extraData: { [key: string]: any; },
 ) {
     // You can add your code to the corresponding notify type
-    ztoolkit.log("notify is coming【", "event:", event, "type:", type, "ids:", ids, "extraData:", extraData + "】");
+    //ztoolkit.log("notify is coming【", "event:", event, "type:", type, "ids:", ids, "extraData:", extraData + "】");
     if (
         event == "select" &&
         type == "tab" &&

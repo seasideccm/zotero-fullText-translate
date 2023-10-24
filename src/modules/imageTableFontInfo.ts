@@ -1,6 +1,9 @@
 import { frequency } from "./getPdfFullText";
-import { applyTransform, expandBoundingBox, getPosition, quickIntersectRect, adjacentRect } from "./transformTools";
+import { applyTransform, expandBoundingBox, getPosition, quickIntersectRect, adjacentRect } from "./tools";
+import { OPS } from "../utils/config";
+import { invertKeyValues } from "./tools";
 
+const OPS_VK = invertKeyValues(OPS);
 export async function getOpsInfo(page: any) {
     const imgDataArr: any[] = [];
     const pathDataArr: any[] = [];
@@ -11,8 +14,25 @@ export async function getOpsInfo(page: any) {
     //todo 通过选项选择是否提取高清大图
     const isExtractOringImg = false;
     const ops = await page.pdfPage.getOperatorList();
-    const fnArray = ops.fnArray;
-    const argsArray = ops.argsArray;
+    const fnArray: number[] = ops.fnArray;
+    const argsArray: any = ops.argsArray;
+
+    const state: any = {
+        paintFormXObject: {
+            transform: [],
+            rect: [],
+        },
+        text: false,
+        savedNumber: 0,
+        restore: 0,
+        transform: {
+            oringin: [],
+            constructPath: [],
+            saved: [],
+
+        }
+
+    };
     if (fnArray.filter((e: any) => e == 85).length > 100) {
         ztoolkit.log("本页图片太多，可能为矢量图，或者大量小图形，跳过提取");
         //return;
@@ -20,7 +40,36 @@ export async function getOpsInfo(page: any) {
     //stroke: 20, fill: 22, endText: 32, restore 11,
     const endMarkersBackward = [20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
     const endMarkersForward = [11, 20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
+
+
+
+
+
+
+
+
+
+
+
+    /*     const printLog = () => {
+            ztoolkit.log("调用成功");
+        };
+        const action: any = {
+            91: printLog,
+            printLog: () => {
+                ztoolkit.log("调用成功");
+            },
+        }; */
+
     for (let i = 0; i < fnArray.length; i++) {
+        /*         const fnId = fnArray[i];
+                if (fnId == OPS.dependency) {
+                    continue;
+                }
+                if (action[fnId]) {
+                    action[fnId]();
+                }
+                continue; */
         //图片
         if (fnArray[i] == 85 || fnArray[i] == 86) {
             const imgObj: any = {
@@ -86,11 +135,45 @@ export async function getOpsInfo(page: any) {
             }
         }
         //表格
+        /* if (fnArray[i] == OPS.paintFormXObjectBegin) {
+
+            state.paintFormXObject.transform = argsArray[i][0];
+            state.paintFormXObject.rect = argsArray[i][1];
+
+            const OPS_K = OPS_VK[fnArray[i] as keyof typeof OPS_VK];
+            state[OPS_K] = true;
+
+
+
+
+            
+
+
+
+            for (let j = i + 1; j < fnArray.length; j++) {
+                if (fnArray[j] == OPS.paintFormXObjectEnd) {
+                    delete state.paintFormXObject;
+                    delete state[OPS_K];
+                    i = j + 1;
+                    break;
+                }
+            }
+
+        } */
+
+        if (fnArray[i] == OPS.save) {
+            state.savedNumber += 1;
+
+        }
+        if (fnArray[i] == OPS.restore) {
+            state.savedNumber -= 1;
+        }
+
         if (fnArray[i] == 91) {
             const args: any = argsArray[i];
-            const fn: any = args[0];
-            const fnArgs: any = args[1];
-            const minMax = args[2];
+            const fn: number[] = args[0];
+            const fnArgs: number[] = args[1];
+            const minMax: number[] = args[2];
             //路径类型 曲线、矩形、直线
             const isCurve = fn.filter((e: any) => [15, 16, 17].includes(e)).length ? true : false;
             const isRectangle = fn.includes(19) && !fn.includes(14) && !isCurve ? true : false;
@@ -169,9 +252,15 @@ export async function getOpsInfo(page: any) {
                 pathDataArr.slice(-1)[0].isPaint = true;
             }
         }
-        //向后遇到非路径绘制的其他结束标志后，认为本次表格绘制结束，但可能是剪切
-        //28,29,30是剪切
-        if ([31, 44, 32, 69, 71, 74, 75, 63, 65].includes(fnArray[i])) {
+        /* 向后遇到非路径绘制的其他结束标志后，认为本次表格绘制结束，但可能是剪切
+        28,29,30是剪切
+        31, 44, 32, 绘制文字，路径绘制过程中可以绘制文字
+        , 63, 65 行内图片
+        69, 71 标记内容
+        74, 75 绘制表单内容
+        76,77 成组
+        78, 79, 80, 81 注释 */
+        if ([63, 65, 74, 75, 76, 77, 78, 79, 80, 81, 85].includes(fnArray[i])) {
             if (pathDataArr.length) {
                 tableDataArr.push([...pathDataArr]);
                 pathDataArr.length = 0;
@@ -279,7 +368,7 @@ export async function getOpsInfo(page: any) {
                 }
                 const r2 = obj[i].rect_pdf;
                 if (quickIntersectRect(r1, r2) || adjacentRect(r1, r2)) {
-                    e.rect_pdf = expandBoundingBox(r1, r2, page) || r2;
+                    e.rect_pdf = expandBoundingBox(r1, r2, page.viewBox) || r2;
                     obj[i].rect_pdf.length = 0;
                 }
             }

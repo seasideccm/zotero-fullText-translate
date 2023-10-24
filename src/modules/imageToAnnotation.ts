@@ -1,4 +1,4 @@
-import { getSortIndex, quickIntersectRect, expandBoundingBox, getPosition } from "./transformTools";
+import { getSortIndex, quickIntersectRect, expandBoundingBox, getPosition } from "./tools";
 import { getOpsInfo } from "./imageTableFontInfo";
 import { prepareReader } from "./prepareReader";
 
@@ -63,7 +63,7 @@ export async function makeAnnotation(
     tag?: string
 ) {
     const reader = (await prepareReader("pagesLoaded"))("reader");
-    const pages = (await prepareReader("pagesLoaded"))("pages");
+    const pdfPages = reader._internalReader._primaryView._pdfPages;
     const attachment = reader._item;
     if (!attachment.isPDFAttachment()) { return; }
     const annotationManager = reader._internalReader._annotationManager;
@@ -71,41 +71,36 @@ export async function makeAnnotation(
     if (annotationManager._readOnly) {
         return null;
     }
-    const oldannotationsSamePage = oldannotations.filter((e: any) => e.position.pageIndex == positionPdf.pageIndex);
-    const rect = positionPdf.rects[0];
-    oldannotationsSamePage.filter(async (e: any) => {
-        const r1: number[] = e.position.rects[0];
-        if (quickIntersectRect(r1, rect) || adjacentRect(r1, rect)) {
-            const expandRect: number[] = await expandBoundingBox(r1, rect, pages[positionPdf.pageIndex]);
-            e.position.rects[0] = [...expandRect];
-            //annotationManager._save(e);
-            annotationManager.updateAnnotations([e]);
-        }
-    });
-    //判断相交,并
-    const rectOlds = oldannotationRects.filter((rectOld: number[]) => quickIntersectRect(rectOld, rect) || adjacentRect(rectOld, rect));
-
-    if (rectOlds.length) {
-        let expandRect: number[] = [...rect];
-        rectOlds.filter(async (rectOld: number[]) => { expandRect = await expandBoundingBox(expandRect, rectOld, pages[positionPdf.pageIndex]); });
-        positionPdf.rects[0] = expandRect;
-    } else {
-        //跳过宽或高小于1cm的形状
-        if (Math.abs(rect[2] - rect[0]) <= 10 || Math.abs(rect[3] - rect[1]) <= 10) {
-            return null;
-        }
-    }
-
-
-
     const annotation: any = {};
     annotation.color = color || "#ffd400";
     annotation.type = type || "image";
     annotation.position = positionPdf;
     annotation.pageLabel = pageLabel || '';
-    annotation.sortIndex = sortIndex || getSortIndex((await prepareReader("pagesLoaded"))("pdfPages"), positionPdf);
+    annotation.sortIndex = sortIndex || getSortIndex(pdfPages, positionPdf);
     //防止重复添加相同的注释
     if (oldannotations.find((e: any) => e.sortIndex == annotation.sortIndex)) {
+        return;
+    }
+    const rect = positionPdf.rects[0];
+    //跳过宽或高小于1cm的形状
+    if (Math.abs(rect[2] - rect[0]) <= 10 || Math.abs(rect[3] - rect[1]) <= 10) {
+        return;
+    }
+    //如果重叠相邻则扩展原有注释范围
+    const oldannotationsSamePage = oldannotations.filter((e: any) => e.position.pageIndex == positionPdf.pageIndex);
+    let overlap = false;
+    oldannotationsSamePage.filter((e: any) => {
+        const r1: number[] = e.position.rects[0];
+        if (quickIntersectRect(r1, rect) || adjacentRect(r1, rect)) {
+            const viewBox = pdfPages.filter((e: any) => e.pageLabel == pageLabel)[0].viewBox;
+            const expandRect: number[] = expandBoundingBox(r1, rect, viewBox);
+            e.position.rects[0] = [...expandRect];
+            //annotationManager._save(e);
+            annotationManager.updateAnnotations([e]);
+            overlap = true;
+        }
+    });
+    if (overlap) {
         return;
     }
     annotation.text = annotation.text || '';

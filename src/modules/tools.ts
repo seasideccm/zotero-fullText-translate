@@ -276,8 +276,11 @@ export function getPosition(p: number[], m: number[]) {
  * @param page 
  * @returns 
  */
-export async function expandBoundingBox(r1, r2, page) {
-	const [left, bottom, right, top] = page.viewport?.viewBox || (await page.pdfPage.getViewport()).viewBox;
+export function expandBoundingBox(r1, r2, viewBox) {
+	/* let [left, bottom, right, top] = page.originalPage.viewport.viewBox;
+	originalPage==pageView==_pages[i]
+	F:\zotero\zotero-client\reader\src\pdf\pdf-view.js */
+	const [left, bottom, right, top] = viewBox;
 	return [Math.max(Math.min(r1[0], r2[0]), left),
 	Math.max(Math.min(r1[1], r2[1]), bottom),
 	Math.min(Math.max(r1[2], r2[2]), right),
@@ -303,3 +306,10 @@ function getBoundingRect(objs, from, to) {
 function roundRect(rect) {
 	return rect.map(n => Math.round(n * 1000) / 1000);
 }
+
+
+export const invertKeyValues = obj =>
+	Object.keys(obj).reduce((acc, key) => {
+		acc[obj[key]] = key;
+		return acc;
+	}, {});
