@@ -16,40 +16,49 @@ export async function getOpsInfo(page: any) {
     const ops = await page.pdfPage.getOperatorList();
     const fnArray: number[] = ops.fnArray;
     const argsArray: any = ops.argsArray;
+    const originalTransorm: number[] = [...page.viewport.transform];
 
-    const state: any = {
-        paintFormXObject: {
-            transform: [],
-            rect: [],
-        },
-        text: false,
-        savedNumber: 0,
-        restore: 0,
-        transform: {
-            oringin: [],
-            constructPath: [],
-            saved: [],
+    /* function getCtx() {
+        const canvas = page._canvas;
+        const ctx = canvas.getContext("2d");
+        return ctx;
 
+    } */
+
+    let state: {
+        clipRect: number[];
+        currentArgs: number[][];
+        currentAction: string[];
+        savedTimes: number;
+        restoreTimes: number;
+        transforms: {
+            oringinTransform: number[];
+            beforeConstructPathTransform: number[],
+            savedTransform: number[][],
+            //多次绘制路径，连续应用 Transform，未save未restore，则需多次保存
+            currentTransform: number[][],
+        };
+    } = {
+        currentArgs: [],
+        currentAction: [],
+        savedTimes: 0,
+        restoreTimes: 0,
+        clipRect: [],
+        transforms: {
+            oringinTransform: originalTransorm,
+            beforeConstructPathTransform: [],
+            savedTransform: [],
+            currentTransform: [],
         }
-
     };
-    if (fnArray.filter((e: any) => e == 85).length > 100) {
+    const stateCache: any[] = [];
+    /* if (fnArray.filter((e: any) => e == 85).length > 100) {
         ztoolkit.log("本页图片太多，可能为矢量图，或者大量小图形，跳过提取");
         //return;
-    }
+    } */
     //stroke: 20, fill: 22, endText: 32, restore 11,
     const endMarkersBackward = [20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
     const endMarkersForward = [11, 20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
-
-
-
-
-
-
-
-
-
-
 
     /*     const printLog = () => {
             ztoolkit.log("调用成功");
@@ -144,12 +153,6 @@ export async function getOpsInfo(page: any) {
             state[OPS_K] = true;
 
 
-
-
-            
-
-
-
             for (let j = i + 1; j < fnArray.length; j++) {
                 if (fnArray[j] == OPS.paintFormXObjectEnd) {
                     delete state.paintFormXObject;
@@ -162,14 +165,63 @@ export async function getOpsInfo(page: any) {
         } */
 
         if (fnArray[i] == OPS.save) {
-            state.savedNumber += 1;
-
+            state.savedTimes += 1;
+            stateCache.push(JSON.parse(JSON.stringify(state)));
+            /* if (state.transforms.currentTransform.length) {
+                state.transforms.savedTransform.push([...state.transforms.currentTransform.slice(-1)[0]]);
+            } */
+            //如果操作列表尚未出现 Transform fnId=12，保存的即为原始Transform
+            //原始Transform不用于变换坐标，故不保存
         }
         if (fnArray[i] == OPS.restore) {
-            state.savedNumber -= 1;
+            state = stateCache.pop();
+            state.savedTimes -= 1;
+            /* if (state.transforms.savedTransform.length) {
+                state.transforms.currentTransform.push([...state.transforms.savedTransform.pop()!]);
+            } else {
+                state.transforms.currentTransform = [];
+            } */
+        }
+        if (fnArray[i] == OPS.transform) {
+            state.transforms.currentTransform.push([...argsArray[i]]);
+        }
+        if (fnArray[i] == OPS.paintFormXObjectBegin) {
+            state.savedTimes += 1;
+            stateCache.push(JSON.parse(JSON.stringify(state)));
+            if (Array.isArray(argsArray[i][0]) && argsArray[i][0].length == 6) {
+                state.transforms.currentTransform.push([...argsArray[i][0]]);
+            }
+            state.currentAction.push("paintFormXObjectBegin");
+            const rect = [...argsArray[i][1]];
+            if (rect) {
+                state.currentAction.push("clip");
+                state.clipRect = rect;
+            }
+        }
+        if (fnArray[i] == OPS.paintFormXObjectEnd) {
+            state = stateCache.pop();
+            state.savedTimes -= 1;
+        }
+        if (fnArray[i] == OPS.endPath) {
+            //即clip
+            state.currentAction.push("endPath");
+        }
+        if (fnArray[i] == OPS.beginText) {
+            //即clip
+            state.currentAction.push("beginText");
+        }
+        if (fnArray[i] == OPS.endText) {
+            //即clip
+            state.currentAction.push("endText");
         }
 
-        if (fnArray[i] == 91) {
+        if (fnArray[i] == OPS.showText) {
+            //即clip
+            state.currentAction.push("showText");
+        }
+
+        if (fnArray[i] == OPS.constructPath) {
+            state.currentAction.push("constructPath");
             const args: any = argsArray[i];
             const fn: number[] = args[0];
             const fnArgs: number[] = args[1];
@@ -213,7 +265,8 @@ export async function getOpsInfo(page: any) {
                     break;
                 }
             }
-            pathObj.transform = transform;
+            pathObj.transform = JSON.parse(JSON.stringify(state.transforms.currentTransform));
+            //原 pathObj.transform = transform;
             if (isCurve) {
                 pathObj.type = "curve";
                 if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "curve") {
@@ -256,7 +309,7 @@ export async function getOpsInfo(page: any) {
         28,29,30是剪切
         31, 44, 32, 绘制文字，路径绘制过程中可以绘制文字
         , 63, 65 行内图片
-        69, 71 标记内容
+        69, 71 标记内容，可能和是否显示有关
         74, 75 绘制表单内容
         76,77 成组
         78, 79, 80, 81 注释 */
