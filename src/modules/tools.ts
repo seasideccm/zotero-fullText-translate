@@ -281,6 +281,13 @@ export function expandBoundingBox(r1, r2, viewBox) {
 	originalPage==pageView==_pages[i]
 	F:\zotero\zotero-client\reader\src\pdf\pdf-view.js */
 	const [left, bottom, right, top] = viewBox;
+	const rect: number[] = [];
+	const rect0 = Math.max(Math.min(r1[0], r2[0]), left);
+	const rect1 = Math.max(Math.min(r1[1], r2[1]), bottom);
+	const rect2 = Math.min(Math.max(r1[2], r2[2]), right);
+	const rect3 = Math.min(Math.max(r1[3], r2[3]), top);
+	rect.push(rect0, rect1, rect2, rect3);
+
 	return [Math.max(Math.min(r1[0], r2[0]), left),
 	Math.max(Math.min(r1[1], r2[1]), bottom),
 	Math.min(Math.max(r1[2], r2[2]), right),

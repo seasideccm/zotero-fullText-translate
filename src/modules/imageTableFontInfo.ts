@@ -105,8 +105,8 @@ export async function getOpsInfo(page: any) {
             //每个对象均为单位大小，即[0,0,1,1],左下角【0,0】，右上角【1,1】
             //例如 transform  [ 245.952, 0, 0, 184.608, 0, 0 ]意思是x轴缩放245.952倍，y轴缩放184.608倍，没有旋转，没有位移
             //
-            /* if (imgObj.transform[4] <= view[2] * 0.05 || imgObj.transform[4] >= view[2] * 0.95
-                || imgObj.transform[5] <= view[3] * 0.05 || imgObj.transform[5] >= view[3] * 0.95) {
+            /* if (imgObj.transform[4] <= view[2] * 0.03 || imgObj.transform[4] >= view[2] * 0.97
+                || imgObj.transform[5] <= view[3] * 0.03 || imgObj.transform[5] >= view[3] * 0.97) {
                 continue;
             } */
             imgObj.transform = transform;
@@ -291,12 +291,14 @@ export async function getOpsInfo(page: any) {
             pageId: page.id,
             pageLabel: page.pageLabel,
             fnIds: [],
+            argsArr: [],
             fnArrayIndexs: [],
 
         };
         tablePathData.forEach((pathData: any) => {
             tablePathObj.fnIds.push(pathData.fnId);
             tablePathObj.fnArrayIndexs.push(pathData.fnArrayIndex);
+            tablePathObj.argsArr.push(pathData.constructPathArgs);
             //每个路径可能都有自己的transform
             //如果多个路径共用一个transform，todo
             const transform: number[][] = JSON.parse(JSON.stringify(pathData.transform));;
@@ -347,10 +349,10 @@ export async function getOpsInfo(page: any) {
         }
         //接近边界者认为非正文
 
-        if (rect[0] < view[2] * 0.05 || rect[0] > view[2] * 0.95
-            || rect[1] < view[3] * 0.05 || rect[1] > view[3] * 0.95
-            || rect[2] < view[2] * 0.05 || rect[2] > view[2] * 0.95
-            || rect[3] < view[3] * 0.05 || rect[3] > view[3] * 0.95) {
+        if (rect[0] < view[2] * 0.03 || rect[0] > view[2] * 0.97
+            || rect[1] < view[3] * 0.03 || rect[1] > view[3] * 0.97
+            || rect[2] < view[2] * 0.03 || rect[2] > view[2] * 0.97
+            || rect[3] < view[3] * 0.03 || rect[3] > view[3] * 0.97) {
             return;
         }
 
@@ -362,15 +364,25 @@ export async function getOpsInfo(page: any) {
     function combineRect(obj: any[]) {
         obj.forEach((e: any) => {
             const r1 = e.rect_pdf;
+            if (!r1.length) {
+                return;
+            }
             for (let i = 0; i < obj.length; i++) {
                 if (e == obj[i] || obj[i].rect_pdf.length == 0) {
                     i++;
                     continue;
                 }
                 const r2 = obj[i].rect_pdf;
+                if (!r2.length) {
+                    continue;
+                }
                 if (quickIntersectRect(r1, r2) || adjacentRect(r1, r2)) {
-                    e.rect_pdf = expandBoundingBox(r1, r2, page.viewBox) || r2;
+                    e.rect_pdf = expandBoundingBox(r1, r2, page.viewport.viewBox) || r2;
+                    //删除矩形信息，作为递归
                     obj[i].rect_pdf.length = 0;
+                    e.fnIds.push(...obj[i].fnIds);
+                    e.fnArrayIndexs.push(...obj[i].fnArrayIndexs);
+                    e.argsArr.push(...obj[i].argsArr);
                 }
             }
         });
