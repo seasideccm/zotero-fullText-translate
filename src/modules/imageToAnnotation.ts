@@ -83,7 +83,7 @@ export async function makeAnnotation(
     }
     const rect = positionPdf.rects[0];
     //跳过宽或高小于1cm的形状
-    if (Math.abs(rect[2] - rect[0]) <= 10 || Math.abs(rect[3] - rect[1]) <= 10) {
+    if (Math.abs(rect[2] - rect[0]) <= 20 || Math.abs(rect[3] - rect[1]) <= 20) {
         return;
     }
     //如果重叠相邻则扩展原有注释范围

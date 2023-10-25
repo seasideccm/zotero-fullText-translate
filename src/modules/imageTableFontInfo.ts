@@ -5,10 +5,13 @@ import { invertKeyValues } from "./tools";
 
 const OPS_VK = invertKeyValues(OPS);
 export async function getOpsInfo(page: any) {
+    let pageLabel = page.pageLabel;
+    if (!pageLabel) {
+        pageLabel = (page.id as number).toString();
+    }
+
     const imgDataArr: any[] = [];
     const pathDataArr: any[] = [];
-    const tableDataArr: any[] = [];
-
     const fontInfo: any = {};
     const fontInfoObj: any = {};
     //todo 通过选项选择是否提取高清大图
@@ -17,14 +20,6 @@ export async function getOpsInfo(page: any) {
     const fnArray: number[] = ops.fnArray;
     const argsArray: any = ops.argsArray;
     const originalTransorm: number[] = [...page.viewport.transform];
-
-    /* function getCtx() {
-        const canvas = page._canvas;
-        const ctx = canvas.getContext("2d");
-        return ctx;
-
-    } */
-
     let state: {
         clipRect: number[];
         currentArgs: number[][];
@@ -52,10 +47,10 @@ export async function getOpsInfo(page: any) {
         }
     };
     const stateCache: any[] = [];
-    /* if (fnArray.filter((e: any) => e == 85).length > 100) {
+    if (fnArray.filter((e: any) => e == 85).length > 100) {
         ztoolkit.log("本页图片太多，可能为矢量图，或者大量小图形，跳过提取");
-        //return;
-    } */
+        return;
+    }
     //stroke: 20, fill: 22, endText: 32, restore 11,
     const endMarkersBackward = [20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
     const endMarkersForward = [11, 20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
@@ -84,7 +79,7 @@ export async function getOpsInfo(page: any) {
             const imgObj: any = {
                 //originTransform: transform,
                 pageId: page.id,
-                pageLabel: page.pageLabel,
+                pageLabel: pageLabel,
                 fnId: fnArray[i],
                 fnArrayIndex: i,
             };
@@ -98,7 +93,8 @@ export async function getOpsInfo(page: any) {
                     imgObj.imgData = imgData;
                 }
             }
-            const transform: number[][] = [];
+
+            /* 原const transform: number[][] = [];
             for (let j = i - 1; j > i - 12 && j >= 0; j--) {
                 //绘制img之前可能不止一个transform
                 //多个transform好比pdf套着作为图片的pdf
@@ -109,7 +105,8 @@ export async function getOpsInfo(page: any) {
                     //如果该路径前无transform，则使用默认transform
                     break;
                 }
-            }
+            } */
+
             //图片自身有transform，宽高，transform决定了图片在pdf页面上的位置。此处无需过滤。
             //每个对象均为单位大小，即[0,0,1,1],左下角【0,0】，右上角【1,1】
             //例如 transform  [ 245.952, 0, 0, 184.608, 0, 0 ]意思是x轴缩放245.952倍，y轴缩放184.608倍，没有旋转，没有位移
@@ -118,7 +115,8 @@ export async function getOpsInfo(page: any) {
                 || imgObj.transform[5] <= view[3] * 0.03 || imgObj.transform[5] >= view[3] * 0.97) {
                 continue;
             } */
-            imgObj.transform = transform;
+            //原imgObj.transform = transform;
+            imgObj.transform = JSON.parse(JSON.stringify(state.transforms.currentTransform));
             imgDataArr.push(imgObj);
         }
         //字体
@@ -132,7 +130,7 @@ export async function getOpsInfo(page: any) {
                 const tempObj: any = {};
                 tempObj[font.name] = 1;
                 tempObj.pageId = page.id;
-                tempObj.pageLabel = page.pageLabel;
+                tempObj.pageLabel = pageLabel;
                 tempObj.fnId = fnArray[i];
                 tempObj.fnArrayIndex = i;
 
@@ -144,43 +142,17 @@ export async function getOpsInfo(page: any) {
             }
         }
         //表格
-        /* if (fnArray[i] == OPS.paintFormXObjectBegin) {
-
-            state.paintFormXObject.transform = argsArray[i][0];
-            state.paintFormXObject.rect = argsArray[i][1];
-
-            const OPS_K = OPS_VK[fnArray[i] as keyof typeof OPS_VK];
-            state[OPS_K] = true;
-
-
-            for (let j = i + 1; j < fnArray.length; j++) {
-                if (fnArray[j] == OPS.paintFormXObjectEnd) {
-                    delete state.paintFormXObject;
-                    delete state[OPS_K];
-                    i = j + 1;
-                    break;
-                }
-            }
-
-        } */
+        //const OPS_K = OPS_VK[fnArray[i] as keyof typeof OPS_VK];
+        // state[OPS_K] = true;
 
         if (fnArray[i] == OPS.save) {
             state.savedTimes += 1;
+            //通过状态保存恢复机制，可以确保路径图片的 transform 总是相对应的，即使有多个 transform
             stateCache.push(JSON.parse(JSON.stringify(state)));
-            /* if (state.transforms.currentTransform.length) {
-                state.transforms.savedTransform.push([...state.transforms.currentTransform.slice(-1)[0]]);
-            } */
-            //如果操作列表尚未出现 Transform fnId=12，保存的即为原始Transform
-            //原始Transform不用于变换坐标，故不保存
         }
         if (fnArray[i] == OPS.restore) {
             state = stateCache.pop();
             state.savedTimes -= 1;
-            /* if (state.transforms.savedTransform.length) {
-                state.transforms.currentTransform.push([...state.transforms.savedTransform.pop()!]);
-            } else {
-                state.transforms.currentTransform = [];
-            } */
         }
         if (fnArray[i] == OPS.transform) {
             state.transforms.currentTransform.push([...argsArray[i]]);
@@ -205,6 +177,7 @@ export async function getOpsInfo(page: any) {
         if (fnArray[i] == OPS.endPath) {
             //即clip
             state.currentAction.push("endPath");
+            state.currentAction.push("clip");
         }
         if (fnArray[i] == OPS.beginText) {
             //即clip
@@ -212,7 +185,7 @@ export async function getOpsInfo(page: any) {
         }
         if (fnArray[i] == OPS.endText) {
             //即clip
-            state.currentAction.push("endText");
+            state.currentAction = state.currentAction.filter(e => !["beginText", "showText"].includes(e));
         }
 
         if (fnArray[i] == OPS.showText) {
@@ -241,65 +214,23 @@ export async function getOpsInfo(page: any) {
                     minMax: minMax,
                 },
                 pageId: page.id,
-                pageLabel: page.pageLabel,
+                pageLabel: pageLabel,
                 fnId: fnArray[i],
                 fnArrayIndex: i,
             };
-            const transform: number[][] = [];
-            for (let j = i - 1; j >= 0; j--) {
-                if (fnArray[j] == 12) {
-                    transform.push([...argsArray[j]]);
-                }
-                //剪切可以有transform
-                if (endMarkersBackward.includes(fnArray[j])) {
-                    break;
-                }
-            }
-            //向前查看是否为 clip 剪切
-            for (let j = i + 1; j < fnArray.length; j++) {
-                if (fnArray[j] == 29) {
-                    pathObj.isClip = true;
-                    break;
-                }
-                if (endMarkersForward.includes(fnArray[j])) {
-                    break;
-                }
-            }
+
             pathObj.transform = JSON.parse(JSON.stringify(state.transforms.currentTransform));
-            //原 pathObj.transform = transform;
             if (isCurve) {
                 pathObj.type = "curve";
-                if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "curve") {
-                    tableDataArr.push([...pathDataArr]);
-                    pathDataArr.length = 0;
-                }
-                //continue;
             }
             if (isLine) {
                 pathObj.type = "line";
-                //如果数组中最后一个对象的类型不是线条，则将数组push到表格中，暂时认为一个表格绘制完毕
-                //但表格可能绘制底纹，绘制矩形，近乎零高矩形方式绘制线段，线段
-                //最后通过是否重叠，相交来处理
-                if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "line") {
-                    tableDataArr.push([...pathDataArr]);
-                    pathDataArr.length = 0;
-                }
             }
             if (isRectangle) {
                 pathObj.type = "rectangle";
-                //矩形宽高
-                /* pathObj.width = fnArgs[2];
-                pathObj.height = fnArgs[3]; */
-                if (pathDataArr.length && pathDataArr.slice(-1)[0].type != "rectangle") {
-                    tableDataArr.push([...pathDataArr]);
-                    pathDataArr.length = 0;
-                }
             }
             pathDataArr.push(pathObj);
         }
-        /* 向后遇到路径绘制结束标志后，之后还可能有同类型绘制，
-        因此，将路径信息对象标记为已绘制，暂存入pathDataArr中，
-        等待给类存入tableDataArr表格数组中 */
         if ([20, 21, 22, 23, 24, 25, 26, 27].includes(fnArray[i])) {
             if (pathDataArr.length) {
                 pathDataArr.slice(-1)[0].isPaint = true;
@@ -313,26 +244,14 @@ export async function getOpsInfo(page: any) {
         74, 75 绘制表单内容
         76,77 成组
         78, 79, 80, 81 注释 */
-        if ([63, 65, 74, 75, 76, 77, 78, 79, 80, 81, 85].includes(fnArray[i])) {
-            if (pathDataArr.length) {
-                tableDataArr.push([...pathDataArr]);
-                pathDataArr.length = 0;
-            }
 
-        }
-        if (i == fnArray.length - 1) {
-            if (pathDataArr.length) {
-                tableDataArr.push([...pathDataArr]);
-                pathDataArr.length = 0;
-            }
-        }
     }
 
     //makeTable
     const tableArrTemp: any[] = [];
-    tableDataArr.forEach((tablePathData: any[]) => {
+    pathDataArr.forEach((tablePathData: any) => {
         const view = page.pdfPage.view;
-        const type = tablePathData[0].type;
+        const type = tablePathData.type;
         //先跳过曲线
         if (type == "curve") { return; }
         const p1sx: number[] = [];
@@ -342,50 +261,50 @@ export async function getOpsInfo(page: any) {
         const tablePathObj: any = {
 
             pageId: page.id,
-            pageLabel: page.pageLabel,
+            pageLabel: pageLabel,
             fnIds: [],
             argsArr: [],
             fnArrayIndexs: [],
 
         };
-        tablePathData.forEach((pathData: any) => {
-            tablePathObj.fnIds.push(pathData.fnId);
-            tablePathObj.fnArrayIndexs.push(pathData.fnArrayIndex);
-            tablePathObj.argsArr.push(pathData.constructPathArgs);
-            //每个路径可能都有自己的transform
-            //如果多个路径共用一个transform，todo
-            const transform: number[][] = JSON.parse(JSON.stringify(pathData.transform));;
-            if (!transform.length) {
-                transform.push([1, 0, 0, 1, 0, 0]);//单位矩阵，坐标保持不变
-            }
-            const args = pathData.constructPathArgs.args;
-            //表格线可以是矩形，参数是起点和宽高,可能不止4个参数
-            if (pathData.type == "rectangle") {
-                for (let i = 0; i < args.length;) {
-                    const x1 = args[i++];
-                    const y1 = args[i++];
-                    const x2 = x1 + args[i++];
-                    const y2 = y1 + args[i++];
-                    let rect: number[] = [x1, y1, x2, y2];
+
+        tablePathObj.fnIds.push(tablePathData.fnId);
+        tablePathObj.fnArrayIndexs.push(tablePathData.fnArrayIndex);
+        tablePathObj.argsArr.push(tablePathData.constructPathArgs);
+        //每个路径可能都有自己的transform
+        //如果多个路径共用一个transform，todo
+        const transform: number[][] = JSON.parse(JSON.stringify(tablePathData.transform));;
+        const args = tablePathData.constructPathArgs.args;
+        //表格线可以是矩形，参数是起点和宽高,可能不止4个参数
+        if (tablePathData.type == "rectangle") {
+            for (let i = 0; i < args.length;) {
+                const x1 = args[i++];
+                const y1 = args[i++];
+                const x2 = x1 + args[i++];
+                const y2 = y1 + args[i++];
+                //逐个应用矩阵变换，如何实现矩阵相乘？
+                let rect: number[] = [x1, y1, x2, y2];
+                if (transform.length) {
                     transform.filter((e: any) => { rect = getPosition(rect, e); });
-                    p1sx.push(rect[0]);
-                    p1sy.push(rect[1]);
-                    p2sx.push(rect[2]);
-                    p2sy.push(rect[3]);
                 }
+                p1sx.push(rect[0]);
+                p1sy.push(rect[1]);
+                p2sx.push(rect[2]);
+                p2sy.push(rect[3]);
             }
-            //直线坐标是两个点
-            if (pathData.type == "line") {
-                for (let i = 0; i < args.length;) {
-                    const x1 = args[i++];
-                    const y1 = args[i++];
-                    let p: number[] = [x1, y1];
-                    transform.filter((e: any) => { p = applyTransform(p, e); });
-                    p1sx.push(p[0]);
-                    p1sy.push(p[1]);
-                }
+        }
+        //直线坐标是两个点
+        if (tablePathData.type == "line") {
+            for (let i = 0; i < args.length;) {
+                const x1 = args[i++];
+                const y1 = args[i++];
+                let p: number[] = [x1, y1];
+                transform.filter((e: any) => { p = applyTransform(p, e); });
+                p1sx.push(p[0]);
+                p1sy.push(p[1]);
             }
-        });
+        }
+
         //同类型路径，各点矩阵变换后的集合，取最大图形
         const rect: number[] = [];
         if (type == "rectangle") {
@@ -412,6 +331,7 @@ export async function getOpsInfo(page: any) {
         tablePathObj.rect_pdf = rect;
         tableArrTemp.push(tablePathObj);
     });
+
     //递归合并 rect
     const tableArr = combineRect(tableArrTemp);
     function combineRect(obj: any[]) {
@@ -429,7 +349,7 @@ export async function getOpsInfo(page: any) {
                 if (!r2.length) {
                     continue;
                 }
-                if (quickIntersectRect(r1, r2) || adjacentRect(r1, r2)) {
+                if (quickIntersectRect(r1, r2) || adjacentRect(r1, r2, 5)) {
                     e.rect_pdf = expandBoundingBox(r1, r2, page.viewport.viewBox) || r2;
                     //删除矩形信息，作为递归
                     obj[i].rect_pdf.length = 0;
@@ -447,13 +367,7 @@ export async function getOpsInfo(page: any) {
         } else {
             return combineRect(newObj);
         }
-
-
-
     }
-
-
-
 
     return {
         imgDataArr: imgDataArr,

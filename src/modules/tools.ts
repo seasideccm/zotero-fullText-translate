@@ -247,19 +247,52 @@ export function quickIntersectRect(r1, r2) {
 	);
 }
 
-export function adjacentRect(r1: number[], r2: number[]) {
+
+
+export function adjacentRect(r1: number[], r2: number[], tolerance?: number) {
+	function correctEdgeOrder(r: number[]) {
+		let temp: number;
+		if (r[0] > r[2]) {
+			temp = r[0];
+			r[0] = r[2];
+			r[2] = temp;
+		}
+		if (r2[1] > r2[3]) {
+			temp = r[1];
+			r[1] = r[3];
+			r[3] = temp;
+		}
+		return r;
+	}
+	r1 = correctEdgeOrder(r1);
+	r2 = correctEdgeOrder(r2);
+	if (!tolerance || tolerance == 0) {
+		return ((
+			r2[0] >= r1[2]
+			|| r2[2] <= r1[0]
+			|| r2[1] >= r1[3]
+			|| r2[3] <= r1[1]
+		) && (
+				r2[0] == r1[2]
+				|| r2[2] == r1[0]
+				|| r2[1] == r1[3]
+				|| r2[3] == r1[1]
+			));
+	} else {
+		return ((
+			r2[0] >= r1[2] + tolerance
+			|| r2[2] <= r1[0] + tolerance
+			|| r2[1] >= r1[3] + tolerance
+			|| r2[3] <= r1[1] + tolerance
+		) && (
+				r2[0] - r1[2] <= tolerance && r2[0] - r1[2] >= 0
+				|| r2[2] - r1[0] <= tolerance && r2[2] - r1[0] >= 0
+				|| r2[1] - r1[3] <= tolerance && r2[1] - r1[3] >= 0
+				|| r2[3] - r1[1] <= tolerance && r2[3] - r1[1] >= 0
+			));
+	}
 	//未考虑负数和旋转
-	return ((
-		r2[0] >= r1[2]
-		|| r2[2] <= r1[0]
-		|| r2[1] >= r1[3]
-		|| r2[3] <= r1[1]
-	) && (
-			r2[0] == r1[2]
-			|| r2[2] == r1[0]
-			|| r2[1] == r1[3]
-			|| r2[3] == r1[1]
-		));
+
 }
 
 export function getPosition(p: number[], m: number[]) {
