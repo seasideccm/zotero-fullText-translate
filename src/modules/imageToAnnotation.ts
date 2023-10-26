@@ -1,4 +1,4 @@
-import { getSortIndex, quickIntersectRect, expandBoundingBox, getPosition } from "./tools";
+import { getSortIndex, quickIntersectRect, expandBoundingBox, getPosition, isExceedBoundary, adjacentRect } from "./tools";
 import { getOpsInfo } from "./imageTableFontInfo";
 import { prepareReader } from "./prepareReader";
 
@@ -9,7 +9,7 @@ export async function imageToAnnotation() {
         const imgDataArr = infoDataArr.imgDataArr;
         const tableArr = infoDataArr.tableArr;
         const pageLabel = page.pageLabel;
-
+        const view = page.pdfPage.view;
         imgDataArr.forEach((imgData: any) => {
             /*pdf坐标系以左下角为（0,0），每个对象均视为单位大小1，
             根据该对象的transform确定坐标系中的位置,
@@ -24,6 +24,11 @@ export async function imageToAnnotation() {
             }
             let rect: number[] = [0, 0, 1, 1];
             transform.filter((e: any) => { rect = getPosition(rect, e); });
+
+            if (isExceedBoundary(rect, view, 3)) {
+                return;
+            }
+
             const positionPdf: any = {
                 rects: [rect],
                 pageIndex: imgData.pageId - 1

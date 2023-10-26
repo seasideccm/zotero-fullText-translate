@@ -1,5 +1,5 @@
 import { frequency } from "./getPdfFullText";
-import { applyTransform, expandBoundingBox, getPosition, quickIntersectRect, adjacentRect } from "./tools";
+import { applyTransform, expandBoundingBox, getPosition, quickIntersectRect, adjacentRect, isExceedBoundary } from "./tools";
 import { OPS } from "../utils/config";
 import { invertKeyValues } from "./tools";
 
@@ -20,6 +20,7 @@ export async function getOpsInfo(page: any) {
     const fnArray: number[] = ops.fnArray;
     const argsArray: any = ops.argsArray;
     const originalTransorm: number[] = [...page.viewport.transform];
+    const view = page.pdfPage.view || page.viewport.viewBox;
     let state: {
         clipRect: number[];
         currentArgs: number[][];
@@ -49,7 +50,7 @@ export async function getOpsInfo(page: any) {
     const stateCache: any[] = [];
     if (fnArray.filter((e: any) => e == 85).length > 100) {
         ztoolkit.log("本页图片太多，可能为矢量图，或者大量小图形，跳过提取");
-        return;
+        //return;
     }
     //stroke: 20, fill: 22, endText: 32, restore 11,
     const endMarkersBackward = [20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
@@ -176,8 +177,10 @@ export async function getOpsInfo(page: any) {
         }
         if (fnArray[i] == OPS.endPath) {
             //即clip
-            state.currentAction.push("endPath");
             state.currentAction.push("clip");
+            if (pathDataArr.length) {
+                pathDataArr.slice(-1)[0].isClip = true;
+            }
         }
         if (fnArray[i] == OPS.beginText) {
             //即clip
@@ -194,7 +197,7 @@ export async function getOpsInfo(page: any) {
         }
 
         if (fnArray[i] == OPS.constructPath) {
-            state.currentAction.push("constructPath");
+
             const args: any = argsArray[i];
             const fn: number[] = args[0];
             const fnArgs: number[] = args[1];
@@ -228,8 +231,21 @@ export async function getOpsInfo(page: any) {
             }
             if (isRectangle) {
                 pathObj.type = "rectangle";
+
             }
-            pathDataArr.push(pathObj);
+            if (state.currentAction.slice(-1)[0] == "clip" && pathDataArr.length && pathDataArr.slice(-1)[0].isClip) {
+                if (pathDataArr.slice(-1)[0].subObj) {
+                    pathDataArr.slice(-1)[0].subObj.push(pathObj);
+                } else {
+                    pathDataArr.slice(-1)[0]["subObj"] = [pathObj];
+                }
+            }
+            else {
+                pathDataArr.push(pathObj);
+                state.currentAction.push("constructPath");
+            }
+
+
         }
         if ([20, 21, 22, 23, 24, 25, 26, 27].includes(fnArray[i])) {
             if (pathDataArr.length) {
@@ -249,8 +265,9 @@ export async function getOpsInfo(page: any) {
 
     //makeTable
     const tableArrTemp: any[] = [];
+
     pathDataArr.forEach((tablePathData: any) => {
-        const view = page.pdfPage.view;
+
         const type = tablePathData.type;
         //先跳过曲线
         if (type == "curve") { return; }
@@ -259,7 +276,7 @@ export async function getOpsInfo(page: any) {
         const p2sx: number[] = [];
         const p2sy: number[] = [];
         const tablePathObj: any = {
-
+            pathData: [tablePathData],
             pageId: page.id,
             pageLabel: pageLabel,
             fnIds: [],
@@ -321,10 +338,7 @@ export async function getOpsInfo(page: any) {
         }
         //接近边界者认为非正文
 
-        if (rect[0] < view[2] * 0.03 || rect[0] > view[2] * 0.97
-            || rect[1] < view[3] * 0.03 || rect[1] > view[3] * 0.97
-            || rect[2] < view[2] * 0.03 || rect[2] > view[2] * 0.97
-            || rect[3] < view[3] * 0.03 || rect[3] > view[3] * 0.97) {
+        if (isExceedBoundary(rect, view, 3)) {
             return;
         }
 
@@ -333,41 +347,9 @@ export async function getOpsInfo(page: any) {
     });
 
     //递归合并 rect
-    const tableArr = combineRect(tableArrTemp);
-    function combineRect(obj: any[]) {
-        obj.forEach((e: any) => {
-            const r1 = e.rect_pdf;
-            if (!r1.length) {
-                return;
-            }
-            for (let i = 0; i < obj.length; i++) {
-                if (e == obj[i] || obj[i].rect_pdf.length == 0) {
-                    i++;
-                    continue;
-                }
-                const r2 = obj[i].rect_pdf;
-                if (!r2.length) {
-                    continue;
-                }
-                if (quickIntersectRect(r1, r2) || adjacentRect(r1, r2, 5)) {
-                    e.rect_pdf = expandBoundingBox(r1, r2, page.viewport.viewBox) || r2;
-                    //删除矩形信息，作为递归
-                    obj[i].rect_pdf.length = 0;
-                    e.fnIds.push(...obj[i].fnIds);
-                    e.fnArrayIndexs.push(...obj[i].fnArrayIndexs);
-                    e.argsArr.push(...obj[i].argsArr);
-                }
-            }
-        });
 
-        const over = obj.filter((e: any) => e.rect_pdf.length == 0);
-        const newObj = obj.filter((e: any) => e.rect_pdf.length);
-        if (!over.length) {
-            return newObj;
-        } else {
-            return combineRect(newObj);
-        }
-    }
+    const tableArr = combineRect(tableArrTemp, view);
+
 
     return {
         imgDataArr: imgDataArr,
@@ -376,6 +358,50 @@ export async function getOpsInfo(page: any) {
         tableArr: tableArr
     };
 }
+
+
+
+/**
+ * 递归合并 rect
+ * @param obj 
+ * @param viewBox 
+ * @returns 
+ */
+export function combineRect(obj: any[], viewBox: number[]) {
+    obj.forEach((e: any) => {
+        const r1 = e.rect_pdf;
+        if (!r1.length) {
+            return;
+        }
+        for (let i = 0; i < obj.length; i++) {
+            if (e == obj[i] || obj[i].rect_pdf.length == 0) {
+                continue;
+            }
+            const r2 = obj[i].rect_pdf;
+            if (!r2.length) {
+                continue;
+            }
+            if (quickIntersectRect(r1, r2) || adjacentRect(r1, r2)) {
+                e.rect_pdf = expandBoundingBox(r1, r2, viewBox) || r2;
+                //删除矩形信息，作为递归
+                obj[i].rect_pdf.length = 0;
+                e.fnIds.push(...obj[i].fnIds);
+                e.fnArrayIndexs.push(...obj[i].fnArrayIndexs);
+                e.argsArr.push(...obj[i].argsArr);
+            }
+        }
+    });
+
+    const over = obj.filter((e: any) => e.rect_pdf.length == 0);
+    const newObj = obj.filter((e: any) => e.rect_pdf.length);
+    if (!over.length) {
+        return newObj;
+    } else {
+        return combineRect(newObj, viewBox);
+    }
+}
+
+
 /**
  * 
  * @param arr 
@@ -625,4 +651,8 @@ function getSpaceBetweenChars(char: any, char2: any) {
         || rotation === 90 && char2.rect[1] - char.rect[3]
         || rotation === 180 && char.rect[0] - char2.rect[2]
         || rotation === 270 && char.rect[1] - char2.rect[3];
+}
+
+function normalizeRect(clip_p1_p2: any[]): any[] {
+    throw new Error("Function not implemented.");
 }

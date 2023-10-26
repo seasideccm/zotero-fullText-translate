@@ -36,6 +36,8 @@ export async function pdfButton() {
     const parent = _window.document.querySelector("#reader-ui .toolbar .end")!;
     const ref = parent.querySelector("#viewFind") as HTMLDivElement;
     const button = ztoolkit.UI.insertElementBefore({
+        enableElementJSONLog: false,
+        enableElementDOMLog: false,
         ignoreIfExists: true,
         namespace: "html",
         tag: "button",

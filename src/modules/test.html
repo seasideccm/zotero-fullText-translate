@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>菜鸟教程(runoob.com)</title>
+    <title>判断矩形是否相邻，允许容差</title>
   </head>
   <body>
     <canvas
@@ -14,22 +14,102 @@
       您的浏览器不支持 HTML5 canvas 标签。
     </canvas>
     <script>
+      function adjacentRect(rect1, rect2, tolerance) {
+        function correctEdgeOrder(rect) {
+          let temp;
+          if (rect[0] > rect[2]) {
+            temp = rect[0];
+            rect[0] = rect[2];
+            rect[2] = temp;
+          }
+          if (rect[1] > rect[3]) {
+            temp = rect[1];
+            rect[1] = rect[3];
+            rect[3] = temp;
+          }
+          return rect;
+        }
+        rect1 = correctEdgeOrder(rect1);
+        rect2 = correctEdgeOrder(rect2);
+        //相交返回false
+        tolerance = tolerance || 0;
+        if (
+          !(
+            rect2[0] > rect1[2] ||
+            rect2[2] < rect1[0] ||
+            rect2[1] > rect1[3] ||
+            rect2[3] < rect1[1]
+          )
+        ) {
+          console.log("相交，不相邻");
+          return false;
+        } else {
+          return !(
+            (rect2[0] >= rect1[2] && rect2[0] - rect1[2] > tolerance) ||
+            (rect2[2] <= rect1[0] && rect1[0] - rect2[2] > tolerance) ||
+            (rect2[1] >= rect1[3] && rect2[1] - rect1[3] > tolerance) ||
+            (rect2[3] <= rect1[1] && rect1[1] - rect2[3] > tolerance)
+          );
+        }
+
+        //未考虑旋转
+      }
+      function correctEdgeOrder(rect) {
+        let temp;
+        if (rect[0] > rect[2]) {
+          temp = rect[0];
+          rect[0] = rect[2];
+          rect[2] = temp;
+        }
+        if (rect[1] > rect[3]) {
+          temp = rect[1];
+          rect[1] = rect[3];
+          rect[3] = temp;
+        }
+        return rect;
+      }
+      function draw(rectPdf, color) {
+        var rect = [
+          rectPdf[0],
+          rectPdf[1],
+          rectPdf[2] - rectPdf[0],
+          rectPdf[3] - rectPdf[1],
+        ];
+        ctx.strokeStyle = color || "green";
+        console.log(ctx.strokeStyle);
+        ctx.strokeRect(...rect);
+        //ctx.rect(...rect);
+        //ctx.stroke();
+      }
       var c = document.getElementById("myCanvas");
       var ctx = c.getContext("2d");
       var tm = [
-        1.0247347448914454, 0, 0, -1.0247347448914454, 0, 819.1422130238748,
+        0.9967320261437909, 0, 0, -0.9967320261437909, 0, 789.4117647058823,
       ];
       ctx.transform(...tm);
-      var rectPdf = [36.851, 263.094, 566.804, 670.552];
-      var rect = [
-        rectPdf[0],
-        rectPdf[1],
-        rectPdf[2] - rectPdf[0],
-        rectPdf[3] - rectPdf[1],
-      ];
+      var rect1 = [65.894, 245.69, 128.755, 245.69];
+      var rect3 = [65.894, 351.952, 293.394, 520.452];
+      var rect2 = [10, 10, 20, 20];
 
-      ctx.rect(...rect);
-      ctx.stroke();
+      var rectPdfArr_color = [
+        { rect: rect1, color: "red" },
+        { rect: rect2, color: "black" },
+        { rect: rect3, color: "blue" },
+      ];
+      rectPdfArr_color.filter((e) => {
+        draw(correctEdgeOrder(e.rect), e.color);
+        console.log(e.color);
+      });
+      var { a, b, c, d, e, f } = ctx.getTransform().invertSelf();
+      var inverseTransform = [a, b, c, d, e, f];
+      console.log(inverseTransform);
+      ctx.transform(...inverseTransform);
+      ctx.font = "30px Georgia";
+      if (adjacentRect(rect1, rect2, 5)) {
+        ctx.strokeText("判断两者相邻", 250, 250);
+      } else {
+        ctx.strokeText("不邻", 250, 250);
+      }
     </script>
   </body>
 </html>

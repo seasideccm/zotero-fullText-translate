@@ -1,4 +1,226 @@
-////@ts-nocheck
+
+
+/**
+ * 
+ * @param rect1  rectangle [x1, y1, x2, y2]
+ * @param rect2  rectangle [x1, y1, x2, y2]
+ * @returns 
+ */
+export function quickIntersectRect(rect1: number[], rect2: number[]) {
+	return !(
+		rect2[0] > rect1[2]
+		|| rect2[2] < rect1[0]
+		|| rect2[1] > rect1[3]
+		|| rect2[3] < rect1[1]
+	);
+}
+
+
+/**
+ * 判断矩形是否相邻，可设定容差，单位 mm
+ * @param rect1 
+ * @param rect2 
+ * @param tolerance_mm 
+ * @returns 
+ */
+export function adjacentRect(rect1: number[], rect2: number[], tolerance_mm?: number) {
+	function correctEdgeOrder(rect: number[]) {
+		let temp: number;
+		if (rect[0] > rect[2]) {
+			temp = rect[0];
+			rect[0] = rect[2];
+			rect[2] = temp;
+		}
+		if (rect[1] > rect[3]) {
+			temp = rect[1];
+			rect[1] = rect[3];
+			rect[3] = temp;
+		}
+		return rect;
+	}
+	rect1 = correctEdgeOrder(rect1);
+	rect2 = correctEdgeOrder(rect2);
+
+	tolerance_mm = tolerance_mm || 0;
+	if (
+		!(
+			rect2[0] > rect1[2] ||
+			rect2[2] < rect1[0] ||
+			rect2[1] > rect1[3] ||
+			rect2[3] < rect1[1]
+		)
+	) {
+		return false;
+	} else {
+		return !(
+			(rect2[0] >= rect1[2] && rect2[0] - rect1[2] > tolerance_mm) ||
+			(rect2[2] <= rect1[0] && rect1[0] - rect2[2] > tolerance_mm) ||
+			(rect2[1] >= rect1[3] && rect2[1] - rect1[3] > tolerance_mm) ||
+			(rect2[3] <= rect1[1] && rect1[1] - rect2[3] > tolerance_mm)
+		);
+	}
+
+	//未考虑旋转
+
+}
+
+/**
+ * 
+ * @param rect 
+ * @param view 
+ * @param percent 0-100
+ * @returns 
+ */
+export function isExceedBoundary(rect: number[], view: number[], percent: number) {
+	percent = percent / 100;
+	return (rect[0] < view[2] * percent || rect[0] > view[2] * (1 - percent)
+		|| rect[1] < view[3] * percent || rect[1] > view[3] * (1 - percent)
+		|| rect[2] < view[2] * percent || rect[2] > view[2] * (1 - percent)
+		|| rect[3] < view[3] * percent || rect[3] > view[3] * (1 - percent));
+}
+
+
+
+
+
+/**
+ * 
+ * @param p pdfPoint([x1,y1,x2,y2])
+ * @param m transform
+ * @returns pdfRect([x1,y1,x2,y2])
+ */
+export function getPosition(p: number[], m: number[]) {
+	const p1 = applyTransform([p[0], p[1]], m);
+	const p2 = applyTransform([p[2], p[3]], m);
+	return [p1[0], p1[1], p2[0], p2[1]];
+}
+
+
+/**
+ * 拓展两个矩形的边界 如果坐标超出边界，取边界值
+ * @param r1 
+ * @param rect2 
+ * @param page 
+ * @returns 
+ */
+export function expandBoundingBox(rect1: number[], rect2: number[], viewBox: number[]) {
+	/* let [left, bottom, right, top] = page.originalPage.viewport.viewBox;
+	originalPage==pageView==_pages[i]
+	F:\zotero\zotero-client\reader\src\pdf\pdf-view.js */
+	const [left, bottom, right, top] = viewBox;
+	const rect: number[] = [];
+	rect[0] = Math.max(Math.min(rect1[0], rect2[0]), left);
+	rect[1] = Math.max(Math.min(rect1[1], rect2[1]), bottom);
+	rect[2] = Math.min(Math.max(rect1[2], rect2[2]), right);
+	rect[3] = Math.min(Math.max(rect1[3], rect2[3]), top);
+	//rect.push(r0, rect1, rect2, rect3);
+
+	return [Math.max(Math.min(rect1[0], rect2[0]), left),
+	Math.max(Math.min(rect1[1], rect2[1]), bottom),
+	Math.min(Math.max(rect1[2], rect2[2]), right),
+	Math.min(Math.max(rect1[3], rect2[3]), top)];
+}
+
+
+
+export function updateCurvePathMinMax(transform: number[], x0: number, y0: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, minMax: number[]) {
+	const box = bezierBoundingBox(x0, y0, x1, y1, x2, y2, x3, y3);
+	if (minMax) {
+		minMax[0] = Math.min(minMax[0], box[0], box[2]);
+		minMax[1] = Math.max(minMax[1], box[0], box[2]);
+		minMax[2] = Math.min(minMax[2], box[1], box[3]);
+		minMax[3] = Math.max(minMax[3], box[1], box[3]);
+		return;
+	}
+	this.updateRectMinMax(transform, box);
+}
+function updateRectMinMax(transform, rect) {
+	const p1 = Util.applyTransform(rect, transform);
+	const p2 = Util.applyTransform(rect.slice(2), transform);
+	this.minX = Math.min(this.minX, p1[0], p2[0]);
+	this.minY = Math.min(this.minY, p1[1], p2[1]);
+	this.maxX = Math.max(this.maxX, p1[0], p2[0]);
+	this.maxY = Math.max(this.maxY, p1[1], p2[1]);
+}
+
+function bezierBoundingBox(x0: number, y0: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
+	const tvalues = [],
+		bounds: number[][] = [[], []];
+	let a, b, c, t, t1, t2, b2ac, sqrtb2ac;
+	for (let i = 0; i < 2; ++i) {
+		if (i === 0) {
+			b = 6 * x0 - 12 * x1 + 6 * x2;
+			a = -3 * x0 + 9 * x1 - 9 * x2 + 3 * x3;
+			c = 3 * x1 - 3 * x0;
+		} else {
+			b = 6 * y0 - 12 * y1 + 6 * y2;
+			a = -3 * y0 + 9 * y1 - 9 * y2 + 3 * y3;
+			c = 3 * y1 - 3 * y0;
+		}
+		if (Math.abs(a) < 1e-12) {
+			if (Math.abs(b) < 1e-12) {
+				continue;
+			}
+			t = -c / b;
+			if (0 < t && t < 1) {
+				tvalues.push(t);
+			}
+			continue;
+		}
+		b2ac = b * b - 4 * c * a;
+		sqrtb2ac = Math.sqrt(b2ac);
+		if (b2ac < 0) {
+			continue;
+		}
+		t1 = (-b + sqrtb2ac) / (2 * a);
+		if (0 < t1 && t1 < 1) {
+			tvalues.push(t1);
+		}
+		t2 = (-b - sqrtb2ac) / (2 * a);
+		if (0 < t2 && t2 < 1) {
+			tvalues.push(t2);
+		}
+	}
+
+	let j = tvalues.length,
+		mt;
+	const jlen = j;
+	while (j--) {
+		t = tvalues[j];
+		mt = 1 - t;
+		bounds[0][j] =
+			mt * mt * mt * x0 +
+			3 * mt * mt * t * x1 +
+			3 * mt * t * t * x2 +
+			t * t * t * x3;
+		bounds[1][j] =
+			mt * mt * mt * y0 +
+			3 * mt * mt * t * y1 +
+			3 * mt * t * t * y2 +
+			t * t * t * y3;
+	}
+
+	bounds[0][jlen] = x0;
+	bounds[1][jlen] = y0;
+	bounds[0][jlen + 1] = x3;
+	bounds[1][jlen + 1] = y3;
+	bounds[0].length = bounds[1].length = jlen + 2;
+
+	return [
+		Math.min(...bounds[0]),
+		Math.min(...bounds[1]),
+		Math.max(...bounds[0]),
+		Math.max(...bounds[1]),
+	];
+}
+
+
+
+
+
+
+
+
 export function getSortIndex(pdfPages: any, position: any) {
 	const { pageIndex } = position;
 	let offset = 0;
@@ -243,124 +465,31 @@ export function intersect(rect1: number[], rect2: number[]) {
 	return [xLow, yLow, xHigh, yHigh];
 }
 
-/**
- * 
- * @param rect1  rectangle [x1, y1, x2, y2]
- * @param rect2  rectangle [x1, y1, x2, y2]
- * @returns 
- */
-export function quickIntersectRect(rect1: number[], rect2: number[]) {
-	return !(
-		rect2[0] > rect1[2]
-		|| rect2[2] < rect1[0]
-		|| rect2[1] > rect1[3]
-		|| rect2[3] < rect1[1]
-	);
-}
 
 
 
-export function adjacentRect(rect1: number[], rect2: number[], tolerance?: number) {
-	function correctEdgeOrder(rect: numberect[]) {
-		let temp: number;
-		if (rect[0] > rect[2]) {
-			temp = rect[0];
-			rect[0] = rect[2];
-			rect[2] = temp;
-		}
-		if (rect[1] > rect[3]) {
-			temp = rect[1];
-			rect[1] = rect[3];
-			rect[3] = temp;
-		}
-		return rect;
-	}
-	rect1 = correctEdgeOrder(rect1);
-	rect2 = correctEdgeOrder(rect2);
-	if (!tolerance || tolerance == 0) {
-		return ((
-			rect2[0] >= rect1[2]
-			|| rect2[2] <= rect1[0]
-			|| rect2[1] >= rect1[3]
-			|| rect2[3] <= rect1[1]
-		) && (
-				rect2[0] == rect1[2]
-				|| rect2[2] == rect1[0]
-				|| rect2[1] == rect1[3]
-				|| rect2[3] == rect1[1]
-			));
-	} else {
-		return ((
-			rect2[0] >= rect1[2] + tolerance
-			|| rect2[2] <= rect1[0] + tolerance
-			|| rect2[1] >= rect1[3] + tolerance
-			|| rect2[3] <= rect1[1] + tolerance
-		) && (
-				rect2[0] - rect1[2] <= tolerance && rect2[0] - rect1[2] >= 0
-				|| rect2[2] - rect1[0] <= tolerance && rect2[2] - rect1[0] >= 0
-				|| rect2[1] - rect1[3] <= tolerance && rect2[1] - rect1[3] >= 0
-				|| rect2[3] - rect1[1] <= tolerance && rect2[3] - rect1[1] >= 0
-			));
-	}
-	//未考虑负数和旋转
-
-}
-
-export function getPosition(p: number[], m: number[]) {
-	const p1 = applyTransform([p[0], p[1]], m);
-	const p2 = applyTransform([p[2], p[3]], m);
-	return [p1[0], p1[1], p2[0], p2[1]];
-}
-
-
-/**
- * 拓展两个矩形的边界 如果坐标超出边界，取边界值
- * @param r1 
- * @param rect2 
- * @param page 
- * @returns 
- */
-export function expandBoundingBox(rect1: number[], rect2: number[], viewBox: number[]) {
-	/* let [left, bottom, right, top] = page.originalPage.viewport.viewBox;
-	originalPage==pageView==_pages[i]
-	F:\zotero\zotero-client\reader\src\pdf\pdf-view.js */
-	const [left, bottom, right, top] = viewBox;
-	const rect: number[] = [];
-	rect[0] = Math.max(Math.min(rect1[0], rect2[0]), left);
-	rect[1] = Math.max(Math.min(rect1[1], rect2[1]), bottom);
-	rect[2] = Math.min(Math.max(rect1[2], rect2[2]), right);
-	rect[3] = Math.min(Math.max(rect1[3], rect2[3]), top);
-	//rect.push(r0, r1, rect2, rect3);
-
-	return [Math.max(Math.min(r1[0], rect2[0]), left),
-	Math.max(Math.min(r1[1], rect2[1]), bottom),
-	Math.min(Math.max(r1[2], rect2[2]), right),
-	Math.min(Math.max(r1[3], rect2[3]), top)];
-}
-
-
-function charHeight(char) {
+function charHeight(char: any) {
 	return ([0, 180].includes(char.rotation) && char.rect[3] - char.rect[1]
 		|| [90, 270].includes(char.rotation) && char.rect[2] - char.rect[0]);
 }
 
-function getBoundingRect(objs, from, to) {
+function getBoundingRect(objs: any, from: number, to: number) {
 	const objs2 = objs.slice(from, to + 1);
 	return [
-		Math.min(...objs2.map(x => x.rect[0])),
-		Math.min(...objs2.map(x => x.rect[1])),
-		Math.max(...objs2.map(x => x.rect[2])),
-		Math.max(...objs2.map(x => x.rect[3])),
+		Math.min(...objs2.map((x: any) => x.rect[0])),
+		Math.min(...objs2.map((x: any) => x.rect[1])),
+		Math.max(...objs2.map((x: any) => x.rect[2])),
+		Math.max(...objs2.map((x: any) => x.rect[3])),
 	];
 }
 
-function roundRect(rect) {
+function roundRect(rect: number[]) {
 	return rect.map(n => Math.round(n * 1000) / 1000);
 }
 
 
-export const invertKeyValues = obj =>
-	Object.keys(obj).reduce((acc, key) => {
+export const invertKeyValues = (obj: any) =>
+	Object.keys(obj).reduce((acc: any, key: string) => {
 		acc[obj[key]] = key;
 		return acc;
 	}, {});
