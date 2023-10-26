@@ -1,4 +1,4 @@
-//@ts-nocheck
+////@ts-nocheck
 export function getSortIndex(pdfPages: any, position: any) {
 	const { pageIndex } = position;
 	let offset = 0;
@@ -6,7 +6,7 @@ export function getSortIndex(pdfPages: any, position: any) {
 	if (pdfPages[position.pageIndex]) {
 		const chars = getFlattenedCharsByIndex(pdfPages, position.pageIndex);
 		const viewBox = pdfPages[position.pageIndex].viewBox;
-		const rect = getPositionBoundingRect(position);
+		const rect = getPositionBoundingRect(position)!;
 		offset = chars.length && getClosestOffset(chars, rect) || 0;
 		const pageHeight = viewBox[3] - viewBox[1];
 		top = pageHeight - rect[3];
@@ -21,12 +21,12 @@ export function getSortIndex(pdfPages: any, position: any) {
 	].join('|');
 }
 
-function getFlattenedCharsByIndex(pdfPages, pageIndex) {
+function getFlattenedCharsByIndex(pdfPages: any[], pageIndex: number) {
 	const structuredText = pdfPages[pageIndex].structuredText;
 	return flattenChars(structuredText);
 }
 
-function getClosestOffset(chars, rect) {
+function getClosestOffset(chars: any, rect: number[]) {
 	let dist = Infinity;
 	let idx = 0;
 	for (let i = 0; i < chars.length; i++) {
@@ -41,7 +41,7 @@ function getClosestOffset(chars, rect) {
 }
 
 
-export function flattenChars(structuredText) {
+export function flattenChars(structuredText: any) {
 	const flatCharsArray = [];
 	for (const paragraph of structuredText.paragraphs) {
 		for (const line of paragraph.lines) {
@@ -56,7 +56,7 @@ export function flattenChars(structuredText) {
 }
 
 
-export function getPositionBoundingRect(position, pageIndex?) {
+export function getPositionBoundingRect(position: any, pageIndex?: number) {
 	// Use nextPageRects
 	if (position.rects) {
 		let rects = position.rects;
@@ -78,10 +78,10 @@ export function getPositionBoundingRect(position, pageIndex?) {
 			];
 		}
 		return [
-			Math.min(...rects.map(x => x[0])),
-			Math.min(...rects.map(x => x[1])),
-			Math.max(...rects.map(x => x[2])),
-			Math.max(...rects.map(x => x[3]))
+			Math.min(...rects.map((x: number[]) => x[0])),
+			Math.min(...rects.map((x: number[]) => x[1])),
+			Math.max(...rects.map((x: number[]) => x[2])),
+			Math.max(...rects.map((x: number[]) => x[3]))
 		];
 	}
 	else if (position.paths) {
@@ -102,8 +102,15 @@ export function getPositionBoundingRect(position, pageIndex?) {
 	}
 }
 
-export function getRotationTransform(rect, degrees) {
-	degrees = degrees * Math.PI / 180;
+/**
+ * 计算给定矩形和角度的旋转变换矩阵。
+ * 一个圆是360度，2pai弧度.弧度用弧长与半径的比值来表示
+ * @param rect 
+ * @param degrees 
+ * @returns 
+ */
+export function getRotationTransform(rect: number[], degrees: number) {
+	degrees = degrees * Math.PI / 180;//角度转换为弧度
 	const cosValue = Math.cos(degrees);
 	const sinValue = Math.sin(degrees);
 	const m = [cosValue, sinValue, -sinValue, cosValue, 0, 0];
@@ -120,7 +127,12 @@ export function getRotationTransform(rect, degrees) {
 	return m;
 }
 
-function normalizeRect(rect) {
+/**
+ * 规范化矩形
+ * @param rect 
+ * @returns 
+ */
+function normalizeRect(rect: number[]) {
 	const r = rect.slice(0); // clone rect
 	if (rect[0] > rect[2]) {
 		r[0] = rect[2];
@@ -133,7 +145,7 @@ function normalizeRect(rect) {
 	return r;
 }
 
-export function getAxialAlignedBoundingBox(r, m) {
+export function getAxialAlignedBoundingBox(r: number[], m: number[]) {
 	const p1 = applyTransform(r, m);
 	const p2 = applyTransform(r.slice(2, 4), m);
 	const p3 = applyTransform([r[0], r[3]], m);
@@ -146,21 +158,14 @@ export function getAxialAlignedBoundingBox(r, m) {
 	];
 }
 
-export function applyTransform(p, m) {
+export function applyTransform(p: number[], m: number[]) {
 	const xt = p[0] * m[0] + p[1] * m[2] + m[4];
 	const yt = p[0] * m[1] + p[1] * m[3] + m[5];
 	return [xt, yt];
 }
 
-/* const p1 = [0, 0];
-const p2 = [335.5, 28.25];
-const transform = [1, 0, 0, 1, 169.25, 673.5];
-const pp1 = applyTransform(p1, transform);
-const pp2 = applyTransform(p2, transform);
-console.log(pp1);
-console.log(pp2); */
 
-function rectsDist([ax1, ay1, ax2, ay2], [bx1, by1, bx2, by2]) {
+function rectsDist([ax1, ay1, ax2, ay2]: number[], [bx1, by1, bx2, by2]: number[],) {
 	const left = bx2 < ax1;
 	const right = ax2 < bx1;
 	const bottom = by2 < ay1;
@@ -195,7 +200,7 @@ function rectsDist([ax1, ay1, ax2, ay2], [bx1, by1, bx2, by2]) {
 }
 
 
-export function overlaps(rect1, rect2, rotation) {
+export function overlaps(rect1: number[], rect2: number[], rotation: number) {
 	if ([0, 180].includes(rotation)) {
 		return (rect1[1] <= rect2[1] && rect2[1] <= rect1[3]
 			|| rect2[1] <= rect1[1] && rect1[1] <= rect2[3]);
@@ -211,7 +216,7 @@ export function overlaps(rect1, rect2, rotation) {
 // The rectangle coordinates of rect1, rect2 should be [x1, y1, x2, y2]
 //两个矩形相交 const rect1=[0,0,10,10]，const rect2 =[5,5,15,15]
 //得到 [5, 5, 10, 10]
-export function intersect(rect1, rect2) {
+export function intersect(rect1: number[], rect2: number[]) {
 	const xLow = Math.max(
 		Math.min(rect1[0], rect1[2]),
 		Math.min(rect2[0], rect2[2])
@@ -238,57 +243,63 @@ export function intersect(rect1, rect2) {
 	return [xLow, yLow, xHigh, yHigh];
 }
 
-export function quickIntersectRect(r1, r2) {
+/**
+ * 
+ * @param rect1  rectangle [x1, y1, x2, y2]
+ * @param rect2  rectangle [x1, y1, x2, y2]
+ * @returns 
+ */
+export function quickIntersectRect(rect1: number[], rect2: number[]) {
 	return !(
-		r2[0] > r1[2]
-		|| r2[2] < r1[0]
-		|| r2[1] > r1[3]
-		|| r2[3] < r1[1]
+		rect2[0] > rect1[2]
+		|| rect2[2] < rect1[0]
+		|| rect2[1] > rect1[3]
+		|| rect2[3] < rect1[1]
 	);
 }
 
 
 
-export function adjacentRect(r1: number[], r2: number[], tolerance?: number) {
-	function correctEdgeOrder(r: number[]) {
+export function adjacentRect(rect1: number[], rect2: number[], tolerance?: number) {
+	function correctEdgeOrder(rect: numberect[]) {
 		let temp: number;
-		if (r[0] > r[2]) {
-			temp = r[0];
-			r[0] = r[2];
-			r[2] = temp;
+		if (rect[0] > rect[2]) {
+			temp = rect[0];
+			rect[0] = rect[2];
+			rect[2] = temp;
 		}
-		if (r2[1] > r2[3]) {
-			temp = r[1];
-			r[1] = r[3];
-			r[3] = temp;
+		if (rect[1] > rect[3]) {
+			temp = rect[1];
+			rect[1] = rect[3];
+			rect[3] = temp;
 		}
-		return r;
+		return rect;
 	}
-	r1 = correctEdgeOrder(r1);
-	r2 = correctEdgeOrder(r2);
+	rect1 = correctEdgeOrder(rect1);
+	rect2 = correctEdgeOrder(rect2);
 	if (!tolerance || tolerance == 0) {
 		return ((
-			r2[0] >= r1[2]
-			|| r2[2] <= r1[0]
-			|| r2[1] >= r1[3]
-			|| r2[3] <= r1[1]
+			rect2[0] >= rect1[2]
+			|| rect2[2] <= rect1[0]
+			|| rect2[1] >= rect1[3]
+			|| rect2[3] <= rect1[1]
 		) && (
-				r2[0] == r1[2]
-				|| r2[2] == r1[0]
-				|| r2[1] == r1[3]
-				|| r2[3] == r1[1]
+				rect2[0] == rect1[2]
+				|| rect2[2] == rect1[0]
+				|| rect2[1] == rect1[3]
+				|| rect2[3] == rect1[1]
 			));
 	} else {
 		return ((
-			r2[0] >= r1[2] + tolerance
-			|| r2[2] <= r1[0] + tolerance
-			|| r2[1] >= r1[3] + tolerance
-			|| r2[3] <= r1[1] + tolerance
+			rect2[0] >= rect1[2] + tolerance
+			|| rect2[2] <= rect1[0] + tolerance
+			|| rect2[1] >= rect1[3] + tolerance
+			|| rect2[3] <= rect1[1] + tolerance
 		) && (
-				r2[0] - r1[2] <= tolerance && r2[0] - r1[2] >= 0
-				|| r2[2] - r1[0] <= tolerance && r2[2] - r1[0] >= 0
-				|| r2[1] - r1[3] <= tolerance && r2[1] - r1[3] >= 0
-				|| r2[3] - r1[1] <= tolerance && r2[3] - r1[1] >= 0
+				rect2[0] - rect1[2] <= tolerance && rect2[0] - rect1[2] >= 0
+				|| rect2[2] - rect1[0] <= tolerance && rect2[2] - rect1[0] >= 0
+				|| rect2[1] - rect1[3] <= tolerance && rect2[1] - rect1[3] >= 0
+				|| rect2[3] - rect1[1] <= tolerance && rect2[3] - rect1[1] >= 0
 			));
 	}
 	//未考虑负数和旋转
@@ -305,26 +316,26 @@ export function getPosition(p: number[], m: number[]) {
 /**
  * 拓展两个矩形的边界 如果坐标超出边界，取边界值
  * @param r1 
- * @param r2 
+ * @param rect2 
  * @param page 
  * @returns 
  */
-export function expandBoundingBox(r1, r2, viewBox) {
+export function expandBoundingBox(rect1: number[], rect2: number[], viewBox: number[]) {
 	/* let [left, bottom, right, top] = page.originalPage.viewport.viewBox;
 	originalPage==pageView==_pages[i]
 	F:\zotero\zotero-client\reader\src\pdf\pdf-view.js */
 	const [left, bottom, right, top] = viewBox;
 	const rect: number[] = [];
-	const rect0 = Math.max(Math.min(r1[0], r2[0]), left);
-	const rect1 = Math.max(Math.min(r1[1], r2[1]), bottom);
-	const rect2 = Math.min(Math.max(r1[2], r2[2]), right);
-	const rect3 = Math.min(Math.max(r1[3], r2[3]), top);
-	rect.push(rect0, rect1, rect2, rect3);
+	rect[0] = Math.max(Math.min(rect1[0], rect2[0]), left);
+	rect[1] = Math.max(Math.min(rect1[1], rect2[1]), bottom);
+	rect[2] = Math.min(Math.max(rect1[2], rect2[2]), right);
+	rect[3] = Math.min(Math.max(rect1[3], rect2[3]), top);
+	//rect.push(r0, r1, rect2, rect3);
 
-	return [Math.max(Math.min(r1[0], r2[0]), left),
-	Math.max(Math.min(r1[1], r2[1]), bottom),
-	Math.min(Math.max(r1[2], r2[2]), right),
-	Math.min(Math.max(r1[3], r2[3]), top)];
+	return [Math.max(Math.min(r1[0], rect2[0]), left),
+	Math.max(Math.min(r1[1], rect2[1]), bottom),
+	Math.min(Math.max(r1[2], rect2[2]), right),
+	Math.min(Math.max(r1[3], rect2[3]), top)];
 }
 
 

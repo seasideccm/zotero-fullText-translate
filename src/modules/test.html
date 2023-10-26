@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>菜鸟教程(runoob.com)</title>
+  </head>
+  <body>
+    <canvas
+      id="myCanvas"
+      width="612"
+      height="820"
+      style="border: 1px solid #d3d3d3"
+    >
+      您的浏览器不支持 HTML5 canvas 标签。
+    </canvas>
+    <script>
+      var c = document.getElementById("myCanvas");
+      var ctx = c.getContext("2d");
+      var tm = [
+        1.0247347448914454, 0, 0, -1.0247347448914454, 0, 819.1422130238748,
+      ];
+      ctx.transform(...tm);
+      var rectPdf = [36.851, 263.094, 566.804, 670.552];
+      var rect = [
+        rectPdf[0],
+        rectPdf[1],
+        rectPdf[2] - rectPdf[0],
+        rectPdf[3] - rectPdf[1],
+      ];
+
+      ctx.rect(...rect);
+      ctx.stroke();
+    </script>
+  </body>
+</html>
