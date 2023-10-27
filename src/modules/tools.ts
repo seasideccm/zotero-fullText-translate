@@ -123,7 +123,7 @@ export function expandBoundingBox(rect1: number[], rect2: number[], viewBox: num
 
 
 
-export function updateCurvePathMinMax(transform: number[], x0: number, y0: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, minMax: number[]) {
+export function updateCurvePathMinMax(x0: number, y0: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, minMax: number[]) {
 	const box = bezierBoundingBox(x0, y0, x1, y1, x2, y2, x3, y3);
 	if (minMax) {
 		minMax[0] = Math.min(minMax[0], box[0], box[2]);
@@ -132,16 +132,16 @@ export function updateCurvePathMinMax(transform: number[], x0: number, y0: numbe
 		minMax[3] = Math.max(minMax[3], box[1], box[3]);
 		return;
 	}
-	this.updateRectMinMax(transform, box);
+	// , transform?: number[] this.updateRectMinMax(transform, box);
 }
-function updateRectMinMax(transform, rect) {
+/* function updateRectMinMax(transform, rect) {
 	const p1 = Util.applyTransform(rect, transform);
 	const p2 = Util.applyTransform(rect.slice(2), transform);
 	this.minX = Math.min(this.minX, p1[0], p2[0]);
 	this.minY = Math.min(this.minY, p1[1], p2[1]);
 	this.maxX = Math.max(this.maxX, p1[0], p2[0]);
 	this.maxY = Math.max(this.maxY, p1[1], p2[1]);
-}
+} */
 
 function bezierBoundingBox(x0: number, y0: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
 	const tvalues = [],

@@ -24,7 +24,7 @@ export async function getOpsInfo(page: any) {
     let state: {
         clipRect: number[];
         currentArgs: number[][];
-        currentAction: string[];
+        currentAction: string;
         savedTimes: number;
         restoreTimes: number;
         transforms: {
@@ -36,7 +36,7 @@ export async function getOpsInfo(page: any) {
         };
     } = {
         currentArgs: [],
-        currentAction: [],
+        currentAction: '',
         savedTimes: 0,
         restoreTimes: 0,
         clipRect: [],
@@ -65,8 +65,22 @@ export async function getOpsInfo(page: any) {
                 ztoolkit.log("调用成功");
             },
         }; */
-
+    function jumpAction(i: number, fnArray: any[], endAction: string, firsBeginMarker: string, secondBeginMarker: string) {
+        let j = i + 1;
+        for (; j < fnArray.length; j++) {
+            if (fnArray[j] == OPS[endAction as keyof typeof OPS]) {
+                return j + 1;
+            } else if (OPS[secondBeginMarker as keyof typeof OPS]) {
+                const temp = firsBeginMarker;
+                firsBeginMarker = secondBeginMarker;
+                secondBeginMarker = temp;
+                return jumpAction(j, fnArray, endAction, firsBeginMarker, secondBeginMarker);
+            }
+        }
+        return j + 1;
+    }
     for (let i = 0; i < fnArray.length; i++) {
+        /* if (state.currentAction == "clip") */
         /*         const fnId = fnArray[i];
                 if (fnId == OPS.dependency) {
                     continue;
@@ -158,42 +172,66 @@ export async function getOpsInfo(page: any) {
         if (fnArray[i] == OPS.transform) {
             state.transforms.currentTransform.push([...argsArray[i]]);
         }
-        if (fnArray[i] == OPS.paintFormXObjectBegin) {
-            state.savedTimes += 1;
-            stateCache.push(JSON.parse(JSON.stringify(state)));
-            if (Array.isArray(argsArray[i][0]) && argsArray[i][0].length == 6) {
-                state.transforms.currentTransform.push([...argsArray[i][0]]);
+        if (fnArray[i] == OPS.beginMarkedContent) {
+            for (let j = i + 1; j < fnArray.length; j++) {
+                if (fnArray[i] == OPS.endMarkedContent) {
+                    return j + 1;
+                } else if (fnArray[i] == OPS.beginMarkedContentProps) {
+
+                }
             }
-            state.currentAction.push("paintFormXObjectBegin");
-            const rect = [...argsArray[i][1]];
-            if (rect) {
-                state.currentAction.push("clip");
-                state.clipRect = rect;
-            }
-        }
-        if (fnArray[i] == OPS.paintFormXObjectEnd) {
-            state = stateCache.pop();
-            state.savedTimes -= 1;
+            i = jumpAction(i, fnArray, "endMarkedContent");
         }
         if (fnArray[i] == OPS.endPath) {
-            //即clip
-            state.currentAction.push("clip");
+
+            //endPath() { this.consumePath();}
+            //即根据 consumePath的路径新建一个 clip，之后的内容只能显示在 clip 范围内
             if (pathDataArr.length) {
-                pathDataArr.slice(-1)[0].isClip = true;
+                if (pathDataArr.slice(-1)[0].isClip == true) {
+                    //剪切套剪接，状态缓存可以保存和还原，判断二次剪切，保存为子对象
+                    //还原后为 clip
+                    state.currentAction = "clipSecond";
+                } else {
+                    state.currentAction = "clip";
+                    pathDataArr.slice(-1)[0].isClip = true;
+                }
+                //如果事先没有路径，也就不会有剪切
             }
         }
         if (fnArray[i] == OPS.beginText) {
-            //即clip
-            state.currentAction.push("beginText");
-        }
-        if (fnArray[i] == OPS.endText) {
-            //即clip
-            state.currentAction = state.currentAction.filter(e => !["beginText", "showText"].includes(e));
+            //跳过
+            for (let j = i + 1; j < fnArray.length; j++) {
+                if (fnArray[j] == OPS.endText) {
+                    i = j + 1;
+                    break;
+                }
+            }
+
+
         }
 
-        if (fnArray[i] == OPS.showText) {
-            //即clip
-            state.currentAction.push("showText");
+        if (fnArray[i] == OPS.beginAnnotation) {
+            //在页面绘制完成后进行，也是 clip
+            //向前跳过该操作
+            for (let j = i + 1; j < fnArray.length; j++) {
+                if (fnArray[j] == OPS.endAnnotation) {
+                    i = j + 1;
+                    break;
+                }
+            }
+        }
+        if (fnArray[i] == OPS.setCharWidthAndBounds) {
+            continue;
+            //clip 四种情况：endPath()，其他三种情况在函数 setCharWidthAndBounds，beginAnnotation，paintFormXObjectBegin中
+        }
+        if (fnArray[i] == OPS.paintFormXObjectBegin) {
+            //向前跳过该操作
+            for (let j = i + 1; j < fnArray.length; j++) {
+                if (fnArray[j] == OPS.paintFormXObjectEnd) {
+                    i = j + 1;
+                    break;
+                }
+            }
         }
 
         if (fnArray[i] == OPS.constructPath) {
@@ -233,7 +271,7 @@ export async function getOpsInfo(page: any) {
                 pathObj.type = "rectangle";
 
             }
-            if (state.currentAction.slice(-1)[0] == "clip" && pathDataArr.length && pathDataArr.slice(-1)[0].isClip) {
+            if (state.currentAction.includes("clip") && pathDataArr.length && pathDataArr.slice(-1)[0].isClip) {
                 if (pathDataArr.slice(-1)[0].subObj) {
                     pathDataArr.slice(-1)[0].subObj.push(pathObj);
                 } else {
@@ -242,7 +280,7 @@ export async function getOpsInfo(page: any) {
             }
             else {
                 pathDataArr.push(pathObj);
-                state.currentAction.push("constructPath");
+                state.currentAction = "constructPath";
             }
 
 
