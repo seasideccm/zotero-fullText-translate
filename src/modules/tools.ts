@@ -68,15 +68,15 @@ export function adjacentRect(rect1: number[], rect2: number[], tolerance_mm?: nu
  * 
  * @param rect 
  * @param view 
- * @param percent 0-100
+ * @param tolerancePercent 0-100
  * @returns 
  */
-export function isExceedBoundary(rect: number[], view: number[], percent: number) {
-	percent = percent / 100;
-	return (rect[0] < view[2] * percent || rect[0] > view[2] * (1 - percent)
-		|| rect[1] < view[3] * percent || rect[1] > view[3] * (1 - percent)
-		|| rect[2] < view[2] * percent || rect[2] > view[2] * (1 - percent)
-		|| rect[3] < view[3] * percent || rect[3] > view[3] * (1 - percent));
+export function isExceedBoundary(rect: number[], view: number[], tolerancePercent: number) {
+	tolerancePercent = tolerancePercent / 100;
+	return (rect[0] < view[2] * tolerancePercent || rect[0] > view[2] * (1 - tolerancePercent)
+		|| rect[1] < view[3] * tolerancePercent || rect[1] > view[3] * (1 - tolerancePercent)
+		|| rect[2] < view[2] * tolerancePercent || rect[2] > view[2] * (1 - tolerancePercent)
+		|| rect[3] < view[3] * tolerancePercent || rect[3] > view[3] * (1 - tolerancePercent));
 }
 
 
@@ -90,6 +90,9 @@ export function isExceedBoundary(rect: number[], view: number[], percent: number
  * @returns pdfRect([x1,y1,x2,y2])
  */
 export function getPosition(p: number[], m: number[]) {
+	if (!m || !m.length) {
+		m = [1, 0, 0, 1, 0, 0];
+	}
 	const p1 = applyTransform([p[0], p[1]], m);
 	const p2 = applyTransform([p[2], p[3]], m);
 	return [p1[0], p1[1], p2[0], p2[1]];
@@ -493,3 +496,4 @@ export const invertKeyValues = (obj: any) =>
 		acc[obj[key]] = key;
 		return acc;
 	}, {});
+

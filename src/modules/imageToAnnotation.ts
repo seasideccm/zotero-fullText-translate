@@ -7,9 +7,11 @@ export async function imageToAnnotation() {
     for (const page of pages) {
         const infoDataArr = await getOpsInfo(page);
         const imgDataArr = infoDataArr.imgDataArr;
+        const imgClips = infoDataArr.imgClips;
         const tableArr = infoDataArr.tableArr;
-        const pageLabel = page.pageLabel;
+        const pageLabel = page.pageLabel || page.id;
         const view = page.pdfPage.view;
+        const rect_pdfs: number[][] = [];
         imgDataArr.forEach((imgData: any) => {
             /*pdf坐标系以左下角为（0,0），每个对象均视为单位大小1，
             根据该对象的transform确定坐标系中的位置,
@@ -19,27 +21,27 @@ export async function imageToAnnotation() {
             //初始rect,如果有多个transform则依次应用，顺序不能乱，
             //每次返回rect，重新对rect赋值
             const transform: number[][] = JSON.parse(JSON.stringify(imgData.transform));
-            if (!transform.length) {
-                transform.push([1, 0, 0, 1, 0, 0]);
-            }
             let rect: number[] = [0, 0, 1, 1];
-            transform.filter((e: any) => { rect = getPosition(rect, e); });
-
+            if (imgData.isExceedClip) {
+                rect = imgData.clipRect;
+            } else {
+                if (transform.length) {
+                    //transform.push([1, 0, 0, 1, 0, 0]);//单位矩阵
+                    transform.filter((e: any) => { rect = getPosition(rect, e); });
+                }
+            }
             if (isExceedBoundary(rect, view, 3)) {
                 return;
             }
+            rect_pdfs.push(rect);
 
-            const positionPdf: any = {
-                rects: [rect],
-                pageIndex: imgData.pageId - 1
-            };
-            makeAnnotation(positionPdf, pageLabel);
         });
 
         //const cache: number[][] = [];
-        tableArr.forEach((tableData: any) => {
+        /* tableArr.forEach((tableData: any) => {
 
             const rect: number[] = tableData.rect_pdf;
+
             const positionPdf: {
                 rects: number[][];
                 pageIndex: number;
@@ -48,9 +50,24 @@ export async function imageToAnnotation() {
                 pageIndex: tableData.pageId - 1
             };
             makeAnnotation(positionPdf, pageLabel);
+        }); */
+        rect_pdfs.push(...tableArr.map((tableData: any) => tableData.rect_pdf));
+        rect_pdfs.push(...imgClips.map((imageData: any) => imageData.rect_pdf));
+        rect_pdfs.filter((rect: number[]) => {
+            //跳过宽或高小于2cm的形状
+            if (Math.abs(rect[2] - rect[0]) <= 20 || Math.abs(rect[3] - rect[1]) <= 20) {
+                return;
+            }
+            const positionPdf: {
+                rects: number[][];
+                pageIndex: number;
+            } = {
+                rects: [rect],
+                pageIndex: page.id
+            };
+
+            makeAnnotation(positionPdf, pageLabel);
         });
-
-
     }
 }
 
@@ -87,10 +104,6 @@ export async function makeAnnotation(
         return;
     }
     const rect = positionPdf.rects[0];
-    //跳过宽或高小于1cm的形状
-    if (Math.abs(rect[2] - rect[0]) <= 20 || Math.abs(rect[3] - rect[1]) <= 20) {
-        return;
-    }
     //如果重叠相邻则扩展原有注释范围
     const oldannotationsSamePage = oldannotations.filter((e: any) => e.position.pageIndex == positionPdf.pageIndex);
     let overlap = false;

@@ -1,5 +1,5 @@
 import { frequency } from "./getPdfFullText";
-import { applyTransform, expandBoundingBox, getPosition, quickIntersectRect, adjacentRect, isExceedBoundary } from "./tools";
+import { applyTransform, expandBoundingBox, getPosition, quickIntersectRect, adjacentRect, isExceedBoundary } from './tools';
 import { OPS } from "../utils/config";
 import { invertKeyValues } from "./tools";
 
@@ -11,6 +11,7 @@ export async function getOpsInfo(page: any) {
     }
 
     const imgDataArr: any[] = [];
+    const imgDataArrFormXObject: any[] = [];
     const pathDataArr: any[] = [];
     const fontInfo: any = {};
     const fontInfoObj: any = {};
@@ -19,42 +20,35 @@ export async function getOpsInfo(page: any) {
     const ops = await page.pdfPage.getOperatorList();
     const fnArray: number[] = ops.fnArray;
     const argsArray: any = ops.argsArray;
-    const originalTransorm: number[] = [...page.viewport.transform];
     const view = page.pdfPage.view || page.viewport.viewBox;
     let state: {
         clipRect: number[];
         currentArgs: number[][];
+        clip: boolean;
         currentAction: string;
         savedTimes: number;
         restoreTimes: number;
-        transforms: {
-            oringinTransform: number[];
-            beforeConstructPathTransform: number[],
-            savedTransform: number[][],
-            //多次绘制路径，连续应用 Transform，未save未restore，则需多次保存
-            currentTransform: number[][],
-        };
+        //oringinTransform: number[][];
+        //多次绘制路径，连续应用 Transform，未save未restore，则需多次保存
+        currentTransform: number[][],
+
     } = {
         currentArgs: [],
-        currentAction: '',
+        currentAction: 'initiate',
+        clip: false,
         savedTimes: 0,
         restoreTimes: 0,
         clipRect: [],
-        transforms: {
-            oringinTransform: originalTransorm,
-            beforeConstructPathTransform: [],
-            savedTransform: [],
-            currentTransform: [],
-        }
+        //oringinTransform: [[...page.viewport.transform]],
+        currentTransform: [],
+
     };
     const stateCache: any[] = [];
     if (fnArray.filter((e: any) => e == 85).length > 100) {
         ztoolkit.log("本页图片太多，可能为矢量图，或者大量小图形，跳过提取");
-        //return;
     }
-    //stroke: 20, fill: 22, endText: 32, restore 11,
-    const endMarkersBackward = [20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
-    const endMarkersForward = [11, 20, 21, 22, 23, 24, 25, 26, 27, 32, 44, 91];
+
+
 
     /*     const printLog = () => {
             ztoolkit.log("调用成功");
@@ -65,36 +59,68 @@ export async function getOpsInfo(page: any) {
                 ztoolkit.log("调用成功");
             },
         }; */
-    function jumpAction(i: number, fnArray: any[], endAction: string, firsBeginMarker: string, secondBeginMarker: string) {
-        let j = i + 1;
-        for (; j < fnArray.length; j++) {
-            if (fnArray[j] == OPS[endAction as keyof typeof OPS]) {
-                return j + 1;
-            } else if (OPS[secondBeginMarker as keyof typeof OPS]) {
-                const temp = firsBeginMarker;
-                firsBeginMarker = secondBeginMarker;
-                secondBeginMarker = temp;
-                return jumpAction(j, fnArray, endAction, firsBeginMarker, secondBeginMarker);
-            }
+
+    /**
+     * 状态切换，保存与恢复，主要作用是保证多个 transform 的正确应用
+     * @param i 
+     */
+    function stateSwitch(i: number) {
+        if (fnArray[i] == OPS.save) {
+            state.savedTimes += 1;
+            //通过状态保存恢复机制，可以确保路径图片的 transform 总是相对应的，即使有多个 transform
+            stateCache.push(JSON.parse(JSON.stringify(state)));
         }
-        return j + 1;
+        if (fnArray[i] == OPS.restore) {
+            state = JSON.parse(JSON.stringify(stateCache.pop()));
+            state.restoreTimes += 1;
+        }
+
+    }
+
+    /**
+     * 根据起始结束标志跳过该范围步骤，支持嵌套。递归实现。
+     * @param i 
+     * @param marker 成对标志，可为多个
+     * @returns 
+     */
+    function jumpAction(i: number,
+        marker: {
+            beginMarker: string;
+            endMarker: string;
+        }[],
+    ) {
+
+        const endMarker = marker.map((e: any) => {
+            if (e.beginMarker == OPS_VK[fnArray[i]]) {
+                return e.endMarker;
+            }
+        }).filter(e => e)[0];
+        const otherBeginMarkers = marker.map((e: any) => {
+            if (e.beginMarker != OPS_VK[fnArray[i]]) {
+                return e.beginMarker;
+            }
+        }).filter(e => e);
+
+        let j = i + 1;
+
+        for (; j < fnArray.length; j++) {
+            stateSwitch(j);
+            if (fnArray[j] == OPS[endMarker as keyof typeof OPS]) {
+                return j;//按该索引（已执行）继续循环，将按步长递增后继续循环，千万不要加一
+            } else if (otherBeginMarkers.includes(OPS_VK[fnArray[j]])) {
+                j = jumpAction(j, marker);
+            }
+            //对于跳过的动作，仍然保存和恢复状态，以免导致不匹配 
+        }
+        return j;
     }
     for (let i = 0; i < fnArray.length; i++) {
-        /* if (state.currentAction == "clip") */
-        /*         const fnId = fnArray[i];
-                if (fnId == OPS.dependency) {
-                    continue;
-                }
-                if (action[fnId]) {
-                    action[fnId]();
-                }
-                continue; */
+        stateSwitch(i);
         //图片
-        if (fnArray[i] == 85 || fnArray[i] == 86) {
+        if (fnArray[i] == 85) {
             const imgObj: any = {
-                //originTransform: transform,
                 pageId: page.id,
-                pageLabel: pageLabel,
+                pageLabel: pageLabel || page.id,
                 fnId: fnArray[i],
                 fnArrayIndex: i,
             };
@@ -108,31 +134,22 @@ export async function getOpsInfo(page: any) {
                     imgObj.imgData = imgData;
                 }
             }
-
-            /* 原const transform: number[][] = [];
-            for (let j = i - 1; j > i - 12 && j >= 0; j--) {
-                //绘制img之前可能不止一个transform
-                //多个transform好比pdf套着作为图片的pdf
-                if (fnArray[j] == 12) {
-                    transform.push([...argsArray[j]] as number[]);
+            //剪切状态下的图片，以剪切路径生成注释，剪切路径的 transform 在判断剪切路径时设置好了
+            //非剪切状态的img应当有 transform，无论是否存在值，当下的transform都给对应当前图片
+            imgObj.transform = JSON.parse(JSON.stringify(state.currentTransform));
+            //当前的状态能够区分剪切路径是否结束
+            if (state.clip && pathDataArr.length && pathDataArr.slice(-1)[0].isClip == true) {
+                {
+                    if (pathDataArr.slice(-1)[0].subObjImg) {
+                        pathDataArr.slice(-1)[0].subObjImg.push(imgObj);
+                    } else {
+                        pathDataArr.slice(-1)[0]["subObjImg"] = [imgObj];
+                    }
                 }
-                if (endMarkersBackward.includes(fnArray[j])) {
-                    //如果该路径前无transform，则使用默认transform
-                    break;
-                }
-            } */
+            } else {
+                imgDataArr.push(imgObj);
 
-            //图片自身有transform，宽高，transform决定了图片在pdf页面上的位置。此处无需过滤。
-            //每个对象均为单位大小，即[0,0,1,1],左下角【0,0】，右上角【1,1】
-            //例如 transform  [ 245.952, 0, 0, 184.608, 0, 0 ]意思是x轴缩放245.952倍，y轴缩放184.608倍，没有旋转，没有位移
-            //
-            /* if (imgObj.transform[4] <= view[2] * 0.03 || imgObj.transform[4] >= view[2] * 0.97
-                || imgObj.transform[5] <= view[3] * 0.03 || imgObj.transform[5] >= view[3] * 0.97) {
-                continue;
-            } */
-            //原imgObj.transform = transform;
-            imgObj.transform = JSON.parse(JSON.stringify(state.transforms.currentTransform));
-            imgDataArr.push(imgObj);
+            }
         }
         //字体
         if (fnArray[i] == 37) {
@@ -160,82 +177,142 @@ export async function getOpsInfo(page: any) {
         //const OPS_K = OPS_VK[fnArray[i] as keyof typeof OPS_VK];
         // state[OPS_K] = true;
 
-        if (fnArray[i] == OPS.save) {
+        /* if (fnArray[i] == OPS.save) {
             state.savedTimes += 1;
             //通过状态保存恢复机制，可以确保路径图片的 transform 总是相对应的，即使有多个 transform
             stateCache.push(JSON.parse(JSON.stringify(state)));
         }
         if (fnArray[i] == OPS.restore) {
-            state = stateCache.pop();
+            state = stateCache.pop() || state;
             state.savedTimes -= 1;
-        }
+        } */
         if (fnArray[i] == OPS.transform) {
-            state.transforms.currentTransform.push([...argsArray[i]]);
+            state.currentTransform.push([...argsArray[i]]);
         }
-        if (fnArray[i] == OPS.beginMarkedContent) {
-            for (let j = i + 1; j < fnArray.length; j++) {
-                if (fnArray[i] == OPS.endMarkedContent) {
-                    return j + 1;
-                } else if (fnArray[i] == OPS.beginMarkedContentProps) {
 
-                }
-            }
-            i = jumpAction(i, fnArray, "endMarkedContent");
-        }
         if (fnArray[i] == OPS.endPath) {
-
             //endPath() { this.consumePath();}
             //即根据 consumePath的路径新建一个 clip，之后的内容只能显示在 clip 范围内
+            state.clip = true;
+            state.currentAction = "endPath_clip";
             if (pathDataArr.length) {
-                if (pathDataArr.slice(-1)[0].isClip == true) {
+                /* if (state.currentAction.includes("clip") && pathDataArr.slice(-1)[0].isClip == true) {
                     //剪切套剪接，状态缓存可以保存和还原，判断二次剪切，保存为子对象
                     //还原后为 clip
                     state.currentAction = "clipSecond";
                 } else {
-                    state.currentAction = "clip";
+                    
                     pathDataArr.slice(-1)[0].isClip = true;
-                }
+                } */
                 //如果事先没有路径，也就不会有剪切
+                pathDataArr.slice(-1)[0].isClip = true;
+                pathDataArr.slice(-1)[0].transform = JSON.parse(JSON.stringify(state.currentTransform));
             }
+
         }
         if (fnArray[i] == OPS.beginText) {
-            //跳过
-            for (let j = i + 1; j < fnArray.length; j++) {
-                if (fnArray[j] == OPS.endText) {
-                    i = j + 1;
-                    break;
-                }
-            }
 
-
+            state.currentAction = "text";
+            const marker = [{
+                beginMarker: "beginText",
+                endMarker: "endText"
+            }];
+            //跳过。包括字体
+            i = jumpAction(i, marker);
         }
 
         if (fnArray[i] == OPS.beginAnnotation) {
+            state.currentAction = "annotation";
             //在页面绘制完成后进行，也是 clip
             //向前跳过该操作
-            for (let j = i + 1; j < fnArray.length; j++) {
-                if (fnArray[j] == OPS.endAnnotation) {
-                    i = j + 1;
-                    break;
-                }
-            }
+            const marker = [{
+                beginMarker: "beginAnnotation",
+                endMarker: "endAnnotation"
+            }];
+            i = jumpAction(i, marker);
         }
-        if (fnArray[i] == OPS.setCharWidthAndBounds) {
-            continue;
-            //clip 四种情况：endPath()，其他三种情况在函数 setCharWidthAndBounds，beginAnnotation，paintFormXObjectBegin中
-        }
+
         if (fnArray[i] == OPS.paintFormXObjectBegin) {
-            //向前跳过该操作
+            state.clip = true;
+            //除了图片，跳过其他步骤
+            const transformFormXObject = argsArray[i][0];
+            const bbox = argsArray[i][1];
+            let rect_pdf: number[];
+            if (Array.isArray(transformFormXObject) && transformFormXObject.length === 6) {
+                state.currentTransform.push(...transformFormXObject);
+                rect_pdf = getPosition(bbox, transformFormXObject);
+            } else {
+                rect_pdf = bbox;
+            }
+            const tempImgArr: any[] = [];
             for (let j = i + 1; j < fnArray.length; j++) {
+                stateSwitch(j);
+                if (fnArray[j] == OPS.paintImageXObject) {
+                    const imgObj: any = {
+                        pageId: page.id,
+                        pageLabel: pageLabel || page.id,
+                        fnId: fnArray[j],
+                        fnArrayIndex: j,
+                    };
+                    if (isExtractOringImg) {
+                        const name = argsArray[j][0];
+                        const hasImgData = await page.pdfPage.objs.has(name);
+                        if (hasImgData) {
+                            const imgData = await page.pdfPage.objs.get(name);
+                            //const imgData = this.getObject(objId);  class CanvasGraphics 
+                            imgObj.imgName = name;
+                            imgObj.imgData = imgData;
+                        }
+                    }
+                    let imgRect: number[] = [0, 0, 1, 1];
+                    if (!isExceedBoundary(rect_pdf, view, 5)) {
+                        imgObj.transform = JSON.parse(JSON.stringify(state.currentTransform));
+                        imgObj.clipRect = rect_pdf;//剪切路径的边界（x1，y1，x2，y2）
+                        if (state.currentTransform.length) {
+                            state.currentTransform.filter((e: any) => { imgRect = getPosition(imgRect, e); });
+                            imgObj.imgRectApplyedTm = imgRect;
+                            imgObj.rect_pdf = imgRect;
+                            if (isExceedBoundary(imgRect, rect_pdf, 0)) {
+                                //图片超过剪切边界，仅采用 rect 生成注释，不再判断是否还有其他图形 
+                                tempImgArr.length = 0;
+                                imgObj.isExceedClip = true;
+                                imgObj.rect_pdf = rect_pdf;
+                                tempImgArr.push(imgObj);
+                                i = j;
+                                break;
+                            }
+                            tempImgArr.push(imgObj);
+                        }
+                    } else {
+                        if (state.currentTransform.length) {
+                            state.currentTransform.filter((e: any) => { imgRect = getPosition(imgRect, e); });
+                            if (!isExceedBoundary(imgRect, view, 5)) {
+                                imgObj.transform = JSON.parse(JSON.stringify(state.currentTransform));
+                                imgObj.imgRectApplyedTm = imgRect;
+                                imgObj.rect_pdf = imgRect;
+                                //imgObj.clipRect = rect; 剪切路径的边界（x1，y1，x2，y2）已经超过页面边界，舍弃
+                                tempImgArr.push(imgObj);
+                            }
+                            //else 图片超过页面边界，舍弃
+                        } //else，之前未提供 transform 则可能不是图片
+                    }
+                }
                 if (fnArray[j] == OPS.paintFormXObjectEnd) {
-                    i = j + 1;
+                    i = j;//按该索引（已执行）继续循环，将按步长递增后继续循环
                     break;
                 }
+                if (fnArray[j] == OPS.transform) {
+                    state.currentTransform.push([...argsArray[j]]);
+                }
+            }
+            if (tempImgArr.length) {
+                imgDataArrFormXObject.push(tempImgArr);
             }
         }
+
+
 
         if (fnArray[i] == OPS.constructPath) {
-
             const args: any = argsArray[i];
             const fn: number[] = args[0];
             const fnArgs: number[] = args[1];
@@ -259,10 +336,15 @@ export async function getOpsInfo(page: any) {
                 fnId: fnArray[i],
                 fnArrayIndex: i,
             };
-
-            pathObj.transform = JSON.parse(JSON.stringify(state.transforms.currentTransform));
+            pathObj.transform = JSON.parse(JSON.stringify(state.currentTransform));
+            /* if (state.currentTransform.length) {
+                pathObj.transform = JSON.parse(JSON.stringify(state.currentTransform));
+            } else {
+                pathObj.transform = JSON.parse(JSON.stringify(state.oringinTransform));
+            } */
             if (isCurve) {
                 pathObj.type = "curve";
+                continue;
             }
             if (isLine) {
                 pathObj.type = "line";
@@ -271,7 +353,7 @@ export async function getOpsInfo(page: any) {
                 pathObj.type = "rectangle";
 
             }
-            if (state.currentAction.includes("clip") && pathDataArr.length && pathDataArr.slice(-1)[0].isClip) {
+            if (state.clip && pathDataArr.length && pathDataArr.slice(-1)[0].isClip) {
                 if (pathDataArr.slice(-1)[0].subObj) {
                     pathDataArr.slice(-1)[0].subObj.push(pathObj);
                 } else {
@@ -304,11 +386,14 @@ export async function getOpsInfo(page: any) {
     //makeTable
     const tableArrTemp: any[] = [];
 
-    pathDataArr.forEach((tablePathData: any) => {
 
+    pathDataArr.forEach((tablePathData: any) => {
         const type = tablePathData.type;
         //先跳过曲线
-        if (type == "curve") { return; }
+        if (type == "curve") return;
+        if (tablePathData.isClip && !tablePathData.subObj && !tablePathData.subObjImg) {
+            return;
+        }
         const p1sx: number[] = [];
         const p1sy: number[] = [];
         const p2sx: number[] = [];
@@ -386,11 +471,25 @@ export async function getOpsInfo(page: any) {
 
     //递归合并 rect
 
-    const tableArr = combineRect(tableArrTemp, view);
+    const tableArrNoTorlerant = combineRect(tableArrTemp, view);
+    const tableArr = combineRect(tableArrNoTorlerant, view, 5);
+
+    const imgClips: any[] = [];
+    imgDataArrFormXObject.filter((imgArrTemp: any[]) => {
+
+        if (imgArrTemp.length == 1 && imgArrTemp[0].isExceedClip) {
+            imgDataArr.push(imgArrTemp[0]);
+        } else {
+            const imgInClipArr = combineRect(imgArrTemp, view);
+            imgClips.push(...imgInClipArr);
+        }
+
+    });
 
 
     return {
         imgDataArr: imgDataArr,
+        imgClips: imgClips,
         fontInfo: fontInfo,
         fontInfoObj: fontInfoObj,
         tableArr: tableArr
@@ -405,7 +504,7 @@ export async function getOpsInfo(page: any) {
  * @param viewBox 
  * @returns 
  */
-export function combineRect(obj: any[], viewBox: number[]) {
+export function combineRect(obj: any[], viewBox: number[], tolerance_mm?: number) {
     obj.forEach((e: any) => {
         const r1 = e.rect_pdf;
         if (!r1.length) {
@@ -419,13 +518,20 @@ export function combineRect(obj: any[], viewBox: number[]) {
             if (!r2.length) {
                 continue;
             }
-            if (quickIntersectRect(r1, r2) || adjacentRect(r1, r2)) {
+            if (quickIntersectRect(r1, r2) || adjacentRect(r1, r2, tolerance_mm)) {
                 e.rect_pdf = expandBoundingBox(r1, r2, viewBox) || r2;
                 //删除矩形信息，作为递归
+                obj[i].old_rect_pdf = [...obj[i].rect_pdf];
                 obj[i].rect_pdf.length = 0;
+                e["subObj"] ? e.subObj.push(obj[i]) : e.subObj = [obj[i]];
+                /* if(e.subObj){
+                    e.subObj.push(obj[i])
+                }else{
+                    e.subObj=[obj[i]]
+                }
                 e.fnIds.push(...obj[i].fnIds);
                 e.fnArrayIndexs.push(...obj[i].fnArrayIndexs);
-                e.argsArr.push(...obj[i].argsArr);
+                e.argsArr.push(...obj[i].argsArr); */
             }
         }
     });
@@ -435,7 +541,7 @@ export function combineRect(obj: any[], viewBox: number[]) {
     if (!over.length) {
         return newObj;
     } else {
-        return combineRect(newObj, viewBox);
+        return combineRect(newObj, viewBox, tolerance_mm);
     }
 }
 

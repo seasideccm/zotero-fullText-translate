@@ -7,11 +7,10 @@
   <body>
     <canvas
       id="myCanvas"
-      width="612"
+      width="2800"
       height="820"
-      style="border: 1px solid #d3d3d3"
+      style="border: 2px solid #4812c6"
     >
-      您的浏览器不支持 HTML5 canvas 标签。
     </canvas>
     <script>
       function adjacentRect(rect1, rect2, tolerance) {
@@ -68,13 +67,33 @@
         }
         return rect;
       }
-      function draw(rectPdf, color) {
-        var rect = [
-          rectPdf[0],
-          rectPdf[1],
-          rectPdf[2] - rectPdf[0],
-          rectPdf[3] - rectPdf[1],
+      function pointsToRect(points) {
+        return [
+          Math.min(...points.filter((e, i) => i % 2 == 0)),
+          Math.min(...points.filter((e, i) => i % 2 == 1)),
+          Math.max(...points.filter((e, i) => i % 2 == 0)),
+          Math.max(...points.filter((e, i) => i % 2 == 1)),
         ];
+      }
+      function point4ToRect(pointPdf) {
+        return [
+          pointPdf[0],
+          pointPdf[1],
+          pointPdf[2] - pointPdf[0],
+          pointPdf[3] - pointPdf[1],
+        ];
+      }
+      function draw(rectpdf, color) {
+        //rectpdf 是起点坐标和宽高
+        //pointPdf 是两点坐标
+        /* var rectpdf = [
+                pointPdf[0],
+                pointPdf[1],
+                pointPdf[2] - pointPdf[0],
+                pointPdf[3] - pointPdf[1],
+              ]; */
+        if (!rectpdf.length) return;
+        var rect = [rectpdf[0], rectpdf[1], rectpdf[2], rectpdf[3]];
         ctx.strokeStyle = color || "green";
         console.log(ctx.strokeStyle);
         ctx.strokeRect(...rect);
@@ -84,14 +103,30 @@
       var c = document.getElementById("myCanvas");
       var ctx = c.getContext("2d");
       var tm = [
-        0.9967320261437909, 0, 0, -0.9967320261437909, 0, 789.4117647058823,
+        3.2809183597564697, 0, 0, -1.2809183597564697, 0, 1016.666259765625,
       ];
       ctx.transform(...tm);
-      var rect1 = [65.894, 245.69, 128.755, 245.69];
-      var rect3 = [65.894, 351.952, 293.394, 520.452];
-      var rect2 = [10, 10, 20, 20];
+      var rect1 = [48.6425, 770.117, 496.063, 17.915];
+      draw(rect1, "red");
+      tm = [0.829, 0, 0, 1, 48.6425, 770.117];
+      ctx.transform(...tm);
 
-      var rectPdfArr_color = [
+      //var rect = pointToRect();
+      var points = [598.395, 17.915, 0, 17.915, 0, 0, 598.395, 0];
+      var rect3 = pointsToRect(points);
+      draw(rect3, "blue");
+
+      var rect2 = [10, -500, 300, 300];
+      ctx.rect(...rect2);
+      ctx.stroke();
+      //ctx.clip();
+      //ctx.beginPath();
+
+      var rect2 = [-20, -400, 100, 100];
+      ctx.rect(...rect2);
+      ctx.stroke();
+
+      /*var rectPdfArr_color = [
         { rect: rect1, color: "red" },
         { rect: rect2, color: "black" },
         { rect: rect3, color: "blue" },
@@ -109,7 +144,7 @@
         ctx.strokeText("判断两者相邻", 250, 250);
       } else {
         ctx.strokeText("不邻", 250, 250);
-      }
+      } */
     </script>
   </body>
 </html>
