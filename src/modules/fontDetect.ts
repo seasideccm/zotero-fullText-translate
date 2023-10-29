@@ -141,8 +141,9 @@ export async function getFont() {
     redPointArr.sort((a, b) => b - a);
     const boldCutoff = 220;
     for (const font of Object.values(fontInfoObj)) {
-        const index = redPointArr.indexOf((font as any).redPoint);
-        if (index > boldCutoff) {
+        const redPoint = (font as any).redPoint;
+        const index = redPointArr.indexOf(redPoint);
+        if (index == 0 && redPoint > boldCutoff) {
             (font as any).style = "bold";
         }
     }
