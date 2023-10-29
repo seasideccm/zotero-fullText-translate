@@ -3,6 +3,7 @@ import { getPref } from '../utils/prefs';
 import { fontStyleCollection, pdfCharasReplace } from '../utils/config';
 import { getPageData, combineParagraphsWords, boxByParagraphs } from './imageTableFontInfo';
 import { pdfFontInfo } from "./fontDetect";
+import { prepareReader } from './prepareReader';
 
 /* import * as pdfjsLib from "pdfjs-dist";
 import entry from "pdfjs-dist/build/pdf.worker.entry";
@@ -2093,45 +2094,9 @@ const headerFooterIdentify = (pageLines: any, pages: any) => {
   };
 };
 
-async function getFont(pages: any) {
-  const fontInfoObjByPage: any = {};
-  for (const page of pages) {
-    const fontInfoObj: any = {};
-    const pdfPage = page.pdfPage;
-    const textContent = await pdfPage.getTextContent();
-    const items = textContent.items;
-    for (const e of items) {
-      const loadedName = e.fontName;
-      if (!e.chars) continue;
-      const charFontName = e.chars[0]?.fontName;
-      if (fontInfoObj[loadedName]) {
-        continue;
-      }
-      if (fontInfoObj[charFontName]) {
-        continue;
-      }
-      const common = pdfPage.commonObjs.has(loadedName);
-      if (common) {
-        const font: any = pdfPage.commonObjs.get(loadedName);
-        const tempObj2: any = {};
-        tempObj2.pageIndex = pdfPage._pageIndex;
-        tempObj2.charFontName = charFontName;
-        tempObj2.fontName = font.name;
-        tempObj2.loadedName = font.loadedName;
-        //tempObj2.fontData fontData已经清除，可尝试通过 worker message 获取
-        if (!fontInfoObj[loadedName]) {
-          fontInfoObj[loadedName] = tempObj2;
-        }
-        if (!fontInfoObj[charFontName]) {
-          fontInfoObj[charFontName] = tempObj2;
-        }
-      }
-    }
-    fontInfoObjByPage[page.id] = fontInfoObj;
 
-  }
-  return fontInfoObjByPage;
-}
+
+
 
 export async function pdf2document(itmeID: number) {
   let isCloseReader = false;
@@ -2154,6 +2119,7 @@ export async function pdf2document(itmeID: number) {
   const pages = PDFViewerApplication.pdfViewer._pages;
   //pdfView 是 new PDFView() 创建的实例。它是一个 PDF 视图对象，用于显示和操作 PDF 文档
   //const pdfView = reader._internalReader._primaryView;
+
   const totalPageNum = pages.length;
   const titleTemp = PDFViewerApplication._title.replace(/( - )?PDF.js viewer$/gm, '').replace(/ - zotero:.+$/gm, '');
   let title: string | undefined;
@@ -2170,8 +2136,6 @@ export async function pdf2document(itmeID: number) {
   //每页的行数组作为元素再组成页面的数组
   //字符 ""单独为一行，帮助判断段落
 
-
-  const fontInfoObj: any = await getFont(pages);
   const itemsArr: PDFItem[][] = [];
   for (let pageNum = 0; pageNum < totalPageNum; pageNum++) {
     const pdfPage = pages[pageNum].pdfPage;

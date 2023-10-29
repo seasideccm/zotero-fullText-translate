@@ -1,4 +1,4 @@
-import { clearAnnotationsButton, pdfButton } from "./pdfButton";
+import { clearAnnotationsButton, fontCheck, pdfButton } from "./pdfButton";
 
 export function registerNotifier() {
     const callback = {
@@ -46,6 +46,7 @@ async function onNotify(
     ) {
         pdfButton();
         clearAnnotationsButton();
+        fontCheck();
     }
 }
 

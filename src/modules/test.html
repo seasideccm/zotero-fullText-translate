@@ -126,6 +126,97 @@
       ctx.rect(...rect2);
       ctx.stroke();
 
+      const size = 30;
+      const canvasFontCheck = document.createElement("canvas");
+
+      canvasFontCheck.width = canvasFontCheck.height = size;
+      //const body = document.getElementsByTagName("body");
+      document.body.appendChild(canvasFontCheck);
+      const ctxFontCheck = canvasFontCheck.getContext("2d", { alpha: false });
+
+      function setFont(ctx, fontRefName, size) {
+        const fontObj = this.commonObjs.get(fontRefName);
+
+        if (!fontObj) {
+          return;
+        }
+        const fontMatrix = fontObj.fontMatrix;
+
+        // A valid matrix needs all main diagonal elements to be non-zero
+        // This also ensures we bypass FF bugzilla bug #719844.
+        if (fontMatrix[0] === 0 || fontMatrix[3] === 0) {
+          warn("Invalid font matrix for font " + fontRefName);
+        }
+
+        if (fontObj.isType3Font) {
+          return; // we don't need ctx.font for Type3 fonts
+        }
+
+        const name = fontObj.loadedName || "sans-serif";
+        const typeface =
+          fontObj.systemFontInfo?.css || `"${name}", ${fontObj.fallbackName}`;
+
+        let bold = "normal";
+        if (fontObj.black) {
+          bold = "900";
+        } else if (fontObj.bold) {
+          bold = "bold";
+        }
+        const italic = fontObj.italic ? "italic" : "normal";
+
+        let browserFontSize = size;
+        if (size < 16) {
+          browserFontSize = 16;
+        } else if (size > 100) {
+          browserFontSize = 100;
+        }
+        const fontSizeScale = size / browserFontSize;
+
+        ctx.font = `${italic} ${bold} ${browserFontSize}px ${typeface}`;
+      }
+
+      ctxFontCheck.font = "30px sans-serif";
+      ctxFontCheck.strokeStyle = "red";
+      let DEFAULT_FONT_SIZE = 30;
+      ctxFontCheck.clearRect(0, 0, DEFAULT_FONT_SIZE, DEFAULT_FONT_SIZE);
+      ctxFontCheck.strokeText("H", 0, 0);
+      let pixels = ctxFontCheck.getImageData(
+        0,
+        0,
+        DEFAULT_FONT_SIZE,
+        DEFAULT_FONT_SIZE,
+      ).data;
+      let descent = 0;
+      for (let i = pixels.length - 1 - 3; i >= 0; i -= 4) {
+        if (pixels[i] > 0) {
+          descent = Math.ceil(i / 4 / DEFAULT_FONT_SIZE);
+          break;
+        }
+      }
+      console.log("descent:", descent);
+
+      ctxFontCheck.clearRect(0, 0, DEFAULT_FONT_SIZE, DEFAULT_FONT_SIZE);
+      ctxFontCheck.strokeText("I", 0, DEFAULT_FONT_SIZE);
+      pixels = ctxFontCheck.getImageData(
+        0,
+        0,
+        DEFAULT_FONT_SIZE,
+        DEFAULT_FONT_SIZE,
+      ).data;
+      let ascent = 0;
+      for (let i = 0, ii = pixels.length; i < ii; i += 4) {
+        if (pixels[i] > 0) {
+          ascent = DEFAULT_FONT_SIZE - Math.floor(i / 4 / DEFAULT_FONT_SIZE);
+          break;
+        }
+      }
+      console.log("ascent:", ascent);
+
+      /*   const size = 30;
+      const ctx2 = new OffscreenCanvas(size, size).getContext("2d", {
+        alpha: false,
+      }); */
+
       /*var rectPdfArr_color = [
         { rect: rect1, color: "red" },
         { rect: rect2, color: "black" },

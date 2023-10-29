@@ -110,6 +110,74 @@ export async function pdfButton() {
 
 }
 
+export async function fontCheck() {
+    const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
+    let _window: any;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    while (!(_window = reader?._iframeWindow?.wrappedJSObject)) {
+        await Zotero.Promise.delay(10);
+    }
+    const parent = _window.document.querySelector("#reader-ui .toolbar .center")!;
+    const ref = parent.querySelector(".highlight") as HTMLDivElement;
+    const dialogHelper = new ztoolkit.Dialog(2, 1).addCell(0, 0, {
+        tag: "h3",
+        properties: { innerHTML: "教程" },
+    }).addCell(1, 0,
+        {
+            tag: "textarea",
+            namespace: "html",
+            id: "dialog-input",
+            attributes: {
+                "style": "width: 100%; height: 300px;",
+            },
+        },
+        true
+    );
+    const dialogButton = ztoolkit.UI.insertElementBefore({
+        enableElementJSONLog: false,
+        enableElementDOMLog: false,
+        ignoreIfExists: true,
+        namespace: "html",
+        tag: "button",
+        id: config.addonRef + "_dialog",
+        classList: ["toolbarButton"],
+        styles: {
+            // 解决图标
+            width: "45px",
+            border: "2px solid #4812c6"
+
+        },
+        properties: {
+            innerText: "框"
+        },
+        attributes: {
+            title: "对话框",
+            tabindex: "-1",
+        },
+
+        listeners: [
+            {
+                type: "click",
+                listener: () => {
+                    dialogHelper.open(`${config.addonRef}`,
+                        {
+                            width: 400,
+                            height: 450,
+                            resizable: true,
+                            centerscreen: true,
+                        }
+                    );
+                }
+            },
+        ],
+
+
+    }, ref) as HTMLButtonElement;
+
+
+}
+
 export async function clearAnnotationsButton() {
     const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
     let _window: any;
