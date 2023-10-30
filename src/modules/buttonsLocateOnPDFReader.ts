@@ -159,27 +159,46 @@ export async function fontCheck() {
     }, ref) as HTMLButtonElement;
 }
 
-const dhf = () => {
+const dhf = async () => {
+    let fontInfo: any = await readJsonFromDisk("fontInfo_" + itemID);
+    let isReadDisk = true;
+    if (!fontInfo) {
+        fontInfo = await getFont();
+        await saveJsonToDisk(fontInfo, "fontInfo_" + itemID);
+        isReadDisk = false;
+    }
+    const fileInfo = await getFileInfo(getPath("fontInfo_" + itemID));
+    let fileSize;
+    if (!fileInfo) {
+        fileSize = 0;
+    } else {
+        fileSize = fileInfo.size;
+    }
+    const content = "isReadDisk: " + isReadDisk + "\n\n"
+        + getString("info-fileInfo-size") + fileInfo.size + "\n\n"
+        + JSON.stringify(fontInfo, null, 4);
     const dialogHelperFont = new ztoolkit.Dialog(1, 1)
+
+        /* .setDialogData({
+            dialogData: fontInfo,
+            loadCallback: () => {
+            }
+        }
+        ) */
+
         .addCell(0, 0,
             {
                 tag: "textarea",
                 namespace: "html",
                 id: "dialog-fontInfo",
                 attributes: {
-                    "style": "width: 100%; height: 400px;",
+                    "style": "width: 100%; height: 100%;",
                 },
                 properties: {
-                    innerHTML: "<pre>" + "fuck" + "</pre>"
+                    //无需<pre></pre>标签，加了会显示标签本身
+                    innerHTML: `${content}`
                 }
             }
-        )
-        .setDialogData({
-            dialogData: { data: "noneData" },
-            /*                             loadCallback: () => {
-                                            fontCheckCall();
-                                        } */
-        }
         ).open(`${config.addonRef}`,
             {
                 width: 400,
@@ -189,18 +208,18 @@ const dhf = () => {
             }
         );
 
-    const doc = dialogHelperFont.window.document;
+    /* const doc = dialogHelperFont.window.document;
     const dialogContent = doc.querySelector("#dialog-fontInfo");
 
     if (dialogContent) {
         dialogContent.innerHTML += "<pre>" + "fuck" + "</pre>";
-    }
+    } */
 
 
 };
 
-async function fontCheckCall() {
-    /* let fontInfo: any = await readJsonFromDisk("fontInfo_" + itemID);
+/* async function fontCheckCall() {
+    let fontInfo: any = await readJsonFromDisk("fontInfo_" + itemID);
     if (!fontInfo) {
         fontInfo = await getFont();
         await saveJsonToDisk(fontInfo, "fontInfo_" + itemID);
@@ -211,18 +230,18 @@ async function fontCheckCall() {
         fileSize = 0;
     } else {
         fileSize = fileInfo.size;
-    } */
-    /* const doc = dialogHelperFont.window.document;
+    }
+    const doc = dialogHelperFont.window.document;
     const dialogContent = doc.querySelector("#dialog-fontInfo");
 
     if (dialogContent) {
         dialogContent.innerHTML = "<pre>" + JSON.stringify(fontInfo, null, 4) + "</pre>";
-    } */
-    /* const dialogHeader = doc.querySelector("#dialog-header");
+    }
+    const dialogHeader = doc.querySelector("#dialog-header");
     if (dialogHeader) {
         dialogHeader.innerHTML = getString("info-fileInfo-size") + fileInfo.size;
-    } */
-}
+    }
+} */
 
 export async function clearAnnotationsButton() {
     const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
