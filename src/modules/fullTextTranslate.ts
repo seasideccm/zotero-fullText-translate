@@ -1,5 +1,5 @@
 import { config } from "../../package.json";
-import { getPref, getSingleServiceUnderUse } from "../utils/prefs";
+import { getPref, getSingleServiceUnderUse, saveJsonToDisk } from "../utils/prefs";
 import { getString } from "../utils/locale";
 import { pdf2document, frequency } from './getPdfFullText';
 import { serviceManage, updatecharConsum, recoverDefaultLimit, services } from "./serviceManage";
@@ -34,10 +34,10 @@ function example(
 
 let charConsumRecoder = 0;
 
-export async function onOpenPdf(id: number) {
+/* export async function onOpenPdf(id: number) {
   await Zotero.Reader.open(id);
   ztoolkit.log("open pdf");
-}
+} */
 export class fullTextTranslate {
   @example
   static rightClickMenuItem() {
@@ -62,25 +62,6 @@ export class fullTextTranslate {
       }),
       icon: menuIcon,
     });
-    /* ztoolkit.Menu.register("item", {
-      tag: "menuitem",
-      label: getString("menuitem-openPdfs"),
-      commandListener: ((ev) => {
-
-        //p2d();
-        const ids = fullTextTranslate.getPDFs();
-        const zp = Zotero.getActiveZoteroPane();
-        const openPdfPromises = [];
-        for (const id of ids) {
-          const item = Zotero.Items.get(id);
-          openPdfPromises.push(zp.viewAttachment(item.id));
-        }
-        Promise.all(openPdfPromises).then(() => { this.pdf2Note(); });
-
-        //Zotero_Tabs.select('zotero-pane');
-      }),
-      icon: menuIcon,
-    }); */
     ztoolkit.Menu.register("item", {
       tag: "menuitem",
       label: getString("menuitem-pdf2Note"),
@@ -103,7 +84,6 @@ export class fullTextTranslate {
       label: "测试字体样式检测",
       commandListener: ((ev) => {
         getFont();
-        //fullTextTranslate.pdf2Note();
       }),
       icon: menuIcon,
     });

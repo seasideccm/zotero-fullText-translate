@@ -1,4 +1,4 @@
-import { getSortIndex, quickIntersectRect, expandBoundingBox, getPosition, isExceedBoundary, adjacentRect } from "./tools";
+import { getSortIndex, quickIntersectRect, expandBoundingBox, getPosition, isExceedBoundary, adjacentRect } from "../utils/tools";
 import { getOpsInfo } from "./imageTableFontInfo";
 import { prepareReader } from "./prepareReader";
 

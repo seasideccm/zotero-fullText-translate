@@ -59,7 +59,7 @@ export function setPluginsPref(plugin: string, key: string, value: string | numb
 
 
 /**
- * 将翻译引擎总对象 services转为json写入磁盘
+ * 将 js 对象转为json写入磁盘，默认为插件目录
  * @param obj 
  * @param filename 
  * @param dir 
@@ -71,15 +71,29 @@ export async function saveJsonToDisk(obj: object, filename: string, dir?: string
   if (ext === undefined) {
     ext = ".json";
   }
+  if (!ext.startsWith(".")) {
+    ext = "." + ext;
+  }
   if (dir === undefined) {
     dir = fullTextTranslatedir;
   }
+  if (dir.includes("\\")) {
+    dir = (dir + "\\").replace(/\\+/mg, "\\");
+  }
+
+  if (dir.includes("/")) {
+    dir = (dir + "/").replace(/\/+/gm, "/");
+  }
+
   const path = dir + filename + ext;
   if (!await OS.File.exists(dir)) {
     await OS.File.makeDir(dir);
   }
   await OS.File.writeAtomic(path, objJson);
 }
+
+const test = { test: "test" };
+saveJsonToDisk(test, "testdisk");
 
 /**
  * 

@@ -1,5 +1,3 @@
-import { fontName } from "../utils/config";
-import { saveJsonToDisk } from "../utils/prefs";
 export const fontInfoPdf: any = {};
 export async function findFontOnPdfLoading() {
 
@@ -55,8 +53,8 @@ const _messageHandler = async (event: Event) => {
 
         }
     }
-}
 };
+
 
 //await app.pdfLoadingTask.promise;
 //ztoolkit.log("PDFViewerApplication.pdfLoadingTask._transport: ");

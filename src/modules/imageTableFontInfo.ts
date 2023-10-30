@@ -1,7 +1,7 @@
 import { frequency } from "./getPdfFullText";
-import { applyTransform, expandBoundingBox, getPosition, quickIntersectRect, adjacentRect, isExceedBoundary } from './tools';
+import { applyTransform, expandBoundingBox, getPosition, quickIntersectRect, adjacentRect, isExceedBoundary } from '../utils/tools';
 import { OPS } from "../utils/config";
-import { invertKeyValues } from "./tools";
+import { invertKeyValues } from "../utils/tools";
 
 const OPS_VK = invertKeyValues(OPS);
 export async function getOpsInfo(page: any) {

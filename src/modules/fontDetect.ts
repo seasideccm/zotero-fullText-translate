@@ -3,8 +3,9 @@ import { prepareReader } from "./prepareReader";
 export const pdfFontInfo: {
     [key: string]: string;
 } = {};
-export async function pdfFont() {
 
+
+export async function capturePdfWorkerMessage() {
     const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
     await reader._waitForReader;
     let port;
@@ -23,9 +24,9 @@ export async function pdfFont() {
         }
 
         //获取pageDate
-        if (event.data.data && event.data.data.structuredText) {
-            ztoolkit.log("页面结构化数据获取成功: ", event.data.data.pageLabel);
-        }
+        //if (event.data.data && event.data.data.structuredText) {
+        //    ztoolkit.log("页面结构化数据获取成功: ", event.data.data.pageLabel);
+        //}
 
     });
 }
@@ -61,7 +62,6 @@ export function identifyFontStyle(fontObj: any, ctx: any) {
     fontObj.redPoint = redPoint;
     redPointArr.push(redPoint);
 }
-
 
 export const getFontStyle = (fontName: string) => {
     if (/(-Bold$)|(\.B(\+\d+)?$)|(Heavey$)|(Black$)|(-Semibold$)|(-Bold-)/mi.test(fontName)) {
@@ -139,6 +139,7 @@ export async function getFont() {
         identifyFontStyle(font, ctx);
     }
     redPointArr.sort((a, b) => b - a);
+    const fontNameArr: string[] = [];
     const boldCutoff = 220;
     for (const font of Object.values(fontInfoObj)) {
         const redPoint = (font as any).redPoint;
@@ -149,6 +150,7 @@ export async function getFont() {
     }
     return {
         g_F_ByPage: g_F_ByPage,
-        fontInfoObj: fontInfoObj
+        fontInfoObj: fontInfoObj,
+        fontName: "fontName"
     };
 }

@@ -1,4 +1,4 @@
-import { clearAnnotationsButton, fontCheck, pdfButton } from "./pdfButton";
+import { clearAnnotationsButton, fontCheck, pdfButton } from "./buttonsLocateOnPDFReader";
 
 export function registerNotifier() {
     const callback = {

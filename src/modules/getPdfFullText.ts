@@ -2160,8 +2160,8 @@ export async function pdf2document(itmeID: number) {
   }
   combineParagraphsWords(pageDateArr);
   boxByParagraphs(pageDateArr);
-  const tree = await pages[0].pdfPage.getStructTree();
-  const test = tree;
+  /*   const tree = await pages[0].pdfPage.getStructTree();
+    const test = tree; */
 
   const linesArr: PDFLine[][] = [];
   //给行添加 pageLines和 isReference 属性

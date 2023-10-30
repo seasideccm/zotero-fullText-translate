@@ -5,7 +5,6 @@ import { createZToolkit } from "./utils/ztoolkit";
 import { fullTextTranslate } from "./modules/fullTextTranslate";
 import { serviceInit } from "./modules/serviceManage";
 import { registerNotifier } from "./modules/notify";
-import { html2md, md2html } from "./modules/mdHtmlConvert";
 
 
 async function onStartup() {
@@ -47,7 +46,6 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   fullTextTranslate.rightClickMenuItem();
   await serviceInit();
 
-
   await Zotero.Promise.delay(1000);
   popupWin.changeLine({
     progress: 100,
@@ -71,30 +69,6 @@ function onShutdown(): void {
   addon.data.alive = false;
   delete Zotero[config.addonInstance];
 }
-
-/**
- * This function is just an example of dispatcher for Notify events.
- * Any operations should be placed in a function to keep this funcion clear.
- */
-/* async function onNotify(
-  event: string,
-  type: string,
-  ids: Array<string | number>,
-  extraData: { [key: string]: any; },
-) {
-  // You can add your code to the corresponding notify type
-  ztoolkit.log("notify", event, type, ids, extraData);
-  if (
-    event == "select" &&
-    type == "tab" &&
-    extraData[ids[0]].type == "reader"
-  ) {
-    window.alert('通知\n' + extraData);
-  } else {
-    return;
-  }
-} */
-
 
 /**
  * This function is just an example of dispatcher for Preference UI events.

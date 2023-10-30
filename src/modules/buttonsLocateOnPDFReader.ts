@@ -1,5 +1,7 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
+import { saveJsonToDisk } from "../utils/prefs";
+import { getFont, pdfFontInfo } from "./fontDetect";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
 
@@ -110,6 +112,8 @@ export async function pdfButton() {
 
 }
 
+let fontInfo: any;
+
 export async function fontCheck() {
     const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
     let _window: any;
@@ -131,6 +135,9 @@ export async function fontCheck() {
             attributes: {
                 "style": "width: 100%; height: 300px;",
             },
+            properties: {
+                innerHTML: JSON.stringify(fontInfo),
+            }
         },
         true
     );
@@ -144,22 +151,27 @@ export async function fontCheck() {
         classList: ["toolbarButton"],
         styles: {
             // 解决图标
-            width: "45px",
-            border: "2px solid #4812c6"
-
+            width: "60px",
+            border: "1px solid #4812c6",
+            "font-size": "10px",
         },
         properties: {
-            innerText: "框"
+            innerText: "查字体",
+
+
         },
         attributes: {
-            title: "对话框",
+            title: "检测字体",
             tabindex: "-1",
+
         },
 
         listeners: [
             {
                 type: "click",
-                listener: () => {
+                listener: async () => {
+                    fontInfo = await getFont();
+                    await saveJsonToDisk(fontInfo, "fontInfo");
                     dialogHelper.open(`${config.addonRef}`,
                         {
                             width: 400,
@@ -168,6 +180,8 @@ export async function fontCheck() {
                             centerscreen: true,
                         }
                     );
+
+
                 }
             },
         ],
