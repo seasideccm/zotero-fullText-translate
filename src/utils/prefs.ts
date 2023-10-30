@@ -1,6 +1,7 @@
 import { config } from "../../package.json";
 import { fullTextTranslateService } from "../modules/serviceManage";
 import { fileNameLegal } from "../utils/fileNameLegal";
+import { getString } from "./locale";
 
 export const fullTextTranslatedir = Zotero.Prefs.get("extensions.zotero.dataDir", true) as string + "\\storage\\" + config.addonName + "\\";
 export const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
@@ -66,8 +67,16 @@ export function setPluginsPref(plugin: string, key: string, value: string | numb
  * @param ext 
  */
 export async function saveJsonToDisk(obj: object, filename: string, dir?: string, ext?: string) {
-  filename = fileNameLegal(filename);
   const objJson = JSON.stringify(obj);
+  const path = getPath(filename, dir, ext);
+  if (!await OS.File.exists(dir)) {
+    await OS.File.makeDir(dir);
+  }
+  await OS.File.writeAtomic(path, objJson);
+}
+
+export const getPath = (filename: string, dir?: string, ext?: string) => {
+  filename = fileNameLegal(filename);
   if (ext === undefined) {
     ext = ".json";
   }
@@ -86,14 +95,15 @@ export async function saveJsonToDisk(obj: object, filename: string, dir?: string
   }
 
   const path = dir + filename + ext;
-  if (!await OS.File.exists(dir)) {
-    await OS.File.makeDir(dir);
-  }
-  await OS.File.writeAtomic(path, objJson);
-}
+  return path;
+};
 
-const test = { test: "test" };
-saveJsonToDisk(test, "testdisk");
+export const getFileInfo = async (path: string) => {
+  return await OS.File.stat(path);
+
+};
+
+
 
 /**
  * 
