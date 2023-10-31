@@ -2,6 +2,7 @@ import { getString } from "../utils/locale";
 import { getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { prepareReader } from "./prepareReader";
+import { WriteNote } from "./writeNote";
 
 export const pdfFontInfo: {
     [key: string]: string;
@@ -179,7 +180,7 @@ export const fontNameStyleCollectionToDisk = async (fontTwoNameRedPointArr: any[
     return fromDisk;
 };
 
-export function identifyFontStyle(fontObj: any, ctx: any) {
+export async function identifyFontStyle(fontObj: any, ctx: any) {
     if (fontObj.isType3Font) {
         return;
     }
@@ -283,4 +284,14 @@ export function identifyFontStyle(fontObj: any, ctx: any) {
 
     });
     redPointArr.push(redPoint);
+
+    const note = new WriteNote({ title: "testMakeNote" });
+    note.addContent("这是内容");
+    const data = { dataArr: [[fontName, fontObj.loadedName, fontObj.redPoint, fontObj.isItalic]] };
+    note.addTable(data);
+    await note.makeNote();
+
+
+
+    const testWriteNote = "test";
 }
