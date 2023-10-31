@@ -159,18 +159,18 @@ export async function fontCheck() {
 }
 
 const fontCheckCallBack = async () => {
-    let fontNameStyleCollection: any = await readJsonFromDisk(fileNamefontNameStyleCollection);
+    let fontNameStyleCollection = await readJsonFromDisk(fileNamefontNameStyleCollection);
     let isReadDisk = false;
     let hasThisPdfFont = false;
     let condition = false;
     let lengthBeforCheck = 0;
     if (fontNameStyleCollection) {
         isReadDisk = true;
-        condition = fontNameStyleCollection.find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
+        condition = (Object.values(fontNameStyleCollection) as any).find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
         lengthBeforCheck = Object.keys(fontNameStyleCollection).length;
     }
     let fontNameStyle;
-    if (!condition) {
+    if (!condition || condition) {
         fontNameStyle = (await getFont()).fontTwoNameRedPointArr;
         fontNameStyleCollection = await fontNameStyleCollectionToDisk(fontNameStyle, fontNameStyleCollection);
         const lengthAfterSave = Object.keys(fontNameStyleCollection).length;

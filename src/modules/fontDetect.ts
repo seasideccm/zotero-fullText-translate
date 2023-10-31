@@ -54,7 +54,9 @@ const redPointArr: number[] = [];
 const fontTwoNameRedPointArr: any[] = [];
 export const regFontName = /^[A-Za-z]{6}\+/m;
 export const fileNamefontNameStyleCollection = "fontNameStyleCollection";
-
+function makeSelector(pageIndex: number) {
+    return `#viewer.pdfViewer .page:nth-child(${pageIndex}) .canvasWrapper`;
+}
 export async function getFont() {
     const g_F_ByPage: any = {};
     const fontInfoObj: any = {};
@@ -96,8 +98,14 @@ export async function getFont() {
     };
     if (!ctxCache) {
         const document = PDFView._iframeWindow.document;
+        const pageIndexArray = PDFView._pages.map((page: any) => page.pageIndex);
         let canvasWrapper;
-        while (!(canvasWrapper = document.querySelector("#viewer.pdfViewer .page:nth-child(1) .canvasWrapper"))) {
+        let n = 1;
+        let selector = makeSelector(pageIndexArray.shift() + 1);
+        while (!(canvasWrapper = document.querySelector(selector)) && n++ < 100) {
+            if ((n) % 20 == 0) {
+                selector = makeSelector(pageIndexArray.shift() + 1);
+            }
             await Zotero.Promise.delay(10);
         }
         const size = 500;
@@ -175,20 +183,23 @@ export function identifyFontStyle(fontObj: any, ctx: any) {
     if (fontObj.isType3Font) {
         return;
     }
+    ctx.save();
     const browserFontSize = 30;
     const typeface = `"${fontObj.loadedName}", ${fontObj.fallbackName}`;
-    let bold = "normal";
-    if (fontObj.black) {
+    const bold = "normal";
+    /* if (fontObj.black) {
         bold = "900";
     } else if (fontObj.bold) {
         bold = "bold";
-    }
-    const italic = fontObj.italic ? "italic" : "normal";
+    } */
+    //const italic = fontObj.italic ? "italic" : "normal";
+    const italic = "normal";
     ctx.font = `${italic} ${bold} ${browserFontSize}px ${typeface}`;
     ctx.fillStyle = "red";
     ctx.clearRect(0, 0, browserFontSize, browserFontSize);
     ctx.fillText("H", 0, browserFontSize);
     const pixels = ctx.getImageData(0, 0, browserFontSize, browserFontSize).data;
+    ctx.restore();
     //The RGBA order goes by rows from the top-left pixel to the bottom-right.
     //30x30 采集 900 个像素，红点越多，字重越大
     let redPoint = 0;
@@ -197,12 +208,79 @@ export function identifyFontStyle(fontObj: any, ctx: any) {
             redPoint += 1;
         }
     }
+    let isItalic = true;
+    /* for (let i = 2040; i < 2040 + 120; i += 4) {
+        if (pixels[i] > 0) {
+            let h = i;
+            let times = 0;
+            for (; h > i - 481; h -= 120) {
+                if (pixels[h] > 0) {
+                    times += 1;
+
+                }
+            }
+            if (times > 1) {
+                isItalic = false;
+            }
+            let j = i;
+            times = 0;
+            for (; j < i + 481; j += 120) {
+                if (pixels[j] == 0) {
+                    times += 1;
+                }
+            }
+            if (times > 1) {
+                isItalic = false;
+            }
+
+            break;
+        }
+    } */
+
+
+    const reds = pixels.filter((e: number, i: number) => i % 4 == 0);
+    let firstRedPointX;
+    let lastRowRedPointX;
+    for (let y = 0; y < 30; y++) {
+        /* if(reds.slice(y*30,30).filter((e:number)=>e).length){
+            const redPointFirstLine=reds.slice(y*30,30)
+            firstRedPointX=redPointFirstLine.findIndex((e:number)=>e)
+            break
+        } */
+        if ((firstRedPointX = findRedPointX(y))) {
+            break;
+        }
+    }
+    for (let y = 29; y > 0; y--) {
+        /* if(reds.slice(y*30,30).filter((e:number)=>e).length){
+            const redPointFirstLine=reds.slice(y*30,30)
+            lastRowRedPointX=redPointFirstLine.findIndex((e:number)=>e)
+            break
+        } */
+        if ((lastRowRedPointX = findRedPointX(y))) {
+            break;
+        }
+    }
+    if (lastRowRedPointX - firstRedPointX > 5) {
+        isItalic = true;
+    }
+    function findRedPointX(y: number) {
+        if (reds.slice(y * 30, (y + 1) * 30).filter((e: number) => e).length) {
+            return reds.slice(y * 30, (y + 1) * 30).findIndex((e: number) => e);
+        }
+    }
+
+
+    //斜体和字重一同判断是常规斜体还是其他斜体
+    fontObj.isItalic = isItalic;
     fontObj.redPoint = redPoint;
     const fontName = fontObj.name.replace(regFontName, "");
     fontTwoNameRedPointArr.push({
         fontName: fontName,
         loadName: fontObj.loadedName,
-        redPoint: fontObj.redPoint
+        redPoint: fontObj.redPoint,
+        isItalic: fontObj.isItalic
+
     });
     redPointArr.push(redPoint);
 }
