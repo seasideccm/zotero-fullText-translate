@@ -1,14 +1,13 @@
-import { getItem } from "localforage";
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
-import { getFileInfo, getPath, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
-import { getFont, pdfFontInfo } from "./fontDetect";
+import { getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
+import { fileNamefontNameStyleCollection, fontNameStyleCollectionToDisk, getFont } from "./fontDetect";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
 
 
 export let title: string;
-let itemID: number;
+let pdfItemID: number;
 
 const children = [
     {
@@ -29,7 +28,7 @@ const children = [
 ];
 export async function pdfButton() {
     const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
-    itemID = reader.itemID!;
+    pdfItemID = reader.itemID!;
     const judge = reader.itemID == reader._item.id;
     let _window: any;
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -151,7 +150,7 @@ export async function fontCheck() {
             {
                 type: "click",
                 listener: async () => {
-                    dhf();
+                    fontCheckCallBack();
 
                 }
             },
@@ -159,40 +158,45 @@ export async function fontCheck() {
     }, ref) as HTMLButtonElement;
 }
 
-const dhf = async () => {
-    let fontInfo: any = await readJsonFromDisk("fontInfo_" + itemID);
-    let isReadDisk = true;
-    if (!fontInfo) {
-        fontInfo = await getFont();
-        await saveJsonToDisk(fontInfo, "fontInfo_" + itemID);
-        isReadDisk = false;
+const fontCheckCallBack = async () => {
+    let fontNameStyleCollection: any = await readJsonFromDisk(fileNamefontNameStyleCollection);
+    let isReadDisk = false;
+    let hasThisPdfFont = false;
+    let condition = false;
+    let lengthBeforCheck = 0;
+    if (fontNameStyleCollection) {
+        isReadDisk = true;
+        condition = fontNameStyleCollection.find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
+        lengthBeforCheck = Object.keys(fontNameStyleCollection).length;
     }
-    const fileInfo = await getFileInfo(getPath("fontInfo_" + itemID));
+    let fontNameStyle;
+    if (!condition) {
+        fontNameStyle = (await getFont()).fontTwoNameRedPointArr;
+        fontNameStyleCollection = await fontNameStyleCollectionToDisk(fontNameStyle, fontNameStyleCollection);
+        const lengthAfterSave = Object.keys(fontNameStyleCollection).length;
+        if (lengthBeforCheck != lengthAfterSave) {
+            hasThisPdfFont = true;
+        }
+    }
+    const fileInfo = await getFileInfo(getPathDir(fileNamefontNameStyleCollection).path);
     let fileSize;
     if (!fileInfo) {
         fileSize = 0;
     } else {
         fileSize = fileInfo.size;
     }
-    const content = "isReadDisk: " + isReadDisk + "\n\n"
+    const content = "isReadDisk: " + isReadDisk + " hasThisPdfFont: " + hasThisPdfFont + "\n\n"
         + getString("info-fileInfo-size") + fileInfo.size + "\n\n"
-        + JSON.stringify(fontInfo, null, 4);
+        + JSON.stringify(fontNameStyleCollection, null, 4);
     const dialogHelperFont = new ztoolkit.Dialog(1, 1)
-
-        /* .setDialogData({
-            dialogData: fontInfo,
-            loadCallback: () => {
-            }
-        }
-        ) */
-
+        /* .setDialogData */
         .addCell(0, 0,
             {
                 tag: "textarea",
                 namespace: "html",
                 id: "dialog-fontInfo",
                 attributes: {
-                    "style": "width: 100%; height: 100%;",
+                    style: "width: 100%; height: 430;",
                 },
                 properties: {
                     //无需<pre></pre>标签，加了会显示标签本身
@@ -207,6 +211,7 @@ const dhf = async () => {
                 centerscreen: true,
             }
         );
+    const test = dialogHelperFont;
 
     /* const doc = dialogHelperFont.window.document;
     const dialogContent = doc.querySelector("#dialog-fontInfo");
@@ -219,12 +224,12 @@ const dhf = async () => {
 };
 
 /* async function fontCheckCall() {
-    let fontInfo: any = await readJsonFromDisk("fontInfo_" + itemID);
+    let fontInfo: any = await readJsonFromDisk("fontInfo_" + pdfItemID);
     if (!fontInfo) {
         fontInfo = await getFont();
-        await saveJsonToDisk(fontInfo, "fontInfo_" + itemID);
+        await saveJsonToDisk(fontInfo, "fontInfo_" + pdfItemID);
     }
-    const fileInfo = await getFileInfo(getPath("fontInfo_" + itemID));
+    const fileInfo = await getFileInfo(getPath&Dir("fontInfo_" + pdfItemID));
     let fileSize;
     if (!fileInfo) {
         fileSize = 0;

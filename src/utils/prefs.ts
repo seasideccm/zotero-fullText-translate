@@ -66,16 +66,18 @@ export function setPluginsPref(plugin: string, key: string, value: string | numb
  * @param dir 
  * @param ext 
  */
-export async function saveJsonToDisk(obj: object, filename: string, dir?: string, ext?: string) {
+export async function saveJsonToDisk(obj: any, filename: string, dir?: string, ext?: string) {
   const objJson = JSON.stringify(obj);
-  const path = getPath(filename, dir, ext);
+  const tempObj = getPathDir(filename, dir, ext);
+  const path = tempObj.path;
+  dir = tempObj.dir;
   if (!await OS.File.exists(dir)) {
     await OS.File.makeDir(dir);
   }
   await OS.File.writeAtomic(path, objJson);
 }
 
-export const getPath = (filename: string, dir?: string, ext?: string) => {
+export const getPathDir = (filename: string, dir?: string, ext?: string) => {
   filename = fileNameLegal(filename);
   if (ext === undefined) {
     ext = ".json";
@@ -95,14 +97,23 @@ export const getPath = (filename: string, dir?: string, ext?: string) => {
   }
 
   const path = dir + filename + ext;
-  return path;
+  return {
+    path: path,
+    dir: dir
+  };
 };
 
+/**
+ * c:\\path\\to\\file.json
+ * 
+ * /c/path/to/file/json
+ * @param path 
+ * @returns 
+ */
 export const getFileInfo = async (path: string) => {
   return await OS.File.stat(path);
 
 };
-
 
 
 /**
@@ -113,14 +124,9 @@ export const getFileInfo = async (path: string) => {
  * @returns 
  */
 export async function readJsonFromDisk(filename: string, dir?: string, ext?: string) {
-
-  if (ext === undefined) {
-    ext = ".json";
-  }
-  if (dir === undefined) {
-    dir = fullTextTranslatedir;
-  }
-  const path = dir + filename + ext;
+  const tempObj = getPathDir(filename, dir, ext);
+  const path = tempObj.path;
+  dir = tempObj.dir;
   if (!await OS.File.exists(path)) { return; }
   const buf = await OS.File.read(path, {});
   const servicesJson = arrayBufferToString(buf);

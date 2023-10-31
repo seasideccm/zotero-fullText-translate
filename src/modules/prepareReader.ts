@@ -97,7 +97,7 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   }
 
   function getObj(obj: "reader" | "internalReader" | "PDFView"
-    | "PDFViewerApplication" | "pdfViewer" | "pages" | "pdfPages" | "pdfDocument") {
+    | "PDFViewerApplication" | "pdfViewer" | "pages" | "pdfPages" | "pdfDocument" | "pdfItemID") {
     switch (obj) {
       case "reader": return reader;
       case "internalReader": return internalReader;
@@ -107,6 +107,7 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
       case "pdfPages": return pdfPages;
       case "pdfDocument": return pdfDocument;
       case "PDFViewerApplication": return PDFViewerApplication;
+      case "pdfItemID": return reader._item.id;
       default:
         return reader;
     }
