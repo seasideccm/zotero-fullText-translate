@@ -272,8 +272,17 @@ export class fullTextTranslate {
    * 
    * @returns 
    */
-  static async getNoteIDs() {
-    const items = Zotero.getActiveZoteroPane().getSelectedItems();
+  static async getNoteIDs(itemIDs?: number[] | number) {
+    let items;
+    if (!itemIDs) {
+      items = Zotero.getActiveZoteroPane().getSelectedItems();
+    } else {
+      if (typeof itemIDs == "number") {
+        itemIDs = [itemIDs];
+      }
+      items = await Zotero.Items.getAsync(itemIDs);
+    }
+
     if (!items.length) {
       return [];
     }

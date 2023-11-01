@@ -173,6 +173,17 @@ export const fontNameStyleCollectionToDisk = async (fontTwoNameRedPointArr: any[
     } else {
         fileSize = fileInfo.size;
     }
+
+
+    const note = new WriteNote({ title: "Font Style Collection" });
+    note.addContent("这是内容");
+    const data = { dataArr: [[fontName, fontObj.loadedName, fontObj.redPoint, fontObj.isItalic]] };
+    note.addTable(data);
+    await note.makeNote();
+    const testWriteNote = "test";
+
+
+
     fullTextTranslate.fullTextTranslateInfo(
         getString("info-dataWriteToDiskSuccess") + getString("info-fileInfo-size") + fileSize,
         2000);
@@ -209,55 +220,18 @@ export async function identifyFontStyle(fontObj: any, ctx: any) {
             redPoint += 1;
         }
     }
+
+    //斜体判断，专利？？
     let isItalic = true;
-    /* for (let i = 2040; i < 2040 + 120; i += 4) {
-        if (pixels[i] > 0) {
-            let h = i;
-            let times = 0;
-            for (; h > i - 481; h -= 120) {
-                if (pixels[h] > 0) {
-                    times += 1;
-
-                }
-            }
-            if (times > 1) {
-                isItalic = false;
-            }
-            let j = i;
-            times = 0;
-            for (; j < i + 481; j += 120) {
-                if (pixels[j] == 0) {
-                    times += 1;
-                }
-            }
-            if (times > 1) {
-                isItalic = false;
-            }
-
-            break;
-        }
-    } */
-
-
     const reds = pixels.filter((e: number, i: number) => i % 4 == 0);
     let firstRedPointX;
     let lastRowRedPointX;
     for (let y = 0; y < 30; y++) {
-        /* if(reds.slice(y*30,30).filter((e:number)=>e).length){
-            const redPointFirstLine=reds.slice(y*30,30)
-            firstRedPointX=redPointFirstLine.findIndex((e:number)=>e)
-            break
-        } */
         if ((firstRedPointX = findRedPointX(y))) {
             break;
         }
     }
     for (let y = 29; y > 0; y--) {
-        /* if(reds.slice(y*30,30).filter((e:number)=>e).length){
-            const redPointFirstLine=reds.slice(y*30,30)
-            lastRowRedPointX=redPointFirstLine.findIndex((e:number)=>e)
-            break
-        } */
         if ((lastRowRedPointX = findRedPointX(y))) {
             break;
         }
@@ -271,7 +245,6 @@ export async function identifyFontStyle(fontObj: any, ctx: any) {
         }
     }
 
-
     //斜体和字重一同判断是常规斜体还是其他斜体
     fontObj.isItalic = isItalic;
     fontObj.redPoint = redPoint;
@@ -284,14 +257,4 @@ export async function identifyFontStyle(fontObj: any, ctx: any) {
 
     });
     redPointArr.push(redPoint);
-
-    const note = new WriteNote({ title: "testMakeNote" });
-    note.addContent("这是内容");
-    const data = { dataArr: [[fontName, fontObj.loadedName, fontObj.redPoint, fontObj.isItalic]] };
-    note.addTable(data);
-    await note.makeNote();
-
-
-
-    const testWriteNote = "test";
 }
