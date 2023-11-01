@@ -8,6 +8,16 @@ export const pdfFontInfo: {
     [key: string]: string;
 } = {};
 
+const upDownBeginleftPoint = 'BDEFHIKLMNPRXZbhkxz'.split('');
+const downBeginLeftPoint = 'SUilmnprsuy'.split('');
+const upBeginRightPoint = 'JCQGacdefgjqt'.split('');
+const upDownCenterPoint = 'AOVWYTvwo'.split('');
+export const fontStyleJudgeType = {
+    0: upDownBeginleftPoint,
+    1: downBeginLeftPoint,
+    2: upBeginRightPoint,
+    3: upDownCenterPoint,
+};
 
 export async function capturePdfWorkerMessage() {
     const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
@@ -64,6 +74,7 @@ export async function getFont() {
     const pdfItemID = (await prepareReader("pagesLoaded"))("pdfItemID");
     const PDFView = (await prepareReader("pagesLoaded"))("PDFView");
     const pages = (await prepareReader("pagesLoaded"))("pages");
+
     for (const page of pages) {
         const g_F_FontObj: any = {};
         const pdfPage = page.pdfPage;
@@ -87,12 +98,30 @@ export async function getFont() {
                 n += 1;
             }
             if (common) {
-                const font: any = pdfPage.commonObjs.get(loadedName);
+                const font: any = JSON.parse(JSON.stringify(pdfPage.commonObjs.get(loadedName)));
+                //str用于测试字体，pdf字体不是完整字体，有的字母没有，
+                //在此记录原文str,所含字符不可太少
+                for (const item of items.filter((item: PDFItem) => item.fontName == loadedName)) {
+                    font.str += item.str;
+                    for (const type of Object.keys(fontStyleJudgeType)) {
+                        if (judgeType(fontStyleJudgeType[(type as unknown) as keyof typeof fontStyleJudgeType], font.str)) {
+                            font.styleJudgeType = type;
+                            break;
+                        }
+                    }
+
+                    if (font.str.length > 100) {
+                        break;
+                    }
+                }
+
+
                 //font.pageIndex = pdfPage._pageIndex;
                 //font.fontStyle = getFontStyle(font.name);
                 //fontData已经清除，
                 //用不上fontData，如果需要可尝试通过 worker message 获取
                 fontInfoObj[loadedName] = font;
+
             }
         }
         g_F_ByPage[page.id] = g_F_FontObj;
@@ -109,7 +138,7 @@ export async function getFont() {
             }
             await Zotero.Promise.delay(10);
         }
-        const size = 500;
+        const size = 200;
         const canvasFontCheck = document.createElement("canvas");
         canvasFontCheck.id = "fontCheck";
         canvasWrapper.appendChild(canvasFontCheck);
@@ -129,6 +158,8 @@ export async function getFont() {
         const index = redPointArr.indexOf(redPoint);
         if (index == 0 && redPoint > boldCutoff) {
             (fontSimpleInfo as any).style = "bold";
+        } else {
+            (fontSimpleInfo as any).style = "";
         }
         fontSimpleInfo.pdfItemID = pdfItemID;
     }
@@ -140,7 +171,9 @@ export async function getFont() {
     };
 }
 
-
+export function judgeType(arr: string[], str: string) {
+    return arr.some((char: string) => str.includes(char));
+}
 /**
  * 保存对象到磁盘
  * 键为字体名
@@ -206,11 +239,18 @@ export async function identifyFontStyle(fontObj: any, ctx: any) {
         bold = "bold";
     } */
     //const italic = fontObj.italic ? "italic" : "normal";
+
     const italic = "normal";
     ctx.font = `${italic} ${bold} ${browserFontSize}px ${typeface}`;
     ctx.fillStyle = "red";
     ctx.clearRect(0, 0, browserFontSize, browserFontSize);
-    ctx.fillText("H", 0, browserFontSize);
+
+    //查找可辨别字符
+    const chars = fontStyleJudgeType[fontObj.styleJudgeType as keyof typeof fontStyleJudgeType];
+    const char = chars.find((char: string) => fontObj.str.includes(char));
+
+
+    ctx.fillText(char, 0, browserFontSize);
     const pixels = ctx.getImageData(0, 0, browserFontSize, browserFontSize).data;
     ctx.restore();
     //The RGBA order goes by rows from the top-left pixel to the bottom-right.
@@ -223,29 +263,142 @@ export async function identifyFontStyle(fontObj: any, ctx: any) {
     }
 
     //斜体判断，专利？？
-    let isItalic = true;
+    let isItalic = false;
     const reds = pixels.filter((e: number, i: number) => i % 4 == 0);
     let firstRedPointX;
     let lastRowRedPointX;
-    for (let y = 0; y < 30; y++) {
-        if ((firstRedPointX = findRedPointX(y))) {
-            break;
-        }
-    }
-    for (let y = 29; y > 0; y--) {
-        if ((lastRowRedPointX = findRedPointX(y))) {
-            break;
-        }
-    }
-    if (lastRowRedPointX - firstRedPointX > 5) {
-        isItalic = true;
-    }
-    function findRedPointX(y: number) {
-        if (reds.slice(y * 30, (y + 1) * 30).filter((e: number) => e).length) {
-            return reds.slice(y * 30, (y + 1) * 30).findIndex((e: number) => e);
-        }
-    }
 
+    switch (fontObj.styleJudgeType) {
+        case "0":
+            for (let y = 0; y < browserFontSize; y++) {
+                if ((firstRedPointX = findRedPointXHorizontal(y))) {
+                    break;
+                }
+            }
+            for (let y = browserFontSize - 1; y > 0; y--) {
+                if ((lastRowRedPointX = findRedPointXHorizontal(y))) {
+                    break;
+                }
+            } if (firstRedPointX != lastRowRedPointX) {
+                isItalic = true;
+            }
+            break;
+        case "1": if (judgeVerticalLeft()) {
+            isItalic = true;
+        }
+            break;
+        case "2": if (judgeVerticalRight()) {
+            isItalic = true;
+        }
+            break;
+        case "3":
+            break;
+    }
+    function findRedPointXHorizontal(y: number) {
+        if (reds.slice(y * browserFontSize, (y + 1) * browserFontSize).filter((e: number) => e).length) {
+            return reds.slice(y * browserFontSize, (y + 1) * browserFontSize).findIndex((e: number) => e);
+        }
+    }
+    function judgeVerticalLeft() {
+        //从最后一行开始，从左到右找红点，然后向上查找，直到第一个红点出现的行
+        //记录查找的行数，计算红点比例
+        const firstPointIndex = reds.findIndex((e: number) => e);
+        for (let left = browserFontSize * (browserFontSize - 1); left > 0; left -= browserFontSize) {
+            for (let x = 0; x < browserFontSize; x++) {
+                if (reds[left + x]) {
+                    let i = 0, points = 0;
+                    for (let up = left - browserFontSize; up > firstPointIndex; up -= browserFontSize) {
+                        i++;
+                        if (reds[up + x]) {
+                            points++;
+                        }
+                    }
+                    if (points / i < 0.4) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+        }
+        //斜体和字重一同判断是常规斜体还是其他斜体
+        fontObj.isItalic = isItalic;
+        fontObj.redPoint = redPoint;
+        const fontName = fontObj.name.replace(regFontName, "");
+        fontTwoNameRedPointArr.push({
+            fontName: fontName,
+            loadName: fontObj.loadedName,
+            redPoint: fontObj.redPoint,
+            isItalic: fontObj.isItalic
+
+        });
+        redPointArr.push(redPoint);
+    }
+    function judgeVerticalRight() {
+        //从首次出现红点的行开始，从右到左找红点，然后向下查找。
+        //记录查找的行数，计算红点比例
+        const firstPointIndex = reds.findIndex((e: number) => e);
+
+        for (let left = Math.trunc(firstPointIndex / browserFontSize) * browserFontSize; left < reds.length; left += browserFontSize) {
+            for (let x = browserFontSize - 1; x >= 0; x--) {
+                if (reds[left + x]) {
+                    let i = 0, points = 0;
+                    for (let down = left + browserFontSize; down < reds.length; down += browserFontSize) {
+                        i++;
+                        if (reds[down + x]) {
+                            points++;
+                        }
+                    }
+                    if (points / i < 0.4) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+    function judgeCenter() {
+        const firstPointIndex = reds.findIndex((e: number) => e);
+        const y = Math.trunc(firstPointIndex / browserFontSize);
+        const upLeftPointX = firstPointIndex % browserFontSize;
+        let upRightPointX: number = 0;
+        const upPointLine = reds.slice(y * browserFontSize, (y + 1) * browserFontSize);
+        for (let i = browserFontSize - 1; i >= 0; i--) {
+            if (upPointLine[i]) {
+                upRightPointX = i;
+                break;
+            }
+        }
+        const upCenterX: number = (upLeftPointX + upRightPointX) / 2;
+
+        let downLeftPointX: number = 0, downRightPointX: number = 0, downCenterX: number = 0;
+        for (let y = browserFontSize - 1; y > 0; y--) {
+            const downPointLine = reds.slice(y * browserFontSize, (y + 1) * browserFontSize).filter((e: number) => e);
+            if (downPointLine.length) {
+                for (let i = 0; i < browserFontSize; i++) {
+                    if (downPointLine[i]) {
+                        downLeftPointX = i;
+                        break;
+                    }
+                }
+                for (let i = browserFontSize - 1; i >= 0; i--) {
+                    if (downPointLine[i]) {
+                        downRightPointX = i;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        downCenterX = (downRightPointX + downLeftPointX) / 2;
+        return upCenterX > downCenterX;
+
+
+
+
+
+    }
     //斜体和字重一同判断是常规斜体还是其他斜体
     fontObj.isItalic = isItalic;
     fontObj.redPoint = redPoint;
