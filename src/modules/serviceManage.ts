@@ -29,7 +29,7 @@ export const serviceInit = async () => {
   }
   window.addEventListener('unload', (e) => {
     e.preventDefault();
-    //fullTextTranslate.fullTextTranslateInfo(JSON.stringify(services));
+    //fullTextTranslate.showInfo(JSON.stringify(services));
     //经测试新填的参数能够正确写入硬盘
     saveJsonToDisk(services, servicesFilename);
     const json1 = JSON.stringify(servicePriorityWithoutKey);
@@ -293,7 +293,7 @@ export class serviceManage {
     if (Zotero.PDFTranslate.data.alive) {
       Zotero.PDFTranslate.hooks.onReaderTabPanelRefresh();
     }
-    fullTextTranslate.fullTextTranslateInfo(getString("info-switchServiceID") +
+    fullTextTranslate.showInfo(getString("info-switchServiceID") +
       getSingleServiceUnderUse().serviceID, 3000);
   }
 
@@ -324,7 +324,7 @@ export class serviceManage {
     const secrets = JSON.parse((getPluginsPref(plugin, "secretObj") as string) || "{}");
     secrets[serviceID] = secretKey;
     setPluginsPref(plugin, "secretObj", JSON.stringify(secrets));
-    fullTextTranslate.fullTextTranslateInfo(getString("info-switchServiceKey") + ": " + serviceID, 3000);
+    fullTextTranslate.showInfo(getString("info-switchServiceKey") + ": " + serviceID, 3000);
 
   }
   /*   static ServiceValidator(){

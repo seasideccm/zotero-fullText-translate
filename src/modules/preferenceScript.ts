@@ -826,14 +826,14 @@ function bindPrefEvents() {
           if (services[serviceID].secretKey?.length) {
             secretKeyString = services[serviceID].secretKey?.filter((e: SecretKey) => e.usable)[0].key;
             if (secretKeyString == "undefined" || secretKeyString == "" || secretKeyString === undefined) {
-              fullTextTranslate.fullTextTranslateInfo(getString("info-noneAvailableSecretKey"));
+              fullTextTranslate.showInfo(getString("info-noneAvailableSecretKey"));
               return;
             } else {
               setElementValue("secretKey", secretKeyString);
             }
 
           } else {
-            fullTextTranslate.fullTextTranslateInfo(getString("info-noneAvailableSecretKey"));
+            fullTextTranslate.showInfo(getString("info-noneAvailableSecretKey"));
             return;
           }
         }
@@ -970,14 +970,14 @@ function bindPrefEvents() {
       //保存新秘钥，删除旧秘钥
       const key = getElementValue('secretKey');
       if (key == "" || key === undefined) {
-        fullTextTranslate.fullTextTranslateInfo(getString("info-empty"), 2000);
+        fullTextTranslate.showInfo(getString("info-empty"), 2000);
         return;
       }
       const usable = (selectEle('secretKeyUsable') as XUL.Checkbox).checked;
 
       let charConsum = getElementValue('secretKey-charConsum');
       if (charConsum == "" || charConsum === undefined) {
-        fullTextTranslate.fullTextTranslateInfo(getString("info-empty"), 2000);
+        fullTextTranslate.showInfo(getString("info-empty"), 2000);
         return;
       }
       charConsum = Number(charConsum);
@@ -1014,7 +1014,7 @@ function bindPrefEvents() {
       };
       serviceManage.serviceCRUD("update")(serviceID)("secretKey")(secretKey);
       serviceManage.mergeAndRemoveDuplicates(serviceID);
-      fullTextTranslate.fullTextTranslateInfo(getString("pref-saveSecretKey"), 3000, addon.data.prefs!.window);
+      fullTextTranslate.showInfo(getString("pref-saveSecretKey"), 3000, addon.data.prefs!.window);
       addon.data.prefs!.rows = getRows(serviceID);
       updatePrefsUI();
 
@@ -1101,7 +1101,7 @@ function bindPrefEvents() {
      QPS=${QPS_new}; charasPerTime=${charasPerTime_new}; 
      hasSecretKey=${hasSecretKey_new};isMultiParas=${isMultiParas_new};
      limitMode=${limitMode_new}; charasLimit=${charasLimit_new}`;
-      fullTextTranslate.fullTextTranslateInfo(showInfoSaved, 3000, addon.data.prefs!.window);
+      fullTextTranslate.showInfo(showInfoSaved, 3000, addon.data.prefs!.window);
     });
   }
 }

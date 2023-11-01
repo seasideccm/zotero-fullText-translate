@@ -130,7 +130,7 @@ export class fullTextTranslate {
    */
   static async getPdfContent(pdfItem: Zotero.Item, isSavePDTtoNote?: boolean) {
     if (!pdfItem.isPDFAttachment()) {
-      fullTextTranslate.fullTextTranslateInfo(getString("info-notPdf"));
+      fullTextTranslate.showInfo(getString("info-notPdf"));
       return;
     }
     const doc = await pdf2document(pdfItem.id);
@@ -359,7 +359,7 @@ export class fullTextTranslate {
       }
     }
 
-    fullTextTranslate.fullTextTranslateInfo(langCodeNameSpeakersString + '\n\n' + '三码到两码未定义的语言被忽略，然后保留识别次数最多的前两种语言', 5000);
+    fullTextTranslate.showInfo(langCodeNameSpeakersString + '\n\n' + '三码到两码未定义的语言被忽略，然后保留识别次数最多的前两种语言', 5000);
     if (langArr.length > 2) {
       langArr.splice(2);
     }
@@ -370,12 +370,12 @@ export class fullTextTranslate {
       /* noteTodoIDs.push(aNOteID); */
     } else {
       isTran = false;
-      fullTextTranslate.fullTextTranslateInfo(getString("info-filteredByLanguageForbidden") + ": " + forbiddenLang.toString());
+      fullTextTranslate.showInfo(getString("info-filteredByLanguageForbidden") + ": " + forbiddenLang.toString());
     }
     /*     }
       } */
     const fullTextTranslateInfoTxt = langArr.toString();
-    fullTextTranslate.fullTextTranslateInfo(fullTextTranslateInfoTxt, 3000);
+    fullTextTranslate.showInfo(fullTextTranslateInfoTxt, 3000);
     return isTran;
   }
 
@@ -467,7 +467,7 @@ export class fullTextTranslate {
       const docItem = await fullTextTranslate.translateDoc(contentObj);
       const time2 = new Date().getTime();
       const time3 = time2 - time1;
-      fullTextTranslate.fullTextTranslateInfo(getString("info-translationTIme") + (time3 / 1000).toString() + " seconds", 2000);
+      fullTextTranslate.showInfo(getString("info-translationTIme") + (time3 / 1000).toString() + " seconds", 2000);
       await fullTextTranslate.makeTranslation(docItem);
     }
     const serviceID = getSingleServiceUnderUse().serviceID as string;
@@ -611,7 +611,7 @@ export class fullTextTranslate {
     const item = Zotero.Items.get(itemID);
     const Library = Zotero.Libraries.get(item.libraryID);
     if (!(Library && Library.filesEditable)) {
-      fullTextTranslate.fullTextTranslateInfo(getString("info-filesUnEditable"));
+      fullTextTranslate.showInfo(getString("info-filesUnEditable"));
       return;
     }
     let noteHtml = '';
@@ -1107,7 +1107,7 @@ export class fullTextTranslate {
   static async makeTranslation(docItem: DocItem) {
     if (docItem.status == 'error') {
       const failureReason = "";
-      fullTextTranslate.fullTextTranslateInfo(getString("info-translateFailure") + ": " + docItem.itemID?.toString() + ':' + failureReason);
+      fullTextTranslate.showInfo(getString("info-translateFailure") + ": " + docItem.itemID?.toString() + ':' + failureReason);
       return;
     }
     const docCellArr = docItem.content;
@@ -1360,7 +1360,7 @@ export class fullTextTranslate {
           if (key !== undefined) {
             const secretKey = serviceManage.getSingleSecretKey(serviceID, key);
             if (secretKey?.charConsum == 0) {
-              fullTextTranslate.fullTextTranslateInfo("error: characters record failure");
+              fullTextTranslate.showInfo("error: characters record failure");
               break;
             }
           }
@@ -1488,7 +1488,7 @@ export class fullTextTranslate {
     let secretKeyObj;
     let paraResult: any;
     if (!Zotero.Streamer._socketOpen()) {
-      fullTextTranslate.fullTextTranslateInfo(getString("info-networkDisconnected"), 5000);
+      fullTextTranslate.showInfo(getString("info-networkDisconnected"), 5000);
       return paraResult["result"] = `[请求错误]：${serviceID}`;
     }
     if (services[serviceID].hasSecretKey) {
@@ -1691,7 +1691,7 @@ export class fullTextTranslate {
    * @param closeTime 默认不自动关闭
    * @param closeOtherProgressWindows 默认 true
    */
-  static fullTextTranslateInfo(fullTextTranslateInfo: string, closeTime?: number, window?: Window, closeOnClick?: boolean, closeOtherProgressWindows?: boolean) {
+  static showInfo(fullTextTranslateInfo: string, closeTime?: number, window?: Window, closeOnClick?: boolean, closeOtherProgressWindows?: boolean) {
     /*     if (closeOtherProgressWindows) {
           while (true) {
             if (typeof Zotero.ProgressWindowSet != "undefined") {

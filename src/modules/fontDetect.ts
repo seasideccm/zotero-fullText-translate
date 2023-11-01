@@ -177,14 +177,15 @@ export const fontNameStyleCollectionToDisk = async (fontTwoNameRedPointArr: any[
 
     const note = new WriteNote({ title: "Font Style Collection" });
     note.addContent("这是内容");
-    const data = { dataArr: [[fontName, fontObj.loadedName, fontObj.redPoint, fontObj.isItalic]] };
+
+    const data = { dataArr: Object.values(fromDisk).map((obj: any) => Object.values(obj)).filter(e => e) };
     note.addTable(data);
     await note.makeNote();
     const testWriteNote = "test";
 
 
 
-    fullTextTranslate.fullTextTranslateInfo(
+    fullTextTranslate.showInfo(
         getString("info-dataWriteToDiskSuccess") + getString("info-fileInfo-size") + fileSize,
         2000);
     //返回合并后的数据
