@@ -119,6 +119,7 @@ export async function getFontInfo() {
             }
         }
         g_F_ByPage[page.id] = g_F_FontObj;
+
     };
     return {
         g_F_ByPage: g_F_ByPage,
@@ -152,6 +153,7 @@ export const fontNameStyleCollectionToDisk = async (fontSimpleInfoArr: any[], fr
             fromDisk[fontSimpleInfo.fontName] = fontSimpleInfo;
         }
     });
+    getFontStyle(fontSimpleInfoArr, fromDisk);
     /* fromDisk.push(...fontSimpleInfoArr);
     fromDisk = [...new Set(fromDisk)]; */
     await saveJsonToDisk(fromDisk, fileNamefontNameStyleCollection);
@@ -181,7 +183,7 @@ export const fontNameStyleCollectionToDisk = async (fontSimpleInfoArr: any[], fr
     return fromDisk;
 };
 
-export async function identifyFontStyle(fontObj: any, ctx: any, pdfItemID: number) {
+export function identifyFontStyle(fontObj: any, ctx: any, pdfItemID: number) {
     if (fontObj.isType3Font) {
         return;
     }

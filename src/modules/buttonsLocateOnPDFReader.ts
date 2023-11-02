@@ -134,16 +134,22 @@ export async function fontCheck() {
         id: config.addonRef + "_font_dialog",
         classList: ["toolbarButton"],
         styles: {
-            width: "60px",
-            border: "1px solid #4812c6",
-            fontSize: "10px",
+            width: "45px",
+            //border: "1px solid #342753",
+            //fontSize: "10px",
+            backgroundImage: `url(chrome://${config.addonRef}/content/icons/fontIcon.png)`,
+            backgroundSize: "16px 16px",
+            backgroundPosition: "35% center",
+            backgroundRepeat: "no-repeat",
+            padding: "4px 3px 4px 22px"
 
         },
+
         properties: {
-            innerText: "查字体",
+            //innerText: getString("info-checkFont"),
         },
         attributes: {
-            title: "检测字体",
+            title: getString("info-checkFont"),
             tabindex: "-1",
         },
         listeners: [
