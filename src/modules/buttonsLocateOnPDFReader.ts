@@ -179,7 +179,8 @@ export async function fontCheck() {
             {
                 type: "click",
                 listener: async () => {
-                    const content = fontCheckCallBack();
+                    const content = await fontCheckCallBack();
+                    dialogHelperFont.window.document.querySelector("#dialog-fontInfo").innerHTML = content;
                     dialogHelperFont.open(`${config.addonRef}`,
                         {
                             width: 400,
