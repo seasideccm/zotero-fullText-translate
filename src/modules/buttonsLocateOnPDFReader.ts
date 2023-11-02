@@ -1,14 +1,14 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
-import { fileNamefontNameStyleCollection, fontNameStyleCollectionToDisk, getFontInfo } from "./fontDetect";
+import { fontStyleFileName, fontSimpleInfoToDisk, getFontInfo } from "./fontDetect";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
+import { prepareReader } from "./prepareReader";
 
 
 export let title: string;
 let pdfItemID: number;
-
 const children = [
     {
         tag: "span",
@@ -19,6 +19,7 @@ const children = [
             height: "4px",
             margin: "6px 0",
             marginInlineStart: "2px",
+            marginInlineEnd: "2px",
             position: "relative",
             verticalAlign: "top",
             width: "7px",
@@ -27,7 +28,9 @@ const children = [
     }
 ];
 export async function pdfButton() {
-    const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
+    const document1 = (await prepareReader("pagesLoaded"))("document");
+
+    /* const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
     pdfItemID = reader.itemID!;
     const judge = reader.itemID == reader._item.id;
     let _window: any;
@@ -35,11 +38,12 @@ export async function pdfButton() {
     // @ts-ignore
     while (!(_window = reader?._iframeWindow?.wrappedJSObject)) {
         await Zotero.Promise.delay(10);
-    }
+    } */
     const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
     title = tab.tab.title;
     title = title.replace(/( - [^-]+){1,2}$/m, "");
-    const parent = _window.document.querySelector("#reader-ui .toolbar .end")!;
+    //const parent = _window.document.querySelector("#reader-ui .toolbar .end")!;
+    const parent = document1.querySelector("#reader-ui .toolbar .end")!;
     const ref = parent.querySelector("#viewFind") as HTMLDivElement;
     const button = ztoolkit.UI.insertElementBefore({
         enableElementJSONLog: false,
@@ -117,12 +121,15 @@ export async function pdfButton() {
 }
 
 export async function fontCheck() {
-    const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
+    /* const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
     let _window: any;
     while (!(_window = (reader?._iframeWindow as any)?.wrappedJSObject)) {
         await Zotero.Promise.delay(10);
     }
-    const parent = _window.document.querySelector("#reader-ui .toolbar .center")!;
+
+    const parent = _window.document.querySelector("#reader-ui .toolbar .center")!; */
+    const document1 = (await prepareReader("pagesLoaded"))("document");
+    const parent = document1.querySelector("#reader-ui .toolbar .center")!;
     const ref = parent.querySelector(".highlight") as HTMLDivElement;
 
     const dialogButton = ztoolkit.UI.insertElementBefore({
@@ -137,12 +144,11 @@ export async function fontCheck() {
             width: "45px",
             //border: "1px solid #342753",
             //fontSize: "10px",
-            backgroundImage: `url(chrome://${config.addonRef}/content/icons/fontIcon.png)`,
+            backgroundImage: `url(chrome://${config.addonRef}/content/icons/favicon@0.5x.png)`,
             backgroundSize: "16px 16px",
             backgroundPosition: "35% center",
             backgroundRepeat: "no-repeat",
             padding: "4px 3px 4px 22px"
-
         },
 
         properties: {
@@ -157,7 +163,6 @@ export async function fontCheck() {
                 type: "click",
                 listener: async () => {
                     fontCheckCallBack();
-
                 }
             },
         ],
@@ -165,26 +170,26 @@ export async function fontCheck() {
 }
 
 const fontCheckCallBack = async () => {
-    let fontNameStyleCollection = await readJsonFromDisk(fileNamefontNameStyleCollection);
+    let fontSimpleInfo = await readJsonFromDisk(fontStyleFileName);
     let isReadDisk = false;
     let hasThisPdfFont = false;
     let condition = false;
     let lengthBeforCheck = 0;
-    if (fontNameStyleCollection) {
+    if (fontSimpleInfo) {
         isReadDisk = true;
-        condition = (Object.values(fontNameStyleCollection) as any).find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
-        lengthBeforCheck = Object.keys(fontNameStyleCollection).length;
+        condition = (Object.values(fontSimpleInfo) as any).find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
+        lengthBeforCheck = Object.keys(fontSimpleInfo).length;
     }
     let fontSimpleInfoArr;
     if (!condition || condition) {
         fontSimpleInfoArr = (await getFontInfo()).fontSimpleInfoArr;
-        fontNameStyleCollection = await fontNameStyleCollectionToDisk(fontSimpleInfoArr, fontNameStyleCollection);
-        const lengthAfterSave = Object.keys(fontNameStyleCollection).length;
+        fontSimpleInfo = await fontSimpleInfoToDisk(fontSimpleInfoArr, fontStyleFileName);
+        const lengthAfterSave = Object.keys(fontSimpleInfo).length;
         if (lengthBeforCheck != lengthAfterSave) {
             hasThisPdfFont = true;
         }
     }
-    const fileInfo = await getFileInfo(getPathDir(fileNamefontNameStyleCollection).path);
+    const fileInfo = await getFileInfo(getPathDir(fontStyleFileName).path);
     let fileSize;
     if (!fileInfo) {
         fileSize = 0;
@@ -193,7 +198,7 @@ const fontCheckCallBack = async () => {
     }
     const content = "isReadDisk: " + isReadDisk + " hasThisPdfFont: " + hasThisPdfFont + "\n\n"
         + getString("info-fileInfo-size") + fileInfo.size + "\n\n"
-        + JSON.stringify(fontNameStyleCollection, null, 4);
+        + JSON.stringify(fontSimpleInfo, null, 4);
     const dialogHelperFont = new ztoolkit.Dialog(1, 1)
         /* .setDialogData */
         .addCell(0, 0,
@@ -217,55 +222,14 @@ const fontCheckCallBack = async () => {
                 centerscreen: true,
             }
         );
-    const test = dialogHelperFont;
-
-    /* const doc = dialogHelperFont.window.document;
-    const dialogContent = doc.querySelector("#dialog-fontInfo");
-
-    if (dialogContent) {
-        dialogContent.innerHTML += "<pre>" + "fuck" + "</pre>";
-    } */
-
-
 };
 
-/* async function fontCheckCall() {
-    let fontInfo: any = await readJsonFromDisk("fontInfo_" + pdfItemID);
-    if (!fontInfo) {
-        fontInfo = await getFontInfo();
-        await saveJsonToDisk(fontInfo, "fontInfo_" + pdfItemID);
-    }
-    const fileInfo = await getFileInfo(getPath&Dir("fontInfo_" + pdfItemID));
-    let fileSize;
-    if (!fileInfo) {
-        fileSize = 0;
-    } else {
-        fileSize = fileInfo.size;
-    }
-    const doc = dialogHelperFont.window.document;
-    const dialogContent = doc.querySelector("#dialog-fontInfo");
-
-    if (dialogContent) {
-        dialogContent.innerHTML = "<pre>" + JSON.stringify(fontInfo, null, 4) + "</pre>";
-    }
-    const dialogHeader = doc.querySelector("#dialog-header");
-    if (dialogHeader) {
-        dialogHeader.innerHTML = getString("info-fileInfo-size") + fileInfo.size;
-    }
-} */
-
 export async function clearAnnotationsButton() {
-    const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
-    let _window: any;
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    while (!(_window = reader?._iframeWindow?.wrappedJSObject)) {
-        await Zotero.Promise.delay(10);
-    }
+    const document1 = (await prepareReader("pagesLoaded"))("document");
     const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
     title = tab.tab.title;
     title = title.replace(/( - [^-]+){1,2}$/m, "");
-    const parent = _window.document.querySelector("#reader-ui .toolbar .center")!;
+    const parent = document1.querySelector("#reader-ui .toolbar .center")!;
     const ref = parent.querySelector(".highlight") as HTMLDivElement;
 
     const menuitemArr = [
@@ -305,7 +269,7 @@ export async function clearAnnotationsButton() {
             padding: "4px 3px 4px 22px"
         },
         attributes: {
-            title: config.addonName + "-imgTableTool",
+            title: getString("info-imgTableTool"),
             tabindex: "-1",
         },
         /* listeners: [

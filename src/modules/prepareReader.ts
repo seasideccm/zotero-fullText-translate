@@ -1,4 +1,4 @@
-import { fullTextTranslate } from './fullTextTranslate';
+
 
 
 export async function prepareReader(result: "beforReaderInit" | "waitForReader" | "initializedReader" | "initializedPDFView" | "initializedPDFViewerApplication" | "pdfLoaded" | "firstPageLoaded"
@@ -81,6 +81,7 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   }
   await PDFViewerApplication.pdfLoadingTask.promise;
   const pdfDocument = PDFViewerApplication.pdfDocument;
+  const document = (reader._iframeWindow as any).wrappedJSObject.document;
   const pages = pdfViewer._pages;
   if (result == "pdfLoaded") {
     return getObj;
@@ -97,7 +98,8 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   }
 
   function getObj(obj: "reader" | "internalReader" | "PDFView"
-    | "PDFViewerApplication" | "pdfViewer" | "pages" | "pdfPages" | "pdfDocument" | "pdfItemID") {
+    | "PDFViewerApplication" | "pdfViewer" | "pages" | "pdfPages"
+    | "pdfDocument" | "pdfItemID" | "document" | "documentPDFView") {
     switch (obj) {
       case "reader": return reader;
       case "internalReader": return internalReader;
@@ -108,6 +110,8 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
       case "pdfDocument": return pdfDocument;
       case "PDFViewerApplication": return PDFViewerApplication;
       case "pdfItemID": return reader._item.id;
+      case "document": return document;
+      case "documentPDFView": return PDFView._iframeWindow.document;
       default:
         return reader;
     }

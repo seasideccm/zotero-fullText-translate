@@ -46,7 +46,7 @@ export async function capturePdfWorkerMessage() {
 }
 
 export const regFontName = /^[A-Za-z]{6}\+/m;
-export const fileNamefontNameStyleCollection = "fontNameStyleCollection";
+export const fontStyleFileName = "fontStyleCollection";
 function makeSelector(pageIndex: number) {
     return `#viewer.pdfViewer .page:nth-child(${pageIndex}) .canvasWrapper`;
 }
@@ -54,8 +54,9 @@ export async function getFontInfo() {
     const g_F_ByPage: any = {};
     const fontInfoObj: any = {};
     const pdfItemID = (await prepareReader("pagesLoaded"))("pdfItemID");
-    const PDFView = (await prepareReader("pagesLoaded"))("PDFView");
-    const document = PDFView._iframeWindow.document;
+    //const PDFView = (await prepareReader("pagesLoaded"))("PDFView");
+    //const document = PDFView._iframeWindow.document;
+    const document = (await prepareReader("pagesLoaded"))("documentPDFView");
     const pages = (await prepareReader("pagesLoaded"))("pages");
     let idRenderFinished;
     for (let i = 0; i < 100; i++) {
@@ -114,7 +115,7 @@ export async function getFontInfo() {
                 //fontData已经清除，
                 //用不上fontData，如果需要可尝试通过 worker message 获取
                 fontInfoObj[loadedName] = font;
-                const fontSimpleInfo = identifyFontStyle(font, ctx, pdfItemID);
+                const fontSimpleInfo = identifyRedPointAndItalic(font, ctx, pdfItemID);
                 fontSimpleInfoArr.push(fontSimpleInfo);
             }
         }
@@ -141,23 +142,25 @@ export function judgeType(arr: string[], str: string) {
  * @param fromDisk 
  * @returns 
  */
-export const fontNameStyleCollectionToDisk = async (fontSimpleInfoArr: any[], fromDisk?: any) => {
+export const fontSimpleInfoToDisk = async (fontSimpleInfoArr: any[], fromDisk?: any) => {
     if (!fromDisk) {
-        fromDisk = await readJsonFromDisk(fileNamefontNameStyleCollection);
+        fromDisk = await readJsonFromDisk(fontStyleFileName);
     }
     if (!fromDisk) {
         fromDisk = {};
     }
+
     fontSimpleInfoArr.filter((fontSimpleInfo: any) => {
         if (!fromDisk[fontSimpleInfo.fontName]) {
             fromDisk[fontSimpleInfo.fontName] = fontSimpleInfo;
         }
+
     });
     getFontStyle(fontSimpleInfoArr, fromDisk);
     /* fromDisk.push(...fontSimpleInfoArr);
     fromDisk = [...new Set(fromDisk)]; */
-    await saveJsonToDisk(fromDisk, fileNamefontNameStyleCollection);
-    const fileInfo = await getFileInfo(getPathDir(fileNamefontNameStyleCollection).path);
+    await saveJsonToDisk(fromDisk, fontStyleFileName);
+    const fileInfo = await getFileInfo(getPathDir(fontStyleFileName).path);
     let fileSize;
     if (!fileInfo) {
         fileSize = 0;
@@ -183,7 +186,7 @@ export const fontNameStyleCollectionToDisk = async (fontSimpleInfoArr: any[], fr
     return fromDisk;
 };
 
-export function identifyFontStyle(fontObj: any, ctx: any, pdfItemID: number) {
+export function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemID: number) {
     if (fontObj.isType3Font) {
         return;
     }
@@ -407,9 +410,6 @@ export const getFontStyle = (fontSimpleInfoArr: any[], fromDisk?: any) => {
         } else {
             //todo canvas渲染字体判断字体格式
             fontSimpleInfo.redPoint >= boldRedPointArr.slice(-1)[0] ? fontSimpleInfo.style = "bold" : judgePdfFontStyoe(fontSimpleInfo);
-
-
-
             if (fontSimpleInfo.isItalic) {
                 fontSimpleInfo.style == "bold" ? fontSimpleInfo.style = "boldItalic" : fontSimpleInfo.style = "italic";
             }

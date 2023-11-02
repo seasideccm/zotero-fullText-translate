@@ -38,6 +38,7 @@ info-switchServiceID = 完成更换翻译引擎。查询结果：
 info-dataWriteToDiskSuccess= 数据成功写入硬盘。
 info-fileInfo-size = 文件大小：
 info-checkFont = 字体检测
+info-imgTableTool = 图标工具
 info-unableConfirmNote = 无法确认写入哪个笔记，请检查笔记标题
 dialog-label = 翻山蚁
 menuitem-getPdfContent = pdf转笔记
