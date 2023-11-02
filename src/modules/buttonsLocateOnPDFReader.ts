@@ -169,10 +169,10 @@ const fontCheckCallBack = async () => {
         condition = (Object.values(fontNameStyleCollection) as any).find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
         lengthBeforCheck = Object.keys(fontNameStyleCollection).length;
     }
-    let fontNameStyle;
+    let fontSimpleInfoArr;
     if (!condition || condition) {
-        fontNameStyle = (await getFontInfo()).fontTwoNameRedPointArr;
-        fontNameStyleCollection = await fontNameStyleCollectionToDisk(fontNameStyle, fontNameStyleCollection);
+        fontSimpleInfoArr = (await getFontInfo()).fontSimpleInfoArr;
+        fontNameStyleCollection = await fontNameStyleCollectionToDisk(fontSimpleInfoArr, fontNameStyleCollection);
         const lengthAfterSave = Object.keys(fontNameStyleCollection).length;
         if (lengthBeforCheck != lengthAfterSave) {
             hasThisPdfFont = true;

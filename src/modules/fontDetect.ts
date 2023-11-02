@@ -57,10 +57,24 @@ export async function getFontInfo() {
     const PDFView = (await prepareReader("pagesLoaded"))("PDFView");
     const document = PDFView._iframeWindow.document;
     const pages = (await prepareReader("pagesLoaded"))("pages");
-    let idRenderFinished, n = 0;
-    if (!(idRenderFinished = pages.map((page: any) => page.renderingState == 3)[0].id) && n++ < 100) {
+    let idRenderFinished;
+    for (let i = 0; i < 100; i++) {
+        let find = false;
+        for (const page of pages) {
+            const renderingState = page.renderingState;
+            if (renderingState == 3) {
+                idRenderFinished = page.id;
+                find = true;
+                break;
+            }
+        }
+        if (find) break;
         Zotero.Promise.delay(10);
     }
+
+    /*找不到？？？ if (!(idRenderFinished = pages.filter((page: any) => page.renderingState == 3)[0]?.id) && n++ < 100) {
+        Zotero.Promise.delay(10);
+    } */
     const ctx = getCtx(idRenderFinished, document);
     const fontSimpleInfoArr: any[] = [];
     for (const page of pages) {
@@ -374,6 +388,7 @@ export const getFontStyle = (fontSimpleInfoArr: any[], fromDisk?: any) => {
                     boldRedPointArr.push(fontSimpleInfo.redPoint);
                 }
             });
+            fromDisk["boldRedPointArr"] = boldRedPointArr;
         }
     }
     boldRedPointArr.sort((a, b) => b - a);
