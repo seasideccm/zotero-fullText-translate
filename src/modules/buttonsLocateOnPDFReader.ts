@@ -27,6 +27,14 @@ const children = [
         }
     }
 ];
+
+const buttonBackground = [
+    {
+        tag: "span",
+        classList: ["button-background"],
+
+    }
+];
 export async function pdfButton() {
     const document1 = (await prepareReader("pagesLoaded"))("document");
 
@@ -121,16 +129,25 @@ export async function pdfButton() {
 }
 
 export async function fontCheck() {
-    /* const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
-    let _window: any;
-    while (!(_window = (reader?._iframeWindow as any)?.wrappedJSObject)) {
-        await Zotero.Promise.delay(10);
-    }
-
-    const parent = _window.document.querySelector("#reader-ui .toolbar .center")!; */
     const document1 = (await prepareReader("pagesLoaded"))("document");
     const parent = document1.querySelector("#reader-ui .toolbar .center")!;
     const ref = parent.querySelector(".highlight") as HTMLDivElement;
+    const dialogHelperFont = new ztoolkit.Dialog(1, 1)
+        /* .setDialogData */
+        .addCell(0, 0,
+            {
+                tag: "textarea",
+                namespace: "html",
+                id: "dialog-fontInfo",
+                attributes: {
+                    style: "width: 100%; height: 430;",
+                },
+                properties: {
+                    //无需<pre></pre>标签，加了会显示标签本身
+                    //innerHTML: `${content}`
+                }
+            }
+        );
 
     const dialogButton = ztoolkit.UI.insertElementBefore({
         enableElementJSONLog: false,
@@ -162,10 +179,20 @@ export async function fontCheck() {
             {
                 type: "click",
                 listener: async () => {
-                    fontCheckCallBack();
+                    const content = fontCheckCallBack();
+                    dialogHelperFont.open(`${config.addonRef}`,
+                        {
+                            width: 400,
+                            height: 450,
+                            resizable: true,
+                            centerscreen: true,
+                        }
+                    );
                 }
             },
         ],
+        children: buttonBackground,
+
     }, ref) as HTMLButtonElement;
 }
 
@@ -173,17 +200,17 @@ const fontCheckCallBack = async () => {
     let fontSimpleInfo = await readJsonFromDisk(fontStyleFileName);
     let isReadDisk = false;
     let hasThisPdfFont = false;
-    let condition = false;
+    let pdfItemIDChecked = false;
     let lengthBeforCheck = 0;
     if (fontSimpleInfo) {
         isReadDisk = true;
-        condition = (Object.values(fontSimpleInfo) as any).find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
+        pdfItemIDChecked = (Object.values(fontSimpleInfo) as any).find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
         lengthBeforCheck = Object.keys(fontSimpleInfo).length;
     }
     let fontSimpleInfoArr;
-    if (!condition || condition) {
+    if (!pdfItemIDChecked) {
         fontSimpleInfoArr = (await getFontInfo()).fontSimpleInfoArr;
-        fontSimpleInfo = await fontSimpleInfoToDisk(fontSimpleInfoArr, fontStyleFileName);
+        fontSimpleInfo = await fontSimpleInfoToDisk(fontSimpleInfoArr, fontSimpleInfo);
         const lengthAfterSave = Object.keys(fontSimpleInfo).length;
         if (lengthBeforCheck != lengthAfterSave) {
             hasThisPdfFont = true;
@@ -199,29 +226,30 @@ const fontCheckCallBack = async () => {
     const content = "isReadDisk: " + isReadDisk + " hasThisPdfFont: " + hasThisPdfFont + "\n\n"
         + getString("info-fileInfo-size") + fileInfo.size + "\n\n"
         + JSON.stringify(fontSimpleInfo, null, 4);
-    const dialogHelperFont = new ztoolkit.Dialog(1, 1)
-        /* .setDialogData */
-        .addCell(0, 0,
-            {
-                tag: "textarea",
-                namespace: "html",
-                id: "dialog-fontInfo",
-                attributes: {
-                    style: "width: 100%; height: 430;",
-                },
-                properties: {
-                    //无需<pre></pre>标签，加了会显示标签本身
-                    innerHTML: `${content}`
+    return content;
+    /*     const dialogHelperFont = new ztoolkit.Dialog(1, 1)
+            // .setDialogData 
+            .addCell(0, 0,
+                {
+                    tag: "textarea",
+                    namespace: "html",
+                    id: "dialog-fontInfo",
+                    attributes: {
+                        style: "width: 100%; height: 430;",
+                    },
+                    properties: {
+                        //无需<pre></pre>标签，加了会显示标签本身
+                        innerHTML: `${content}`
+                    }
                 }
-            }
-        ).open(`${config.addonRef}`,
-            {
-                width: 400,
-                height: 450,
-                resizable: true,
-                centerscreen: true,
-            }
-        );
+            ).open(`${config.addonRef}`,
+                {
+                    width: 400,
+                    height: 450,
+                    resizable: true,
+                    centerscreen: true,
+                }
+            ); */
 };
 
 export async function clearAnnotationsButton() {

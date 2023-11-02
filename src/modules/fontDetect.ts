@@ -383,27 +383,41 @@ export const getFontStyle = (fontSimpleInfoArr: any[], fromDisk?: any) => {
             redPointThisPdfArr.push(fontSimpleInfo.redPoint);
         }
     });
-    const boldRedPointArr: number[] = [];
+    redPointThisPdfArr.sort((a, b) => b - a);
+
+    let boldRedPointArr: number[] = [];
     if (fromDisk) {
         if (fromDisk["boldRedPointArr"]) {
-            boldRedPointArr.push(...fromDisk["boldRedPointArr"]);
+            boldRedPointArr = fromDisk["boldRedPointArr"];
         } else {
+            fromDisk["boldRedPointArr"] = boldRedPointArr;
+
+        }
+        if (!boldRedPointArr.length) {
             Object.values(fromDisk).filter((fontSimpleInfo: any) => {
                 if (fontSimpleInfo.style == "bold") {
                     boldRedPointArr.push(fontSimpleInfo.redPoint);
                 }
             });
-            fromDisk["boldRedPointArr"] = boldRedPointArr;
         }
+        boldRedPointArr.sort((a, b) => b - a);
     }
-    boldRedPointArr.sort((a, b) => b - a);
+
+
+
     for (const fontSimpleInfo of fontSimpleInfoArr) {
         if (/(-Bold$)|(\.B(\+\d+)?$)|(Heavey$)|(Black$)|(-Semibold$)|(-Bold-)/mi.test(fontSimpleInfo.fontName)) {
             fontSimpleInfo.style = "bold";
             fontSimpleInfo.isBold = "true";
+            if (fontSimpleInfo.redPoint) {
+                boldRedPointArr.push(fontSimpleInfo.redPoint);
+            }
         } else if (/(BoldItal$)|(.BI$)|(-SemiboldIt$)|(BoldItalic$)/mi.test(fontSimpleInfo.fontName)) {
             fontSimpleInfo.style = "boldItalic";
             fontSimpleInfo.isBoldItalic = "true";
+            if (fontSimpleInfo.redPoint) {
+                boldRedPointArr.push(fontSimpleInfo.redPoint);
+            }
         } else if (/(Italic$)|(\.I$)|(Oblique$)|(-LightIt$)|(-It$)/mi.test(fontSimpleInfo.fontName)) {
             fontSimpleInfo.style = "italic";
             fontSimpleInfo.isItalic = "true";
@@ -412,6 +426,9 @@ export const getFontStyle = (fontSimpleInfoArr: any[], fromDisk?: any) => {
             fontSimpleInfo.redPoint >= boldRedPointArr.slice(-1)[0] ? fontSimpleInfo.style = "bold" : judgePdfFontStyoe(fontSimpleInfo);
             if (fontSimpleInfo.isItalic) {
                 fontSimpleInfo.style == "bold" ? fontSimpleInfo.style = "boldItalic" : fontSimpleInfo.style = "italic";
+            }
+            if (fontSimpleInfo.redPoint && fontSimpleInfo.style.includes("bold")) {
+                boldRedPointArr.push(fontSimpleInfo.redPoint);
             }
         }
     }

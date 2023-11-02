@@ -53,8 +53,16 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
     tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
   }
 
+
+  let reader: any, n = 0;
+  while (!(reader = Zotero.Reader.getByTabID(tabID as string)) && n++ < 12) {
+    Zotero.Promise.delay(50);
+  }
+  if (!reader) {
+    ztoolkit.log("prepare reader have timeout");
+  }
   Zotero_Tabs.select(tabID as string);
-  const reader = Zotero.Reader.getByTabID(tabID as string) as any;
+
   if (result == "beforReaderInit") {
     return getObj;
   }
