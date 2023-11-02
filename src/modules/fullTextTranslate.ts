@@ -10,7 +10,7 @@ import { franc } from "franc-min";
 import { langCode_francVsZotero, langCodeNameSpeakers } from "../utils/config";
 import { html2md, md2html } from "./mdHtmlConvert";
 import { imageToAnnotation } from "./imageToAnnotation";
-import { getFont } from "./fontDetect";
+import { getFontInfo } from "./fontDetect";
 
 let htmlToMd: any, mdToHtml: any;
 // 装饰函数
@@ -83,7 +83,7 @@ export class fullTextTranslate {
       tag: "menuitem",
       label: "测试字体样式检测",
       commandListener: ((ev) => {
-        getFont();
+        getFontInfo();
       }),
       icon: menuIcon,
     });

@@ -1,7 +1,7 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
-import { fileNamefontNameStyleCollection, fontNameStyleCollectionToDisk, getFont } from "./fontDetect";
+import { fileNamefontNameStyleCollection, fontNameStyleCollectionToDisk, getFontInfo } from "./fontDetect";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
 
@@ -171,7 +171,7 @@ const fontCheckCallBack = async () => {
     }
     let fontNameStyle;
     if (!condition || condition) {
-        fontNameStyle = (await getFont()).fontTwoNameRedPointArr;
+        fontNameStyle = (await getFontInfo()).fontTwoNameRedPointArr;
         fontNameStyleCollection = await fontNameStyleCollectionToDisk(fontNameStyle, fontNameStyleCollection);
         const lengthAfterSave = Object.keys(fontNameStyleCollection).length;
         if (lengthBeforCheck != lengthAfterSave) {
@@ -226,7 +226,7 @@ const fontCheckCallBack = async () => {
 /* async function fontCheckCall() {
     let fontInfo: any = await readJsonFromDisk("fontInfo_" + pdfItemID);
     if (!fontInfo) {
-        fontInfo = await getFont();
+        fontInfo = await getFontInfo();
         await saveJsonToDisk(fontInfo, "fontInfo_" + pdfItemID);
     }
     const fileInfo = await getFileInfo(getPath&Dir("fontInfo_" + pdfItemID));
