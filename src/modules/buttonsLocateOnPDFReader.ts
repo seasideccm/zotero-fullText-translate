@@ -132,7 +132,34 @@ export async function fontCheck() {
     const document1 = (await prepareReader("pagesLoaded"))("document");
     const parent = document1.querySelector("#reader-ui .toolbar .center")!;
     const ref = parent.querySelector(".highlight") as HTMLDivElement;
+    const dialogID = "dialog-fontInfo";
+    const openArgs = {
+        title: `${config.addonRef}`,
+    };
 
+    //如果本插件对话框存在，则视为dialogHelperFont，无需重复创建。之后再设置数据
+    if (!addon.data.dialog) {
+        const dialogHelperFont = new ztoolkit.Dialog(1, 1)
+            .addCell(0, 0,
+                {
+                    tag: "textarea",
+                    namespace: "html",
+                    id: dialogID,
+                    attributes: {
+                        style: "width: 400; height: 430;",
+                        //数据绑定的数据来源于dialogData的哪个键值
+                        "data-bind": "content",
+                        //元素某个property
+                        "data-prop": "innerHTML",
+                    },
+                    /* properties: {
+                        //无需<pre></pre>标签，加了会显示标签本身
+                        innerHTML: `${content}`
+                    } */
+                }
+            );
+        addon.data.dialog = dialogHelperFont;
+    }
 
     const dialogButton = ztoolkit.UI.insertElementBefore({
         enableElementJSONLog: false,
@@ -164,93 +191,67 @@ export async function fontCheck() {
             {
                 type: "click",
                 listener: async () => {
-                    const content = await fontCheckCallBack();
+                    await fontCheckCallBack();
                 }
             },
         ],
         children: buttonBackground,
 
     }, ref) as HTMLButtonElement;
+    const fontCheckCallBack = async () => {
+        let fontSimpleInfo = await readJsonFromDisk(fontStyleFileName);
+        let isReadDisk = false;
+        let hasThisPdfFont = false;
+        let pdfItemIDChecked = false;
+        let lengthBeforCheck = 0;
+        if (fontSimpleInfo) {
+            isReadDisk = true;
+            const pdfItemID = Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data.itemID;
+            //const pdfItemID = Zotero_Tabs._tabs.filter((tab: any) => tab.id == Zotero_Tabs.selectedID)[0].data.itemID;
+            pdfItemIDChecked = (Object.values(fontSimpleInfo) as any).find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
+            lengthBeforCheck = Object.keys(fontSimpleInfo).length;
+        }
+        let fontSimpleInfoArr;
+        if (!pdfItemIDChecked) {
+            fontSimpleInfoArr = (await getFontInfo()).fontSimpleInfoArr;
+            fontSimpleInfo = await fontSimpleInfoToDisk(fontSimpleInfoArr, fontSimpleInfo);
+            const lengthAfterSave = Object.keys(fontSimpleInfo).length;
+            if (lengthBeforCheck != lengthAfterSave) {
+                hasThisPdfFont = true;
+            }
+        }
+        const fileInfo = await getFileInfo(getPathDir(fontStyleFileName).path);
+        let fileSize;
+        if (!fileInfo) {
+            fileSize = 0;
+        } else {
+            fileSize = fileInfo.size;
+        }
+        const content = "isReadDisk: " + isReadDisk + " hasThisPdfFont: " + hasThisPdfFont + "\n\n"
+            + getString("info-fileInfo-size") + fileInfo.size + "\n\n"
+            + JSON.stringify(fontSimpleInfo, null, 4);
+
+        const dialogData = {
+            "content": content
+        };
+        const dialogHelperFont = addon.data.dialog!;
+        if (dialogHelperFont.window) {
+            if (dialogHelperFont.window.closed) {
+                dialogHelperFont.setDialogData(dialogData).open(openArgs.title);
+
+            } else {
+                dialogHelperFont.window.focus();
+                const textarea = dialogHelperFont.window.document.querySelector("#" + dialogID);
+                textarea!.innerHTML = content;
+            };
+        } else {
+            dialogHelperFont.setDialogData(dialogData).open(openArgs.title);
+        }
+
+    };
 }
 
-const fontCheckCallBack = async () => {
-    let fontSimpleInfo = await readJsonFromDisk(fontStyleFileName);
-    let isReadDisk = false;
-    let hasThisPdfFont = false;
-    let pdfItemIDChecked = false;
-    let lengthBeforCheck = 0;
-    if (fontSimpleInfo) {
-        isReadDisk = true;
-        const pdfItemID = Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data.itemID;
-        //const pdfItemID = Zotero_Tabs._tabs.filter((tab: any) => tab.id == Zotero_Tabs.selectedID)[0].data.itemID;
-        pdfItemIDChecked = (Object.values(fontSimpleInfo) as any).find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
-        lengthBeforCheck = Object.keys(fontSimpleInfo).length;
-    }
-    let fontSimpleInfoArr;
-    if (!pdfItemIDChecked) {
-        fontSimpleInfoArr = (await getFontInfo()).fontSimpleInfoArr;
-        fontSimpleInfo = await fontSimpleInfoToDisk(fontSimpleInfoArr, fontSimpleInfo);
-        const lengthAfterSave = Object.keys(fontSimpleInfo).length;
-        if (lengthBeforCheck != lengthAfterSave) {
-            hasThisPdfFont = true;
-        }
-    }
-    const fileInfo = await getFileInfo(getPathDir(fontStyleFileName).path);
-    let fileSize;
-    if (!fileInfo) {
-        fileSize = 0;
-    } else {
-        fileSize = fileInfo.size;
-    }
-    const content = "isReadDisk: " + isReadDisk + " hasThisPdfFont: " + hasThisPdfFont + "\n\n"
-        + getString("info-fileInfo-size") + fileInfo.size + "\n\n"
-        + JSON.stringify(fontSimpleInfo, null, 4);
 
-    let dialogHelperFont: any;
-    const dialogID = "dialog-fontInfo";
-    const openArgs = {
-        title: `${config.addonRef}`,
-        windowFeatures: {
-            width: 400,
-            height: 450,
-            resizable: true,
-            centerscreen: true,
-        },
-    };
-    if (addon.data.dialog) {
-        if (addon.data.dialog.window.closed) {
-            //addon.data.dialog.open(openArgs.title, openArgs.windowFeatures);
-        }
-        addon.data.dialog.window.focus();
-        const textarea = addon.data.dialog.window.document.querySelector("#" + dialogID);
-        textarea!.innerHTML = content;
-    } else {
-        dialogHelperFont = new ztoolkit.Dialog(1, 1)
-            // .setDialogData 
-            .addCell(0, 0,
-                {
-                    tag: "textarea",
-                    namespace: "html",
-                    id: dialogID,
-                    attributes: {
-                        style: "width: 100%; height: 430;",
-                    },
-                    properties: {
-                        //无需<pre></pre>标签，加了会显示标签本身
-                        innerHTML: `${content}`
-                    }
-                }
-            ).open(openArgs.title, openArgs.windowFeatures);
-        addon.data.dialog = dialogHelperFont;
-    };
-
-    /* */
-
-
-
-    return content;
-
-};
 
 
 
