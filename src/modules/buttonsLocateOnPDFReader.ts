@@ -132,22 +132,7 @@ export async function fontCheck() {
     const document1 = (await prepareReader("pagesLoaded"))("document");
     const parent = document1.querySelector("#reader-ui .toolbar .center")!;
     const ref = parent.querySelector(".highlight") as HTMLDivElement;
-    const dialogHelperFont = new ztoolkit.Dialog(1, 1)
-        /* .setDialogData */
-        .addCell(0, 0,
-            {
-                tag: "textarea",
-                namespace: "html",
-                id: "dialog-fontInfo",
-                attributes: {
-                    style: "width: 100%; height: 430;",
-                },
-                properties: {
-                    //无需<pre></pre>标签，加了会显示标签本身
-                    //innerHTML: `${content}`
-                }
-            }
-        );
+
 
     const dialogButton = ztoolkit.UI.insertElementBefore({
         enableElementJSONLog: false,
@@ -180,15 +165,6 @@ export async function fontCheck() {
                 type: "click",
                 listener: async () => {
                     const content = await fontCheckCallBack();
-                    dialogHelperFont.window.document.querySelector("#dialog-fontInfo").innerHTML = content;
-                    dialogHelperFont.open(`${config.addonRef}`,
-                        {
-                            width: 400,
-                            height: 450,
-                            resizable: true,
-                            centerscreen: true,
-                        }
-                    );
                 }
             },
         ],
@@ -205,6 +181,8 @@ const fontCheckCallBack = async () => {
     let lengthBeforCheck = 0;
     if (fontSimpleInfo) {
         isReadDisk = true;
+        const pdfItemID = Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data.itemID;
+        //const pdfItemID = Zotero_Tabs._tabs.filter((tab: any) => tab.id == Zotero_Tabs.selectedID)[0].data.itemID;
         pdfItemIDChecked = (Object.values(fontSimpleInfo) as any).find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
         lengthBeforCheck = Object.keys(fontSimpleInfo).length;
     }
@@ -227,14 +205,33 @@ const fontCheckCallBack = async () => {
     const content = "isReadDisk: " + isReadDisk + " hasThisPdfFont: " + hasThisPdfFont + "\n\n"
         + getString("info-fileInfo-size") + fileInfo.size + "\n\n"
         + JSON.stringify(fontSimpleInfo, null, 4);
-    return content;
-    /*     const dialogHelperFont = new ztoolkit.Dialog(1, 1)
+
+    let dialogHelperFont: any;
+    const dialogID = "dialog-fontInfo";
+    const openArgs = {
+        title: `${config.addonRef}`,
+        windowFeatures: {
+            width: 400,
+            height: 450,
+            resizable: true,
+            centerscreen: true,
+        },
+    };
+    if (addon.data.dialog) {
+        if (addon.data.dialog.window.closed) {
+            //addon.data.dialog.open(openArgs.title, openArgs.windowFeatures);
+        }
+        addon.data.dialog.window.focus();
+        const textarea = addon.data.dialog.window.document.querySelector("#" + dialogID);
+        textarea!.innerHTML = content;
+    } else {
+        dialogHelperFont = new ztoolkit.Dialog(1, 1)
             // .setDialogData 
             .addCell(0, 0,
                 {
                     tag: "textarea",
                     namespace: "html",
-                    id: "dialog-fontInfo",
+                    id: dialogID,
                     attributes: {
                         style: "width: 100%; height: 430;",
                     },
@@ -243,15 +240,19 @@ const fontCheckCallBack = async () => {
                         innerHTML: `${content}`
                     }
                 }
-            ).open(`${config.addonRef}`,
-                {
-                    width: 400,
-                    height: 450,
-                    resizable: true,
-                    centerscreen: true,
-                }
-            ); */
+            ).open(openArgs.title, openArgs.windowFeatures);
+        addon.data.dialog = dialogHelperFont;
+    };
+
+    /* */
+
+
+
+    return content;
+
 };
+
+
 
 export async function clearAnnotationsButton() {
     const document1 = (await prepareReader("pagesLoaded"))("document");
