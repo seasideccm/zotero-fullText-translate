@@ -1,4 +1,4 @@
-import { clearAnnotationsButton, fontCheck, pdfButton } from "./buttonsLocateOnPDFReader";
+import { readerToolbarButton } from "./readerToolbarButton";
 
 export function registerNotifier() {
     const callback = {
@@ -44,9 +44,7 @@ async function onNotify(
         type == "tab" &&
         extraData[ids[0]].type == "reader"
     ) {
-        pdfButton();
-        clearAnnotationsButton();
-        fontCheck();
+        readerToolbarButton();
     }
 }
 

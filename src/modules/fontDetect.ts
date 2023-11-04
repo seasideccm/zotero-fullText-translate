@@ -170,9 +170,15 @@ export const fontSimpleInfoToDisk = async (fontSimpleInfoArr: any[], fromDisk?: 
 
 
     const note = new WriteNote({ title: "Font Style Collection" });
-    note.addContent("这是内容");
 
-    const data = { dataArr: Object.values(fromDisk).map((obj: any) => Object.values(obj)).filter(e => e) };
+    note.addContent("这是内容\n" + fromDisk.boldRedPointArr);
+
+    const data = {
+        dataArr: Object.values(fromDisk)
+            .filter((obj: any) => !Array.isArray(obj))
+            .map((obj: any) => Object.values(obj))
+            .filter(e => e)
+    };
     note.addTable(data);
     await note.makeNote();
     const testWriteNote = "test";
