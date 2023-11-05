@@ -1,0 +1,64 @@
+<template>
+  <div>
+  <input type="file" accept="image/*" name="imageFile" @change="upload">
+    <img id="test" crossorigin alt="">
+ </div>
+</template>
+<script>
+export default {
+ name: '',
+ data () {
+  return {
+  }
+ },
+ components: {
+ },
+ created () {
+ },
+ methods: {
+  upload () {
+   let file = document.querySelector('input[type=file]').files[0] // 获取选择的文件，这里是图片类型
+   let reader = new FileReader()
+   reader.readAsDataURL(file) //读取文件并将文件以URL的形式保存在resulr属性中 base64格式
+   reader.onload = (e) => { // 文件读取完成时触发
+    let result = e.target.result // base64格式图片地址
+    var image = new Image()
+    image.src = result // 设置image的地址为base64的地址
+    image.onload = () => { // 图片加载完成后才能进行压缩处理，从而转换为base64 进行赋值
+    let width = image.width // 图片宽度
+    let height = image.height
+    let dataUrl = this.compress(image, width, height, 0.7)
+    document.getElementById("test").src = dataUrl
+   }
+   }
+  },
+  /*
+   * 图片压缩
+   * img   原始图片
+   * width  压缩后的宽度
+   * height  压缩后的高度
+   * ratio  压缩比率
+  */
+  compress (img, width, height, ratio) {
+   let canvas, ctx, img64;
+   canvas = document.createElement('canvas')
+   canvas.width = width;
+   canvas.height = height;
+   ctx = canvas.getContext("2d");
+   ctx.drawImage(img, 0, 0, width, height);
+   img64 = canvas.toDataURL("image/jpeg", ratio);
+   return img64;
+  }
+ }
+}
+</script>
+
+<style lang="less" scoped>
+</style>
+
+
+
+
+
+
+

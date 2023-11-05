@@ -124,13 +124,10 @@ export const getFileInfo = async (path: string) => {
  * @returns 
  */
 export async function readJsonFromDisk(filename: string, dir?: string, ext?: string) {
-  const tempObj = getPathDir(filename, dir, ext);
-  const path = tempObj.path;
-  dir = tempObj.dir;
+  const path = getPathDir(filename, dir, ext).path;
   if (!await OS.File.exists(path)) { return; }
   const buf = await OS.File.read(path, {});
-  const servicesJson = arrayBufferToString(buf);
-  return JSON.parse(servicesJson);
+  return JSON.parse(arrayBufferToString(buf));
 }
 
 /**

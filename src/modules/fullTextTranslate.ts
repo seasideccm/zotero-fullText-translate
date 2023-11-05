@@ -10,7 +10,7 @@ import { franc } from "franc-min";
 import { langCode_francVsZotero, langCodeNameSpeakers } from "../utils/config";
 import { html2md, md2html } from "./mdHtmlConvert";
 import { imageToAnnotation } from "./imageToAnnotation";
-import { getFontInfo } from "./fontDetect";
+import { testSaveImg } from "./annotationImage";
 
 let htmlToMd: any, mdToHtml: any;
 // 装饰函数
@@ -81,9 +81,9 @@ export class fullTextTranslate {
     });
     ztoolkit.Menu.register("item", {
       tag: "menuitem",
-      label: "测试字体样式检测",
-      commandListener: ((ev) => {
-        getFontInfo();
+      label: "测试保存图片",
+      commandListener: (async (ev) => {
+        await testSaveImg();
       }),
       icon: menuIcon,
     });

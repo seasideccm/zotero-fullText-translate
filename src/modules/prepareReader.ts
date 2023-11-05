@@ -5,6 +5,10 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   | "pagesLoaded"
   , itmeID?: number) {
   let tabID;
+  let n = 0;
+  while (!Zotero_Tabs.selectedID && n++ < 50) {
+    Zotero.Promise.delay(50);
+  }
   //参数itemID未传递
   if (!itmeID) {
     //如果页面不是 pdf reader，则打开选中的 pdf 或条目下的首个 pdf
@@ -54,13 +58,20 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   }
 
 
-  let reader: any, n = 0;
-  while (!(reader = Zotero.Reader.getByTabID(tabID as string)) && n++ < 12) {
+  let reader: any;
+  n = 0;
+  while (!(reader = Zotero.Reader.getByTabID(tabID as string)) && n < 200) {
     Zotero.Promise.delay(50);
+    if (!reader && ++n % 20 == 0) {
+      const sec = (n * 50 / 1000).toFixed(2);
+      ztoolkit.log(`prepare reader... ${sec} seconds past.`);
+    }
+    if (reader) {
+      const sec = (n * 50 / 1000).toFixed(2);
+      ztoolkit.log(`Spend ${sec} seconds reader loaded.`);
+    }
   }
-  if (!reader) {
-    ztoolkit.log("prepare reader have timeout");
-  }
+
   Zotero_Tabs.select(tabID as string);
 
   if (result == "beforReaderInit") {

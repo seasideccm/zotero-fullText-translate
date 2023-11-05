@@ -1,7 +1,7 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
-import { fontStyleFileName, fontSimpleInfoToDisk, getFontInfo } from "./fontDetect";
+import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, clearCanvas, identityFontStyle, redPointCollectToDisk, makeFontInfoNote } from "./fontDetect";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
 import { prepareReader } from "./prepareReader";
@@ -12,6 +12,8 @@ import { prepareReader } from "./prepareReader";
 const dropmarker =
 {
     tag: "span",
+    id: config.addonRef + "_dropmarker",
+    namespace: "html",
     classList: ["dropmarker"],
     styles: {
         background: "url(assets/icons/searchbar-dropmarker@2x.4ebeb64c.png) no-repeat 0 0/100%",
@@ -25,12 +27,12 @@ const dropmarker =
         width: "7px",
         zIndex: "1"
     }
-}
-    ;
-
+};
 const buttonBackground =
 {
     tag: "span",
+    id: config.addonRef + "_buttonBackground",
+    namespace: "html",
     classList: ["button-background"],
     /* styles: {
         backgroundImage: `url(chrome://${config.addonRef}/content/icons/favicon.png)`,
@@ -42,6 +44,7 @@ const toolbarButtonSpacer = {
     enableElementJSONLog: false,
     enableElementDOMLog: false,
     ignoreIfExists: true,
+    id: config.addonRef + "_toolbarButtonSpacer",
     namespace: "html",
     tag: "div",
     classList: ["readerButtonSpacer"],
@@ -54,189 +57,6 @@ const toolbarButtonSpacer = {
         innerHTML: "&emsp;"
     },
 };
-//properties: "&nbsp; &emsp; &ensp;  &thinsp; &zwnj; &zwj;",;
-/* export async function readerToolbarButton() {
-    const document1 = (await prepareReader("pagesLoaded"))("document");
-    //while (!(_window = reader?._iframeWindow?.wrappedJSObject)) {
-        //await Zotero.Promise.delay(10);
-    //} 
-    const tab = Zotero_Tabs._getTab(Zotero_Tabs.selectedID);
-    // title = tab.tab.title;
-    //title = title.replace(/( - [^-]+){1,2}$/m, ""); 
-    const parent = document1.querySelector("#reader-ui .toolbar .end")!;
-    const ref = parent.querySelector("#viewFind") as HTMLDivElement;
-    const toolbarButtonSpacer = ztoolkit.UI.insertElementBefore(
-        {
-            enableElementJSONLog: false,
-            enableElementDOMLog: false,
-            ignoreIfExists: true,
-            namespace: "html",
-            tag: "div",
-            classList: ["toolbarButtonSpacer"],
-        }, ref
-    ) as HTMLDivElement;
-
-    const button = ztoolkit.UI.insertElementBefore({
-        enableElementJSONLog: false,
-        enableElementDOMLog: false,
-        ignoreIfExists: true,
-        namespace: "html",
-        tag: "button",
-        id: config.addonRef + "-translate",
-        classList: ["toolbarButton"],
-        styles: {
-            // 解决图标
-            backgroundImage: `url(chrome://${config.addonRef}/content/icons/favicon.png)`,
-            backgroundSize: "16px 16px",
-            backgroundPosition: "35% center",
-            backgroundRepeat: "no-repeat",
-            width: "45px",
-            //filter: "grayscale(100%)",
-            padding: "4px 3px 4px 22px"
-        },
-        attributes: {
-            title: config.addonName + "-translate",
-            tabindex: "-1",
-        },
-        // 长按是解析图表，点击是切换
-        listeners: [
-            {
-                type: "click",
-                listener: () => {
-                    const menupopup = ztoolkit.UI.appendElement({
-                        tag: "menupopup",
-                        id: config.addonRef + "-menupopup",
-                        namespace: "xul",
-                        children: [
-                        ]
-                    }, document.querySelector("#browser")!) as XUL.MenuPopup;
-                    // 1. pdf2Note
-                    const menuitem0 = ztoolkit.UI.appendElement({
-                        tag: "menuitem",
-                        attributes: {
-                            label: getString("menuitem-pdf2Note"),
-                        }
-                    }, menupopup);
-                    menuitem0.addEventListener("command", () => {
-                        fullTextTranslate.onePdf2Note();
-                    });
-                    // 2. 图表注释视图
-                    const menuitem1 = ztoolkit.UI.appendElement({
-                        tag: "menuitem",
-                        attributes: {
-                            label: getString("menuitem-pdf"),
-                        }
-                    }, menupopup);
-                    menuitem1.addEventListener("command", () => {
-                        fullTextTranslate.translateOnePdf();
-                    });
-                   
-                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                    // @ts-ignore
-                    menupopup.openPopup(button, 'after_start', 0, 0, false, false);
-                }
-            },
-        ],
-        children: [dropmarker]
-    }, toolbarButtonSpacer) as HTMLButtonElement;
-
-
-}
- */
-/* export async function fontCheck() {
-    const document1 = (await prepareReader("pagesLoaded"))("document");
-    const parent = document1.querySelector("#reader-ui .toolbar .center")!;
-    const ref = parent.querySelector(".highlight") as HTMLDivElement;
-    const dialogButton = ztoolkit.UI.insertElementBefore({
-        enableElementJSONLog: false,
-        enableElementDOMLog: false,
-        ignoreIfExists: true,
-        namespace: "html",
-        tag: "button",
-        id: config.addonRef + "_font_dialog",
-        classList: ["toolbarButton"],
-        styles: {
-            width: "45px",
-            //border: "1px solid #342753",
-            //fontSize: "10px",
-            backgroundImage: `url(chrome://${config.addonRef}/content/icons/favicon@0.5x.png)`,
-            backgroundSize: "16px 16px",
-            backgroundPosition: "35% center",
-            backgroundRepeat: "no-repeat",
-            padding: "4px 3px 4px 22px"
-        },
-
-        properties: {
-            //innerText: getString("info-checkFont"),
-        },
-        attributes: {
-            title: getString("info-checkFont"),
-            tabindex: "-1",
-        },
-        listeners: [
-            {
-                type: "click",
-                listener: async () => {
-                    const dialogData = await fontCheckCallBack();
-                    makeDialog();
-                    showDialog(dialogData);
-                }
-            },
-        ],
-        children: [buttonBackground],
-    }, ref) as HTMLButtonElement;
-    const fontCheckCallBack = async () => {
-        let fontSimpleInfo = await readJsonFromDisk(fontStyleFileName);
-        let isReadDisk = false;
-        let hasThisPdfFont = false;
-        let pdfItemIDChecked = false;
-        let lengthBeforCheck = 0;
-        if (fontSimpleInfo) {
-            isReadDisk = true;
-            const pdfItemID = Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data.itemID;
-            //const pdfItemID = Zotero_Tabs._tabs.filter((tab: any) => tab.id == Zotero_Tabs.selectedID)[0].data.itemID;
-            pdfItemIDChecked = (Object.values(fontSimpleInfo) as any).find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
-            lengthBeforCheck = Object.keys(fontSimpleInfo).length;
-        }
-        let fontSimpleInfoArr;
-        if (!pdfItemIDChecked) {
-            fontSimpleInfoArr = (await getFontInfo()).fontSimpleInfoArr;
-            fontSimpleInfo = await fontSimpleInfoToDisk(fontSimpleInfoArr, fontSimpleInfo);
-            const lengthAfterSave = Object.keys(fontSimpleInfo).length;
-            if (lengthBeforCheck != lengthAfterSave) {
-                hasThisPdfFont = true;
-            }
-        }
-        const fileInfo = await getFileInfo(getPathDir(fontStyleFileName).path);
-        let fileSize;
-        if (!fileInfo) {
-            fileSize = 0;
-        } else {
-            fileSize = fileInfo.size;
-        }
-        const content = "isReadDisk: " + isReadDisk + " hasThisPdfFont: " + hasThisPdfFont + "\n\n"
-            + getString("info-fileInfo-size") + fileInfo.size + "\n\n"
-            + JSON.stringify(fontSimpleInfo, null, 4);
-
-        const dialogData = {
-            "content": content
-        };
-        return dialogData;
-
-
-    };
-} */
-/* 
-                   menupopup.openPopup 是一个函数调用。
-                   它用于打开一个弹出菜单，并将其定位在指定的按钮旁边。
-                   具体来说，menupopup.openPopup 函数接受多个参数：
-                   - 第一个参数 button 是一个按钮元素，表示要在其旁边打开弹出菜单的按钮。
-                   - 第二个参数 'after_start' 是一个字符串，表示弹出菜单相对于按钮的位置。在这种情况下，它指定将弹出菜单放置在按钮的起始位置之后。
-                   - 第三个和第四个参数 0 表示弹出菜单的偏移量，用于微调弹出菜单的位置。
-                   - 第五个和第六个参数 false 表示是否在弹出菜单显示时将焦点设置在菜单上。
-                   因此，给定的代码行的作用是在指定的按钮旁边打开一个弹出菜单，并将其定位在按钮的起始位置之后。
-                    */
-
 
 
 
@@ -378,13 +198,19 @@ const fontCheckCallBack = async () => {
         isReadDisk = true;
         const pdfItemID = Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data.itemID;
         //const pdfItemID = Zotero_Tabs._tabs.filter((tab: any) => tab.id == Zotero_Tabs.selectedID)[0].data.itemID;
-        pdfItemIDChecked = (Object.values(fontSimpleInfo) as any).find((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
+        pdfItemIDChecked = (Object.values(fontSimpleInfo) as any).some((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
         lengthBeforCheck = Object.keys(fontSimpleInfo).length;
     }
-    let fontSimpleInfoArr;
-    if (!pdfItemIDChecked) {
-        fontSimpleInfoArr = (await getFontInfo()).fontSimpleInfoArr;
-        fontSimpleInfo = await fontSimpleInfoToDisk(fontSimpleInfoArr, fontSimpleInfo);
+    if (!pdfItemIDChecked || pdfItemIDChecked) {
+        const fontSimpleInfoArrs = (await getFontInfo()).fontSimpleInfoArr;
+        //await clearCanvas();
+        if (fontSimpleInfoArrs.length) {
+            const boldRedPointArr = identityFontStyle(fontSimpleInfoArrs);
+            await redPointCollectToDisk(boldRedPointArr);
+            fontSimpleInfo = await saveDiskFontSimpleInfo(fontSimpleInfoArrs, fontSimpleInfo);
+            await makeFontInfoNote(fontSimpleInfo, boldRedPointArr);
+
+        }
         const lengthAfterSave = Object.keys(fontSimpleInfo).length;
         if (lengthBeforCheck != lengthAfterSave) {
             hasThisPdfFont = true;
@@ -415,7 +241,7 @@ function makeDialog() {
             .addCell(0, 0,
                 {
                     tag: "textarea",
-                    namespace: "html",
+                    //namespace: "html",
                     id: dialogCellID,
                     attributes: {
                         style: "width: 400; height: 430;",
@@ -430,19 +256,20 @@ function makeDialog() {
                     } */
                 }
             );
+        //将对话框挂载到全局对象 dialog 上
         addon.data.dialog = dialogHelperFont;
     }
 }
 
 function showDialog(dialogData: any) {
-    const openArgs = {
+    /* const openArgs = {
         title: `${config.addonRef}`,
-    };
+    }; */
     const dialogCellID = "dialog-fontInfo";
     const dialogHelperFont = addon.data.dialog!;
     if (dialogHelperFont.window) {
         if (dialogHelperFont.window.closed) {
-            dialogHelperFont.setDialogData(dialogData).open(openArgs.title);
+            dialogHelperFont.setDialogData(dialogData).open(`${config.addonRef}`);
 
         } else {
             dialogHelperFont.window.focus();
@@ -450,7 +277,7 @@ function showDialog(dialogData: any) {
             textarea!.innerHTML = dialogData.content;
         };
     } else {
-        dialogHelperFont.setDialogData(dialogData).open(openArgs.title);
+        dialogHelperFont.setDialogData(dialogData).open(`${config.addonRef}`);
     }
 }
 
@@ -468,6 +295,7 @@ const makeClickButton = (idPostfix: string, menuitemGroupArr: any[][], thisButto
 const menuseparator = (menupopup: any) => {
     ztoolkit.UI.appendElement({
         tag: "menuseparator",
+        namespace: "xul",
     }, menupopup);
 };
 
@@ -486,6 +314,7 @@ const makeMenupopup = (idPostfix: string) => {
 const makeMenuitem = (option: { label: string, func: (...args: string[]) => void, args: string[]; }, menupopup: any,) => {
     ztoolkit.UI.appendElement({
         tag: "menuitem",
+        namespace: "xul",
         attributes: {
             label: getString(option.label),
         }

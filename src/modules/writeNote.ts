@@ -4,11 +4,12 @@ import { fullTextTranslate } from "./fullTextTranslate";
 
 
 export class WriteNote {
-
-
-    title: string;
+    title?: string;
+    titleHtml: string;
+    parentItemKey?: string;
     content: any;
     itemID?: number;
+    libraryID?: number;
     note!: Zotero.Item;
     noteVersion: number;
     allowSameTitle: boolean;
@@ -20,37 +21,45 @@ export class WriteNote {
         };
     };
     constructor(options: any = {}, itemID?: number) {
-        this.title = this.addTitle(options.title);
+        this.titleHtml = this.addTitle(options.title);
+        this.title = options.title || null;
         this.content = '';
         this.noteVersion = options.noteVersion || 9;
         this.itemID = itemID;
         this.allowSameTitle = options.allowSameTitle || false;
         this.tableData = options.tableData;
-
     }
 
     async makeNote() {
         //parentKey==parentItemKey
-        let item, parentItemKey, isCreatNote, notesIDOfItem, notesOfItem;
+        let item, parentItemKey, isCreatNote, notesIDs, notesOfItem;
         if (this.itemID) {
             item = Zotero.Items.get(this.itemID);
             if (item.isNote()) {
                 this.note = item;
                 if (item.parentItemKey) {
-                    parentItemKey = item.parentItemKey;
+                    this.parentItemKey = item.parentItemKey;
+                    this.libraryID = item.libraryID;
                 }
-            } else
-                if (item.isRegularItem()) {
-                    isCreatNote = true;
-                    parentItemKey = item.key;
-                    //获取条目笔记ID
-                    notesIDOfItem = item.getNotes();
-                } else if (item.parentItemKey && !item.isNote()) {
-                    isCreatNote = true;
-                    parentItemKey = item.parentItemKey;
-                }
+            } else if (item.isRegularItem()) {
+                isCreatNote = true;
+                this.parentItemKey = item.key;
+                //获取条目笔记ID
+                notesIDs = item.getNotes();
+            } else if (item.parentItemKey && !item.isNote()) {
+                isCreatNote = true;
+                this.parentItemKey = item.parentItemKey;
+                this.libraryID = item.libraryID;
+            }
         } else {
-            isCreatNote = true;
+            if (this.title) {
+                if (this.note?.getNoteTitle() != this.title) {
+                    isCreatNote = true;
+                }
+            } else {
+                isCreatNote = true;
+            }
+
         }
 
         //限定在所有独立笔记，或当前分类所选条目子笔记
@@ -62,19 +71,19 @@ export class WriteNote {
         const collection = zp.getSelectedCollection();
         const itemsOfCollection = collection?.getChildItems();
         const notesOfCurrentCollection = itemsOfCollection?.filter((item: Zotero.Item) => item.itemType == "note");
-        const notesrelate = [];
-        notesrelate.push(...notesOfUserLibrary);
-        if (notesIDOfItem) {
+        const notesRelate = [];
+        notesRelate.push(...notesOfUserLibrary);
+        if (notesIDs) {
             //获取条目笔记
-            notesOfItem = notesIDOfItem.map((noteID: number) => Zotero.Items.get(noteID));
-            notesrelate.push(...notesOfItem);
+            notesOfItem = notesIDs.map((noteID: number) => Zotero.Items.get(noteID));
+            notesRelate.push(...notesOfItem);
         }
         if (notesOfCurrentCollection) {
-            notesrelate.push(...notesOfCurrentCollection);
+            notesRelate.push(...notesOfCurrentCollection);
         }
         if (!this.allowSameTitle) {
             //如果多个同名笔记，认为不是目标笔记，
-            const oldNotes = notesrelate.filter((note: Zotero.Item) => note.getNoteTitle() == this.title);
+            const oldNotes = notesRelate.filter((note: Zotero.Item) => note.getNoteTitle() == this.title);
             let oldNote;
             if (oldNotes.length == 1) {
                 oldNote = oldNotes[0];
@@ -90,14 +99,14 @@ export class WriteNote {
         }
         if (isCreatNote) {
             this.note = new Zotero.Item('note');
-            if (parentItemKey) {
-                this.note.parentItemKey = parentItemKey;
+            if (this.parentItemKey) {
+                this.note.parentItemKey = this.parentItemKey;
             } else if (item?.getCollections().length) {
                 this.note.addToCollection(zp.collectionsView.selectedTreeRow.ref.id);
             }
-            this.note.libraryID = item?.libraryID || libraryID;
+            this.note.libraryID = this.libraryID || libraryID;
         }
-        const noteTxt = this.title + this.content + "</div>";
+        const noteTxt = this.titleHtml + this.content + "</div>";
         this.note.setNote(noteTxt);
         await this.note.saveTx();
     }
@@ -105,18 +114,21 @@ export class WriteNote {
         data: {
             dataArr: any[][];
             caption?: string;
-            header?: string;
+            header?: string[];
         },
+        //用于id选择器选择表格，制表时添加<table id=tableId></table>
         tableId?: string
     ) {
         if (tableId) {
-            if (this.tableData?.tableId)
-                this.tableData?.tableId.dataArr.push(...data.dataArr);
+            //如何保存表格数据，已经在硬盘保存json
+            /* if (this.tableData?.tableId)
+                this.tableData?.tableId.dataArr.push(...data.dataArr); */
         }
 
         const { dataArr } = data;
-        let { caption, header } = data;
+        const { caption, header } = data;
         const rowArr = [];
+        let headerHtml, captionHtml;
         for (let tr = 0; tr < dataArr.length; tr++) {
             const rowDataArr = [];
             for (let td = 0; td < dataArr[tr].length; td++) {
@@ -124,15 +136,19 @@ export class WriteNote {
             }
             rowArr.push(this.dataToBody(rowDataArr.join(""), "tr"));
         }
+        const bodyHtml = `<tbody>${rowArr.join("")}</tbody>`;
+        //zotero note 不支持 caption 表头
         if (caption) {
-            caption = this.tablecaption(caption);
+            captionHtml = this.tablecaption(caption);
         }
         if (header) {
-            header = this.tableHeader(header);
+            headerHtml = this.tableHeader(header);
         }
-        const tableHtml = this.addHeadTail(rowArr.join(""), header, caption);
+        const tableHtml = this.addHeadTail(bodyHtml, headerHtml, captionHtml);
+        //对象属性content内容更新
         this.content += tableHtml;
-        return this.addHeadTail(rowArr.join(""), header, caption);
+        //返回表格html，供其他情况使用
+        return tableHtml;
     }
     addTitle(title?: string) {
         if (!title) {
@@ -156,32 +172,26 @@ export class WriteNote {
 
     addHeadTail = (body: string, header?: string, caption?: string) => {
         return header ? (
-            caption ? (`<table><tbody>${header}${caption}${body}</tbody></table>`)
-                : (`<table><tbody>${header}${body}</tbody></table>`)
+            caption ? (`<table>${caption}${header}${body}</table>`)
+                : (`<table>${header}${body}</table>`)
         )
-            : (caption ? (`<table><tbody>${caption}${body}</tbody></table>`)
-                : (`<table><tbody>${body}</tbody></table>`));
+            : (caption ? (`<table>${caption}${body}</table>`)
+                : (`<table>${body}</table>`));
     };
 
-    tableHeader = (body: string) => {
-        return `<th>${body}</th>`;
+    tableHeader = (header: string[]) => {
+        const th: string[] = [];
+        header.filter((e: string) => {
+            th.push(`<th>${e}</th>`);
+        });
+        return "<thead>" + th.join("") + "</thead>";
     };
 
     tablecaption = (body: string) => {
         return `<caption>${body}</caption>`;
     };
 
-    dataToBody = (body: string, tag: "td" | "tr") => {
+    dataToBody = (body: string, tag: "td" | "tr" | "th") => {
         return `<${tag}>${body}</${tag}>`;
     };
 }
-
-
-
-/* if (pdfItem.parentItemKey) {
-    note.parentItemKey = pdfItem.parentItemKey;
-}
-else if (pdfItem.getCollections().length) {
-
-    note.addToCollection(zp.collectionsView.selectedTreeRow.ref.id);
-} */

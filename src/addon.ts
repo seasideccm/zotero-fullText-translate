@@ -2,6 +2,7 @@ import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTab
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
 import hooks from "./hooks";
 import { createZToolkit } from "./utils/ztoolkit";
+import { WriteNote } from "./modules/writeNote";
 
 class Addon {
   public data: {
@@ -15,9 +16,10 @@ class Addon {
     prefs?: {
       window: Window;
       columns: Array<ColumnOptions>;
-      rows: Array<{ [dataKey: string]: string }>;
+      rows: Array<{ [dataKey: string]: string; }>;
     };
     dialog?: DialogHelper;
+    writeNote?: WriteNote;
   };
   // Lifecycle hooks
   public hooks: typeof hooks;
