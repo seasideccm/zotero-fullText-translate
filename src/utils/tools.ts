@@ -16,6 +16,18 @@ export function quickIntersectRect(rect1: number[], rect2: number[]) {
 }
 
 
+
+
+export function formatFileSize(fileSize: number, idx = 0) {
+	const units = ["B", "KB", "MB", "GB"];
+	if (fileSize < 1024 || idx === units.length - 1) {
+		return fileSize.toFixed(1) + units[idx];
+	}
+	return formatFileSize(fileSize / 1024, ++idx);
+}
+
+
+
 /**
  * 判断矩形是否相邻，可设定容差，单位 mm
  * @param rect1 

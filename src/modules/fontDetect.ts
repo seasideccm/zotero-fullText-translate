@@ -1,6 +1,7 @@
 import { alphabetDigital } from "../utils/config";
 import { getString } from "../utils/locale";
 import { getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
+import { formatFileSize } from "../utils/tools";
 import { saveImage } from "./annotationImage";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { prepareReader } from "./prepareReader";
@@ -168,7 +169,7 @@ export const saveDiskFontSimpleInfo = async (fontSimpleInfoArr: any[], fromDisk?
     }
 
     fullTextTranslate.showInfo(
-        getString("info-dataWriteToDiskSuccess") + getString("info-fileInfo-size") + fileSize,
+        getString("info-dataWriteToDiskSuccess") + getString("info-fileInfo-size") + formatFileSize(fileSize),
         2000);
     //返回合并后的数据
     return fromDisk;
