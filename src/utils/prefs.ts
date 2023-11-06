@@ -77,7 +77,7 @@ export async function saveJsonToDisk(obj: any, filename: string, dir?: string, e
   await OS.File.writeAtomic(path, objJson);
 }
 
-export const getPathDir = async (filename: string, dir?: string, ext?: string) => {
+export const getPathDir = (filename: string, dir?: string, ext?: string) => {
   filename = fileNameLegal(filename);
   if (ext === undefined) {
     ext = ".json";

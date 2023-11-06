@@ -268,8 +268,6 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     const charBorder = findRedsBorder(reds, charImgData.width, charImgData.height);
     charImgData = null;
     charImgData = ctx.getImageData(charBorder.x1, charBorder.y1, charBorder.widthBox, charBorder.heightBox);
-    let firstRedPointX;
-    let lastRowRedPointX;
     switch (fontObj.styleJudgeType) {
         case "0": if (judgeHorizontalLeft()) {
             isItalic = true;
@@ -293,7 +291,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     const fontNotIncludeChars = alphabetDigital.filter((char: string) => !fontObj.charsArr.includes(char));
     const rowsTotal = Math.ceil(fontObj.charsArr.length / charsPerLine) + Math.ceil(fontNotIncludeChars.length / charsPerLine) + 4;
     ctx.canvas.width = 500;
-    ctx.canvas.height = rowsTotal * (browserFontSize + 2) + 5;
+    ctx.canvas.height = rowsTotal * (browserFontSize + 2) + 10;
     ctx.font = fontValue;
     ctx.fillStyle = "red";
     //ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -467,22 +465,18 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
         for (let j = 0; j < Math.ceil(chars.length / charsPerLine); i++, j++) {
             const str = chars.slice(j * charsPerLine, (j + 1) * charsPerLine).join("");
             if (str) {
-                ctx.fillText(str, x, (browserFontSize + 2) * i);
+                ctx.fillText(str, x, browserFontSize * i);
             }
         }
         if (isSeperator) {
             let seperator = `--------------------`;
-            ctx.fillText(seperator, x, (browserFontSize + 2) * i);
+            ctx.fillText(seperator, x, browserFontSize * i);
             i += 1;
-            ctx.fillText(fontName, x, (browserFontSize + 2) * i);
-            seperator = `chars not included `;
-            i += 1;
-            ctx.fillText(seperator, x, (browserFontSize + 2) * i);
+            ctx.fillText(fontName, x, browserFontSize * i);
             seperator = `--------------------`;
             i += 1;
-            ctx.fillText(seperator, x, (browserFontSize + 2) * i);
+            ctx.fillText(seperator, x, browserFontSize * i);
         }
-
         return i + 1;
     }
     function findRedsBorder(imgDataReds: number[], imgWidth: number, imgHeight: number) {
