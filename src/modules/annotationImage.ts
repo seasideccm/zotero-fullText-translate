@@ -54,6 +54,10 @@ export async function saveImage(dataURL: string, outputPath: string) {
 		u8arr[n] = bstr.charCodeAt(n);
 	}
 	//事先建好目录可以保存，图片大小适中
+	const dir = outputPath.replace(/[^/\\]+$/m, '');
+	if (!await OS.File.exists(dir)) {
+		await OS.File.makeDir(dir);
+	}
 	await OS.File.writeAtomic(outputPath, u8arr);
 	return {
 		u8arr: u8arr,

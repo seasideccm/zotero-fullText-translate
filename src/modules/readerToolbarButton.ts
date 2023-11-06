@@ -1,6 +1,7 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
+import { fileSizeFormat } from "../utils/tools";
 import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, clearCanvas, identityFontStyle, redPointCollectToDisk, makeFontInfoNote } from "./fontDetect";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
@@ -208,7 +209,8 @@ const fontCheckCallBack = async () => {
             const boldRedPointArr = identityFontStyle(fontSimpleInfoArrs);
             await redPointCollectToDisk(boldRedPointArr);
             fontSimpleInfo = await saveDiskFontSimpleInfo(fontSimpleInfoArrs, fontSimpleInfo);
-            await makeFontInfoNote(fontSimpleInfo, boldRedPointArr);
+            //await makeFontInfoNote(fontSimpleInfo, boldRedPointArr);
+            const note = "note";
 
         }
         const lengthAfterSave = Object.keys(fontSimpleInfo).length;
@@ -223,9 +225,18 @@ const fontCheckCallBack = async () => {
     } else {
         fileSize = fileInfo.size;
     }
+    const textJsonStringify = JSON.stringify(
+        fontSimpleInfo,
+        (k, v) => {
+            if (k == "chars") {
+                return v.join("");
+            }
+            return v;
+        },
+        4);
     const content = "isReadDisk: " + isReadDisk + " hasThisPdfFont: " + hasThisPdfFont + "\n\n"
-        + getString("info-fileInfo-size") + fileInfo.size + "\n\n"
-        + JSON.stringify(fontSimpleInfo, null, 4);
+        + getString("info-fileInfo-size") + fileSizeFormat(fileSize) + "\n\n"
+        + textJsonStringify;
 
     const dialogData = {
         "content": content
