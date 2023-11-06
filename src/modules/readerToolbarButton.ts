@@ -208,7 +208,8 @@ const fontCheckCallBack = async () => {
             const boldRedPointArr = identityFontStyle(fontSimpleInfoArrs);
             await redPointCollectToDisk(boldRedPointArr);
             fontSimpleInfo = await saveDiskFontSimpleInfo(fontSimpleInfoArrs, fontSimpleInfo);
-            await makeFontInfoNote(fontSimpleInfo, boldRedPointArr);
+            //await makeFontInfoNote(fontSimpleInfo, boldRedPointArr);
+            const note = "note";
 
         }
         const lengthAfterSave = Object.keys(fontSimpleInfo).length;

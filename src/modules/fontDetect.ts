@@ -1,6 +1,6 @@
 import { alphabetDigital } from "../utils/config";
 import { getString } from "../utils/locale";
-import { getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
+import { fullTextTranslatedir, getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
 import { saveImage } from "./annotationImage";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { prepareReader } from "./prepareReader";
@@ -10,10 +10,20 @@ export const pdfFontInfo: {
     [key: string]: string;
 } = {};
 
-const upDownBeginleftPoint = 'BDEFHIKLNPRXZbhkxz'.split('');
-const downBeginLeftPoint = 'SUilmnprsuy'.split('');
-const upBeginRightPoint = 'JCQGacdefgjqt'.split('');
-const upDownCenterPoint = 'AMVWYTvwOo'.split('');
+
+
+
+
+
+
+//字形左侧垂直整齐，最高最低点均位于左侧，比较左侧最高最低点
+const upDownBeginleftPoint = 'HEFKLNhkBDPRXZxz'.split('');
+//字形左侧垂直整齐，斜体顶部左侧超出底部左侧，按列由左向右找
+const downBeginLeftPoint = 'Smnprsuyblg'.split('');
+//字形右侧垂直整齐，斜体顶部右侧超出底部右侧，按列由右向左找
+const upBeginRightPoint = 'JCQGacdefjqt'.split('');
+//对称字形，用上下边的中点判断
+const upDownCenterPoint = 'AMVWYTIUvwOoi'.split('');
 export const fontStyleJudgeType = {
     0: upDownBeginleftPoint,
     1: downBeginLeftPoint,
@@ -216,7 +226,8 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
 
     const italic = "normal";
     const fontValue = `${italic} ${bold} ${browserFontSize}px ${typeface}`;
-    ctx.canvas.width = ctx.canvas.height = browserFontSize + 2;
+    ctx.canvas.width = browserFontSize;
+    ctx.canvas.height = browserFontSize + 10;
     ctx.font = fontValue;
     ctx.fillStyle = "red";
     //ctx.clearRect(0, 0, browserFontSize + 2, browserFontSize + 2);
@@ -236,43 +247,33 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     //确定绘制字符，依照判别字符顺序找，返回符合的第一个字符，否则返回 undefined   
     const char = fontObj.judgeCharArr.find((char: string) => fontObj.charsArr.includes(char));
     ctx.fillText(char, 0, browserFontSize);
-    let charImgData = ctx.getImageData(0, 0, browserFontSize, browserFontSize);
+    let charImgData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
     const pixels = charImgData.data;
     //The RGBA order goes by rows from the top-left pixel to the bottom-right.
     //30x30 采集 900 个像素，红点越多，字重越大
-    let redPoint = 0;
-    for (let i = pixels.length - 1 - 3; i >= 0; i -= 4) {
-        if (pixels[i] > 0) {
-            redPoint += 1;
+    /*     let redPoint = 0;
+        for (let i = pixels.length - 1 - 3; i >= 0; i -= 4) {
+            if (pixels[i] > 0) {
+                redPoint += 1;
+            }
         }
-    }
-
+     */
     //斜体判断，专利？？
     let isItalic = false;
     let reds = pixels.filter((e: number, i: number) => i % 4 == 0);
-    const redPoints2 = reds.filter((e: number) => e).length;
-    if (redPoints2 != redPoint) {
-        ztoolkit.log("红点不相等");
-    }
+    const redPoint = reds.filter((e: number) => e).length;
+    /*     if (redPoints2 != redPoint) {
+            ztoolkit.log("红点不相等");
+        } */
     const charBorder = findRedsBorder(reds, charImgData.width, charImgData.height);
     charImgData = null;
-    charImgData = ctx.getImageData(0, 0, charBorder.widthBox, charBorder.heightBox);
+    charImgData = ctx.getImageData(charBorder.x1, charBorder.y1, charBorder.widthBox, charBorder.heightBox);
     let firstRedPointX;
     let lastRowRedPointX;
     switch (fontObj.styleJudgeType) {
-        case "0":
-            for (let y = 0; y < browserFontSize; y++) {
-                if ((firstRedPointX = findRedPointXHorizontal(y))) {
-                    break;
-                }
-            }
-            for (let y = browserFontSize - 1; y > 0; y--) {
-                if ((lastRowRedPointX = findRedPointXHorizontal(y))) {
-                    break;
-                }
-            } if (firstRedPointX != lastRowRedPointX) {
-                isItalic = true;
-            }
+        case "0": if (judgeHorizontalLeft()) {
+            isItalic = true;
+        }
             break;
         case "1": if (judgeVerticalLeft()) {
             isItalic = true;
@@ -292,7 +293,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     const fontNotIncludeChars = alphabetDigital.filter((char: string) => !fontObj.charsArr.includes(char));
     const rowsTotal = Math.ceil(fontObj.charsArr.length / charsPerLine) + Math.ceil(fontNotIncludeChars.length / charsPerLine) + 4;
     ctx.canvas.width = 500;
-    ctx.canvas.height = rowsTotal * (browserFontSize + 2);
+    ctx.canvas.height = rowsTotal * (browserFontSize + 2) + 5;
     ctx.font = fontValue;
     ctx.fillStyle = "red";
     //ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -305,13 +306,13 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     let charsImgDataReds = tempCharsImgData.data.filter((e: number, i: number) => i % 4 == 0);
     const border = findRedsBorder(charsImgDataReds, ctx.canvas.width, ctx.canvas.height);
     tempCharsImgData = charsImgDataReds = null;
-    const charsImgData = ctx.getImageData(0, 0, border.widthBox + 2 >= imgWidth ? imgWidth : border.widthBox + 2, border.heightBox + 2 >= imgHeight ? imgHeight : border.heightBox + 2);
+    const charsImgData = ctx.getImageData(border.x1, border.y1, border.widthBox, border.heightBox);
     //ctx.clearRect(0, 0, imgWidth, imgHeight);
     const charImgDataURL = makeImgDataURL(charImgData);
     const charsImgDataURL = makeImgDataURL(charsImgData);
     //测试直接保存图片
-    const path1 = getPathDir(fontName, "f:\\testImg\\", ".png").path;
-    const path2 = getPathDir("2" + fontName, "f:\\testImg\\", ".png").path;
+    const path1 = getPathDir(fontName, fullTextTranslatedir + "\\testImg\\", ".png").path;
+    const path2 = getPathDir("2" + fontName, fullTextTranslatedir + "\\testImg\\", ".png").path;
 
     await saveImage(charImgDataURL as string, path1);
     await saveImage(charsImgDataURL as string, path2);
@@ -346,9 +347,34 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
         //canvas.width = canvas.height = 0;
         return imgDataURL;
     }
-    function findRedPointXHorizontal(y: number) {
-        if (reds.slice(y * browserFontSize, (y + 1) * browserFontSize).filter((e: number) => e).length) {
-            return reds.slice(y * browserFontSize, (y + 1) * browserFontSize).findIndex((e: number) => e);
+    function findRedPointXHorizontal(y: number, reds: number[], width?: number) {
+        if (!width) {
+            width = browserFontSize || 40;
+        }
+        if (reds.slice(y * width, (y + 1) * width).filter((e: number) => e).length) {
+            return reds.slice(y * width, (y + 1) * width).findIndex((e: number) => e);
+        }
+    }
+    function judgeHorizontalLeft() {
+        let firstRedPointX;
+        let lastRowRedPointX;
+
+        for (let y = 0; y < browserFontSize; y++) {
+            if ((firstRedPointX = findRedPointXHorizontal(y, reds))) {
+                break;
+            }
+        }
+        for (let y = browserFontSize - 1; y > 0; y--) {
+            if ((lastRowRedPointX = findRedPointXHorizontal(y, reds))) {
+                break;
+            }
+        }
+        firstRedPointX ? firstRedPointX : 0;
+        lastRowRedPointX ? lastRowRedPointX : 0;
+        if (firstRedPointX! - lastRowRedPointX! > 1) {
+            return true;
+        } else {
+            return false;
         }
     }
     function judgeVerticalLeft() {
@@ -436,34 +462,57 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
         return upCenterX > downCenterX;
     }
     function drawChars(chars: string[], browserFontSize: number, charsPerLine: number, rowIndexBeginDraw?: number, isSeperator?: boolean) {
-        //计算画布大小
-
-
-
+        const x = 2;
         let i = rowIndexBeginDraw || 1;
         for (let j = 0; j < Math.ceil(chars.length / charsPerLine); i++, j++) {
             const str = chars.slice(j * charsPerLine, (j + 1) * charsPerLine).join("");
             if (str) {
-                ctx.fillText(str, 0, (browserFontSize + 2) * i);
+                ctx.fillText(str, x, (browserFontSize + 2) * i);
             }
         }
         if (isSeperator) {
             let seperator = `--------------------`;
-            ctx.fillText(seperator, 0, (browserFontSize + 2) * i);
+            ctx.fillText(seperator, x, (browserFontSize + 2) * i);
             i += 1;
-            ctx.fillText(fontName, 0, (browserFontSize + 2) * i);
+            ctx.fillText(fontName, x, (browserFontSize + 2) * i);
             seperator = `chars not included `;
             i += 1;
-            ctx.fillText(seperator, 0, (browserFontSize + 2) * i);
+            ctx.fillText(seperator, x, (browserFontSize + 2) * i);
             seperator = `--------------------`;
             i += 1;
-            ctx.fillText(seperator, 0, (browserFontSize + 2) * i);
+            ctx.fillText(seperator, x, (browserFontSize + 2) * i);
         }
 
         return i + 1;
     }
     function findRedsBorder(imgDataReds: number[], imgWidth: number, imgHeight: number) {
-        let widthBox = 0, heightBox = 0;
+        let x1, y1, x2, y2;
+        for (let y = 0; y < imgHeight; y++) {
+            if ((findRedPointXHorizontal(y, imgDataReds, imgWidth))) {
+                y1 = y;
+                break;
+            }
+        }
+
+        y1 ? y1 : 0;
+
+
+        for (let x = 0; x < imgWidth; x++) {
+            let find;
+            for (let y = 0; y < imgHeight; y++) {
+                if (imgDataReds[y * 500 + x] > 0) {
+                    find = 1;
+                    break;
+                }
+            }
+            if (find) {
+                x1 = x;
+                break;
+            }
+        }
+
+        x1 ? x1 : 0;
+
         for (let x = imgWidth - 1; x >= 0; x--) {
             let find;
             for (let y = 0; y < imgHeight; y++) {
@@ -473,28 +522,31 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
                 }
             }
             if (find) {
-                widthBox = x + 1;
+                x2 = x;
                 break;
             }
-
         }
-        for (let x = (imgHeight - 1); x >= 0; x--) {
+        x2 ? x2 : 0;
+
+        for (let y = (imgHeight - 1); y >= 0; y--) {
             let find;
-            for (let y = 0; y < imgWidth; y++) {
-                if (imgDataReds[x * imgWidth + y] > 0) {
+            for (let x = 0; x < imgWidth; x++) {
+                if (imgDataReds[y * imgWidth + x] > 0) {
                     find = 1;
                     break;
                 }
             }
             if (find) {
-                heightBox = x + 1;
+                y2 = y;
                 break;
             }
-
         }
+        y2 ? y2 : 0;
         return {
-            widthBox: widthBox,
-            heightBox: heightBox
+            x1: x1,
+            y1: y1,
+            widthBox: x2! - x1! + 1,
+            heightBox: y2! - y1! + 1,
         };
     }
 }
@@ -616,4 +668,20 @@ export async function redPointCollectToDisk(boldRedPointArr: number[]) {
     }
 }
 
+
+
+/* export class FontDetector {
+    [key: string]: any;
+    constructor() {
+        this.fontStyleJudgeType = {
+            0: upDownBeginleftPoint,
+            1: downBeginLeftPoint,
+            2: upBeginRightPoint,
+            3: upDownCenterPoint,
+        };
+    }
+    check() {
+        return this.fontStyleJudgeType[0];
+    }
+} */
 
