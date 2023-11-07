@@ -26,7 +26,11 @@ export function fileSizeFormat(fileSize: number, idx = 0) {
 	return fileSizeFormat(fileSize / 1024, ++idx);
 }
 
-
+export function combinObj(obj1: any, obj2: any) {
+	Object.keys(obj2).filter((keyobj2: string) => {
+		obj1[keyobj2] ? () => { } : obj1[keyobj2] = obj2[keyobj2];
+	});
+}
 
 /**
  * 判断矩形是否相邻，可设定容差，单位 mm

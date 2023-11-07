@@ -1,6 +1,6 @@
 import { alphabetDigital } from "../utils/config";
 import { getString } from "../utils/locale";
-import { fullTextTranslatedir, getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
+import { addonStorageDir, getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
 import { fileSizeFormat } from "../utils/tools";
 import { saveImage } from "./annotationImage";
 import { fullTextTranslate } from "./fullTextTranslate";
@@ -78,7 +78,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     const charBorder = findRedsBorder(charImgData);
     if (charBorder) {
         charImgData = ctx.getImageData(charBorder.x1, charBorder.y1, charBorder.widthBox, charBorder.heightBox);
-        const charPath = getPathDir(fontName, fullTextTranslatedir + "\\fontImg\\", ".png").path;
+        const charPath = getPathDir(fontName, addonStorageDir + "\\fontImg\\", ".png").path;
         fontSimpleInfo.charImg = makeImgDataURL(charImgData, ctx);
         await saveImage(makeImgDataURL(charImgData, ctx), charPath);
     }
@@ -99,7 +99,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     if (border) {
         //保存字体图片
         charsImgData = ctx.getImageData(border.x1, border.y1, border.widthBox, border.heightBox);
-        const charsPath = getPathDir(fontName + "_Chars", fullTextTranslatedir + "\\fontImg\\", ".png").path;
+        const charsPath = getPathDir(fontName + "_Chars", addonStorageDir + "\\fontImg\\", ".png").path;
         fontSimpleInfo.charsImg = makeImgDataURL(charsImgData, ctx);
         await saveImage(makeImgDataURL(charsImgData, ctx), charsPath);
     }

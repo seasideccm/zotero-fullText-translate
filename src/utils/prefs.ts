@@ -1,9 +1,9 @@
 import { config } from "../../package.json";
 import { fullTextTranslateService } from "../modules/serviceManage";
 import { fileNameLegal } from "../utils/fileNameLegal";
-import { getString } from "./locale";
 
-export const fullTextTranslatedir = Zotero.Prefs.get("extensions.zotero.dataDir", true) as string + "\\storage\\" + config.addonName + "\\";
+
+export const addonStorageDir = Zotero.Prefs.get("extensions.zotero.dataDir", true) as string + "\\storage\\" + config.addonName + "\\";
 export const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
 
 
@@ -62,7 +62,7 @@ export function setPluginsPref(plugin: string, key: string, value: string | numb
 /**
  * 将 js 对象转为json写入磁盘，默认为插件目录
  * @param obj 
- * @param filename 
+ * @param filename 文件名伴或不伴完整路径
  * @param dir 
  * @param ext 
  */
@@ -77,24 +77,52 @@ export async function saveJsonToDisk(obj: any, filename: string, dir?: string, e
   await OS.File.writeAtomic(path, objJson);
 }
 
+
+/**
+ * 
+ * @param filename 文件名,伴或不伴完整路径
+ * @param dir 结尾 \\\\ 或 / 可有可无
+ * @param ext 默认 .json
+ * @returns 对象
+ */
+export async function readJsonFromDisk(filename: string, dir?: string, ext?: string) {
+  const path = getPathDir(filename, dir, ext).path;
+  if (!await OS.File.exists(path)) { return; }
+  const buf = await OS.File.read(path, {});
+  return JSON.parse(arrayBufferToString(buf));
+}
+
+/**
+ * 
+ * @param filename 文件名伴或不伴完整路径
+ * @param dir 
+ * @param ext 
+ * @returns 
+ */
 export const getPathDir = (filename: string, dir?: string, ext?: string) => {
   filename = fileNameLegal(filename);
-  if (ext === undefined) {
-    ext = ".json";
-  }
-  if (!ext.startsWith(".")) {
-    ext = "." + ext;
-  }
-  if (dir === undefined) {
-    dir = fullTextTranslatedir;
-  }
-  if (dir.includes("\\")) {
-    dir = (dir + "\\").replace(/\\+/mg, "\\");
+  if (filename.match(/\.[^/\\]+$/m)) {
+    dir = "";
+    ext = '';
+  } else {
+    if (ext === undefined) {
+      ext = ".json";
+    }
+    if (!ext.startsWith(".")) {
+      ext = "." + ext;
+    }
+    if (dir === undefined) {
+      dir = addonStorageDir;
+    }
+    if (dir.includes("\\")) {
+      dir = (dir + "\\").replace(/\\+/mg, "\\");
+    }
+
+    if (dir.includes("/")) {
+      dir = (dir + "/").replace(/\/+/gm, "/");
+    }
   }
 
-  if (dir.includes("/")) {
-    dir = (dir + "/").replace(/\/+/gm, "/");
-  }
 
   const path = dir + filename + ext;
   return {
@@ -116,19 +144,7 @@ export const getFileInfo = async (path: string) => {
 };
 
 
-/**
- * 
- * @param filename 
- * @param dir 
- * @param ext 
- * @returns 
- */
-export async function readJsonFromDisk(filename: string, dir?: string, ext?: string) {
-  const path = getPathDir(filename, dir, ext).path;
-  if (!await OS.File.exists(path)) { return; }
-  const buf = await OS.File.read(path, {});
-  return JSON.parse(arrayBufferToString(buf));
-}
+
 
 /**
  * 

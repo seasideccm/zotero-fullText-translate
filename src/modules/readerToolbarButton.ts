@@ -6,6 +6,7 @@ import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, clearCanvas, id
 import { fullTextTranslate } from "./fullTextTranslate";
 import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
 import { prepareReader } from "./prepareReader";
+import { syncFontInfo } from "./syncInfo";
 
 
 
@@ -129,13 +130,23 @@ export async function readerToolbarButton() {
             args: []
         },
     ];
+    const syncFontInfoMenuitemArr = [
+        {
+            label: "info-syncFontInfo",
+            func: syncFontInfo,
+            args: []
+        },
+    ];
+
     //子菜单内容组成数组 menuitemGroupArr 作为 makeClickButton 的参数
     const menuitemGroupArr = [
         imgTableSingleObjMenuitemArr,
         imgTableAllObjMenuitemArr,
         pdf2NoteMenuitemArr,
         translateOnePdfMenuitemArr,
-        fontMenuitemArr];
+        fontMenuitemArr,
+        syncFontInfoMenuitemArr
+    ];
     //按钮 button 作为 button 的参数
     const button = ztoolkit.UI.insertElementBefore({
         enableElementJSONLog: false,

@@ -910,8 +910,8 @@ export class fullTextTranslate {
    * @returns 
    */
   static async translateDoc(docItem: DocItem) {
-    //const fullTextTranslatedir = Zotero.Prefs.get("extensions.zotero.dataDir", true) as string + "\\storage\\" + config.addonName + "\\";
-    //const docsTranslationCacheDir = fullTextTranslatedir + "docsTranslationCache\\";
+    //const addonStorageDir = Zotero.Prefs.get("extensions.zotero.dataDir", true) as string + "\\storage\\" + config.addonName + "\\";
+    //const docsTranslationCacheDir = addonStorageDir + "docsTranslationCache\\";
     const docCellArr = docItem.content;
     const bilingualContrast = getPref('bilingualContrast');
     const isSourceFirst = getPref('isSourceFirst');
@@ -1216,8 +1216,8 @@ export class fullTextTranslate {
       await note.saveTx();
     }
     //docItem 写入硬盘
-    /* const fullTextTranslatedir = Zotero.Prefs.get("extensions.zotero.dataDir", true) as string + "\\storage\\" + config.addonName + "\\";
-    const docsTranslationCacheDir = fullTextTranslatedir + "docsTranslationCache\\";
+    /* const addonStorageDir = Zotero.Prefs.get("extensions.zotero.dataDir", true) as string + "\\storage\\" + config.addonName + "\\";
+    const docsTranslationCacheDir = addonStorageDir + "docsTranslationCache\\";
     const docItemSuccess = "Success" + "_" + String(docItem.itemID) + "_" + "docItem"; */
     //saveJsonToDisk(docItem, docItemSuccess, docsTranslationCacheDir);
   }

@@ -20,7 +20,7 @@ export interface IPosition {
 }
 export type IRects = (number)[];
 import { Blob } from "buffer";
-import { fullTextTranslatedir, getPathDir, OS } from "../utils/prefs";
+import { addonStorageDir, getPathDir, OS } from "../utils/prefs";
 
 
 
@@ -31,7 +31,7 @@ export function saveAnnotationImage() {
 	const annotations: IAnnotation[] = (wr._reader._state.annotations).filter((ann: IAnnotation) => ann.type === "image");
 
 	annotations.filter(async ann => {
-		const outputPath = fullTextTranslatedir + "/" + ann.key;
+		const outputPath = addonStorageDir + "/" + ann.key;
 		await wr._reader._onCopyImage(ann.image);
 
 	});
