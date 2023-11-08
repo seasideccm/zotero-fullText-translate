@@ -49,3 +49,4 @@ export async function syncFontInfo() {
 }
 
 
+ztoolkit.ItemBox.register;

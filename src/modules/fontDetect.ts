@@ -32,7 +32,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     const fontName = fontObj.name.replace(regFontName, "");
     const fontSimpleInfo: {
         fontName: string;
-        char: string | null;
+        markerChar: string | null;
         chars: string[] | null;
         charImg: string | null;
         charsImg: string | null;
@@ -42,7 +42,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
         pdfItemID: number;
     } = {
         fontName: fontName,
-        char: null,
+        markerChar: null,
         chars: fontObj.charsArr,
         charImg: null,
         charsImg: null,
@@ -68,41 +68,43 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     ctx.font = fontValue;
     ctx.fillStyle = "red";
     //确定绘制字符，依照判别字符顺序找，返回符合的第一个字符，没有则返回 undefined   
-    const char = fontObj.judgeCharArr.find((char: string) => fontObj.charsArr.includes(char));
-    fontSimpleInfo.char = char;
-    ctx.fillText(char, offsetX, browserFontSize);
+    const markerChar = fontObj.judgeCharArr.find((char: string) => fontObj.charsArr.includes(char));
+    fontSimpleInfo.markerChar = markerChar;
+    ctx.fillText(markerChar, offsetX, browserFontSize);
     let charImgData: ImageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
     fontSimpleInfo.isItalic = judgeFontItalic(fontObj, charImgData);
     fontSimpleInfo.redPointNumbers = charImgData.data.filter((e: number, i: number) => i % 4 == 0).filter((e: number) => e > 0).length;
-    //确定绘制的字符边界
-    const charBorder = findRedsBorder(charImgData);
-    if (charBorder) {
-        charImgData = ctx.getImageData(charBorder.x1, charBorder.y1, charBorder.widthBox, charBorder.heightBox);
-        const charPath = getPathDir(fontName, addonStorageDir + "\\fontImg\\", ".png").path;
-        fontSimpleInfo.charImg = makeImgDataURL(charImgData, ctx);
-        await saveImage(makeImgDataURL(charImgData, ctx), charPath);
+    const charPath = getPathDir(fontName, addonStorageDir + "\\fontImg\\", ".png").path;
+    if (!await OS.File.exists(charPath)) {
+        //确定绘制的字符边界
+        const charBorder = findRedsBorder(charImgData);
+        if (charBorder) {
+            charImgData = ctx.getImageData(charBorder.x1, charBorder.y1, charBorder.widthBox, charBorder.heightBox);
+            fontSimpleInfo.charImg = makeImgDataURL(charImgData, ctx);
+            await saveImage(makeImgDataURL(charImgData, ctx), charPath);
+        }
+        const fontNotIncludeChars = alphabetDigital.filter((char: string) => !fontObj.charsArr.includes(char));
+        const charsPerLine = 15;
+        const rowsTotal = Math.ceil(fontObj.charsArr.length / charsPerLine) + Math.ceil(fontNotIncludeChars.length / charsPerLine) + 4;
+        ctx.canvas.width = 500;
+        ctx.canvas.height = rowsTotal * (browserFontSize + 2) + 10;
+        ctx.font = fontValue;
+        ctx.fillStyle = "red";
+        //字体包含和可能未包含的字符分开绘制在一张图片上
+        let rowIndexBeginDraw = drawChars(fontObj.charsArr, browserFontSize, charsPerLine, 1, true);
+        rowIndexBeginDraw = drawSeperator(rowIndexBeginDraw, fontName, offsetX);
+        drawChars(fontNotIncludeChars, browserFontSize, charsPerLine, rowIndexBeginDraw, false);
+        let charsImgData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+        const border = findRedsBorder(charsImgData);
+        if (border) {
+            //保存字体图片
+            charsImgData = ctx.getImageData(border.x1, border.y1, border.widthBox, border.heightBox);
+            const charsPath = getPathDir(fontName + "_Chars", addonStorageDir + "\\fontImg\\", ".png").path;
+            fontSimpleInfo.charsImg = makeImgDataURL(charsImgData, ctx);
+            await saveImage(makeImgDataURL(charsImgData, ctx), charsPath);
+        }
     }
 
-    const fontNotIncludeChars = alphabetDigital.filter((char: string) => !fontObj.charsArr.includes(char));
-    const charsPerLine = 15;
-    const rowsTotal = Math.ceil(fontObj.charsArr.length / charsPerLine) + Math.ceil(fontNotIncludeChars.length / charsPerLine) + 4;
-    ctx.canvas.width = 500;
-    ctx.canvas.height = rowsTotal * (browserFontSize + 2) + 10;
-    ctx.font = fontValue;
-    ctx.fillStyle = "red";
-    //字体包含和可能未包含的字符分开绘制在一张图片上
-    let rowIndexBeginDraw = drawChars(fontObj.charsArr, browserFontSize, charsPerLine, 1, true);
-    rowIndexBeginDraw = drawSeperator(rowIndexBeginDraw, fontName, offsetX);
-    drawChars(fontNotIncludeChars, browserFontSize, charsPerLine, rowIndexBeginDraw, false);
-    let charsImgData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-    const border = findRedsBorder(charsImgData);
-    if (border) {
-        //保存字体图片
-        charsImgData = ctx.getImageData(border.x1, border.y1, border.widthBox, border.heightBox);
-        const charsPath = getPathDir(fontName + "_Chars", addonStorageDir + "\\fontImg\\", ".png").path;
-        fontSimpleInfo.charsImg = makeImgDataURL(charsImgData, ctx);
-        await saveImage(makeImgDataURL(charsImgData, ctx), charsPath);
-    }
     return fontSimpleInfo;
     function judgeFontItalic(fontObj: any, imageData: ImageData) {
         const redPixels = imageData.data.filter((e: number, i: number) => i % 4 == 0);
@@ -613,11 +615,8 @@ export const saveDiskFontSimpleInfo = async (fontSimpleInfoArr: any[], fromDisk?
 };
 
 export const makeFontInfoNote = async (fontSimpleInfo: any, boldRedPointArr?: number[]) => {
-
     const note = new WriteNote({ title: "Font Style Collection" });
-
     note.addContent("粗体红点数:\n" + boldRedPointArr);
-
     const data: {
         dataArr: any[][];
         caption?: string | undefined;
