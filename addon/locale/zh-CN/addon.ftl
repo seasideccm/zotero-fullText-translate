@@ -41,6 +41,7 @@ info-checkFont = 字体检测
 info-syncFontInfo = 同步合并字体信息
 info-imgTableTool = 图标工具
 info-unableConfirmNote = 无法确认写入哪个笔记，请检查笔记标题
+info-customField=自定义标题
 dialog-label = 翻山蚁
 menuitem-getPdfContent = pdf转笔记
 info-notPdf = 所选项目不是 PDF

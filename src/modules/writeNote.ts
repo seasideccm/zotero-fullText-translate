@@ -1,3 +1,4 @@
+import ZoteroToolkit from "zotero-plugin-toolkit";
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
 
@@ -10,6 +11,8 @@ export class WriteNote {
     content: any;
     itemID?: number;
     libraryID?: number;
+    collectionName: string | null;
+    collectionID: number | null;
     note!: Zotero.Item;
     noteVersion: number;
     allowSameTitle: boolean;
@@ -26,8 +29,31 @@ export class WriteNote {
         this.content = '';
         this.noteVersion = options.noteVersion || 9;
         this.itemID = itemID;
+        this.collectionName = options.collectionName || null;
+        this.collectionID = null;
         this.allowSameTitle = options.allowSameTitle || false;
         this.tableData = options.tableData;
+    }
+
+    //根据分类名选中分类或创建并选中
+    async selectFontCollection(collectionName: string) {
+        let collectionID: number;
+        const libraryID = Zotero.Libraries.userLibraryID;
+        const allCollections = Zotero.Collections.getByLibrary(libraryID);
+        let fontCollection = allCollections.filter((c: Zotero.Collection) => c.name == collectionName)[0];
+
+        if (fontCollection) {
+            collectionID = fontCollection.id;
+        } else {
+            fontCollection = new Zotero.Collection;
+            fontCollection.libraryID = libraryID;
+            fontCollection.name = collectionName;
+            collectionID = await fontCollection.saveTx() as number;
+        }
+        const zp = ztoolkit.getGlobal("ZoteroPane");
+        zp.collectionsView.selectCollection(collectionID);
+        this.collectionID = collectionID;
+        return collectionID;
     }
 
     async makeNote() {
@@ -101,6 +127,8 @@ export class WriteNote {
             this.note = new Zotero.Item('note');
             if (this.parentItemKey) {
                 this.note.parentItemKey = this.parentItemKey;
+            } else if (this.collectionID) {
+                this.note.addToCollection(this.collectionID);
             } else if (item?.getCollections().length) {
                 this.note.addToCollection(zp.collectionsView.selectedTreeRow.ref.id);
             }

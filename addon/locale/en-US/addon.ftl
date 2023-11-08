@@ -39,6 +39,7 @@ info-dataWriteToDiskSuccess= Success Write data To Disk.
 info-fileInfo-size = file size: 
 info-checkFont = check Font
 info-syncFontInfo = sync combine FontInfo
+info-customField = customField
 info-imgTableTool = image and Table Tools
 info-unableConfirmNote = Unable to confirm which note to write, please check the note title
 dialog-label = fullTextTranslate

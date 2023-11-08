@@ -615,25 +615,51 @@ export const saveDiskFontSimpleInfo = async (fontSimpleInfoArr: any[], fromDisk?
 };
 
 export const makeFontInfoNote = async (fontSimpleInfo: any, boldRedPointArr?: number[]) => {
+    //collection
+
     const note = new WriteNote({ title: "Font Style Collection" });
+    note.selectFontCollection("fontCollection");
     note.addContent("粗体红点数:\n" + boldRedPointArr);
+    const excludeFields = ["loadName", "isItalic", "chars", "charsImg", "isBoldItalic", "isBold"];
     const data: {
         dataArr: any[][];
         caption?: string | undefined;
         header?: string[] | undefined;
     } = {
         dataArr: Object.values(fontSimpleInfo)
-            .filter((obj: any) => !Array.isArray(obj))
-            .map((obj: any) => Object.values(obj))
+            //.filter((obj: any) => !Array.isArray(obj))
+            //.map((obj: any) => Object.values(obj))
+            .map((obj: any) => {
+                const fieldArr = Object.keys(obj).filter((field: string) => excludeFields.includes(field));
+                return fieldArr.map((field: string) => obj[field]);
+            })
             .filter(e => e)
     };
-    data.header = ["fontName",
+
+    data.header = Object.keys(Object.values(fontSimpleInfo)[0] as any)
+        .filter((field: string) => excludeFields.includes(field));
+
+    /* 
+    const fontSimpleInfo: {
+        fontName: string;
+        markerChar: string | null;
+        chars: string[] | null;
+        charImg: string | null;
+        charsImg: string | null;
+        redPointNumbers: number | null;
+        isItalic: boolean | null;
+        loadName: string;
+        pdfItemID: number;
+    }
+    
+    
+    ["fontName",
         "loadName",
         "redPointNumbers",
         "isItalic",
         "pdfItemID",
         "style",
-        "isBold"];
+        "isBold"]; */
 
     note.addTable(data);
     await note.makeNote();

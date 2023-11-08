@@ -6,7 +6,7 @@ import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, clearCanvas, id
 import { fullTextTranslate } from "./fullTextTranslate";
 import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
 import { prepareReader } from "./prepareReader";
-//import { syncFontInfo } from "./syncInfo";
+import { syncFontInfo } from "./syncInfo";
 
 
 
@@ -134,7 +134,8 @@ export async function readerToolbarButton() {
         {
             label: "info-syncFontInfo",
 
-            func: () => { }, //syncFontInfo,
+            //func: () => { }, //syncFontInfo,
+            func: syncFontInfo,
             args: []
         },
     ];
@@ -221,7 +222,7 @@ const fontCheckCallBack = async () => {
             const boldRedPointArr = identityFontStyle(fontSimpleInfoArrs);
             await redPointCollectToDisk(boldRedPointArr);
             fontSimpleInfo = await saveDiskFontSimpleInfo(fontSimpleInfoArrs, fontSimpleInfo);
-            //await makeFontInfoNote(fontSimpleInfo, boldRedPointArr);
+            await makeFontInfoNote(fontSimpleInfo, boldRedPointArr);
             const note = "note";
 
         }
