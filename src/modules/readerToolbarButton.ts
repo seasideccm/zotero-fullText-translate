@@ -6,7 +6,7 @@ import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, clearCanvas, id
 import { fullTextTranslate } from "./fullTextTranslate";
 import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
 import { prepareReader } from "./prepareReader";
-import { syncFontInfo } from "./syncInfo";
+//import { syncFontInfo } from "./syncInfo";
 
 
 
@@ -133,7 +133,8 @@ export async function readerToolbarButton() {
     const syncFontInfoMenuitemArr = [
         {
             label: "info-syncFontInfo",
-            func: syncFontInfo,
+
+            func: () => { }, //syncFontInfo,
             args: []
         },
     ];

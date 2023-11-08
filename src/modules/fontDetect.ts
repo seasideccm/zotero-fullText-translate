@@ -680,7 +680,7 @@ export const identityFontStyle = (fontSimpleInfoArr: any[]) => {
     redPointThisPdfArr.sort((a, b) => b - a);
     const boldRedPointArr: number[] = [];
     for (const fontSimpleInfo of fontSimpleInfoArr) {
-        if (/(-Bold$)|(\.B(\+\d+)?$)|(Heavey$)|(Black$)|(-Semibold$)|(-Bold-)/mi.test(fontSimpleInfo.fontName)) {
+        if (/(Bold$)|(\.B(\+\d+)?$)|(Heavey$)|(Black$)|(-Semibold$)|(-Bold-)/mi.test(fontSimpleInfo.fontName)) {
             fontSimpleInfo.style = "bold";
             fontSimpleInfo.isBold = "true";
             if (fontSimpleInfo.redPointNumbers) {
@@ -695,7 +695,7 @@ export const identityFontStyle = (fontSimpleInfoArr: any[]) => {
         } else if (/(Italic$)|(\.I$)|(Oblique$)|(-LightIt$)|(-It$)/mi.test(fontSimpleInfo.fontName)) {
             fontSimpleInfo.style = "italic";
             fontSimpleInfo.isItalic = "true";
-        } else if (/(Regular$)/mi.test(fontSimpleInfo.fontName)) {
+        } else if (/Regular/i.test(fontSimpleInfo.fontName)) {
             fontSimpleInfo.style = "Regular";
 
         } else {
