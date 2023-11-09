@@ -35,7 +35,7 @@ export class WriteNote {
         this.tableData = options.tableData;
     }
 
-    //¸ù¾İ·ÖÀàÃûÑ¡ÖĞ·ÖÀà»ò´´½¨²¢Ñ¡ÖĞ
+    //æ ¹æ®åˆ†ç±»åé€‰ä¸­åˆ†ç±»æˆ–åˆ›å»ºå¹¶é€‰ä¸­
     async selectFontCollection(collectionName: string) {
         let collectionID: number;
         const libraryID = Zotero.Libraries.userLibraryID;
@@ -70,7 +70,7 @@ export class WriteNote {
             } else if (item.isRegularItem()) {
                 isCreatNote = true;
                 this.parentItemKey = item.key;
-                //»ñÈ¡ÌõÄ¿±Ê¼ÇID
+                //è·å–æ¡ç›®ç¬”è®°ID
                 notesIDs = item.getNotes();
             } else if (item.parentItemKey && !item.isNote()) {
                 isCreatNote = true;
@@ -88,27 +88,28 @@ export class WriteNote {
 
         }
 
-        //ÏŞ¶¨ÔÚËùÓĞ¶ÀÁ¢±Ê¼Ç£¬»òµ±Ç°·ÖÀàËùÑ¡ÌõÄ¿×Ó±Ê¼Ç
+        //é™å®šåœ¨æ‰€æœ‰ç‹¬ç«‹ç¬”è®°ï¼Œæˆ–å½“å‰åˆ†ç±»æ‰€é€‰æ¡ç›®å­ç¬”è®°
         const zp = Zotero.getActiveZoteroPane();
         const libraryID = Zotero.Libraries.userLibraryID;
-        //²»º¬×ÓÌõÄ¿       
+        //ä¸å«å­æ¡ç›®       
         const allItems = await Zotero.Items.getAll(libraryID, true);
         const notesOfUserLibrary = allItems.filter((item: Zotero.Item) => item.itemType == "note");
         const collection = zp.getSelectedCollection();
-        const itemsOfCollection = collection?.getChildItems();
-        const notesOfCurrentCollection = itemsOfCollection?.filter((item: Zotero.Item) => item.itemType == "note");
         const notesRelate = [];
         notesRelate.push(...notesOfUserLibrary);
+        if (collection) {
+            const itemsOfCollection = collection.getChildItems();
+            const notesOfCurrentCollection = itemsOfCollection.filter((item: Zotero.Item) => item.itemType == "note");
+            notesRelate.push(...notesOfCurrentCollection);
+        }
         if (notesIDs) {
-            //»ñÈ¡ÌõÄ¿±Ê¼Ç
+            //è·å–æ¡ç›®ç¬”è®°
             notesOfItem = notesIDs.map((noteID: number) => Zotero.Items.get(noteID));
             notesRelate.push(...notesOfItem);
         }
-        if (notesOfCurrentCollection) {
-            notesRelate.push(...notesOfCurrentCollection);
-        }
+
         if (!this.allowSameTitle) {
-            //Èç¹û¶à¸öÍ¬Ãû±Ê¼Ç£¬ÈÏÎª²»ÊÇÄ¿±ê±Ê¼Ç£¬
+            //å¦‚æœå¤šä¸ªåŒåç¬”è®°ï¼Œè®¤ä¸ºä¸æ˜¯ç›®æ ‡ç¬”è®°ï¼Œ
             const oldNotes = notesRelate.filter((note: Zotero.Item) => note.getNoteTitle() == this.title);
             let oldNote;
             if (oldNotes.length == 1) {
@@ -144,11 +145,11 @@ export class WriteNote {
             caption?: string;
             header?: string[];
         },
-        //ÓÃÓÚidÑ¡ÔñÆ÷Ñ¡Ôñ±í¸ñ£¬ÖÆ±íÊ±Ìí¼Ó<table id=tableId></table>
+        //ç”¨äºidé€‰æ‹©å™¨é€‰æ‹©è¡¨æ ¼ï¼Œåˆ¶è¡¨æ—¶æ·»åŠ <table id=tableId></table>
         tableId?: string
     ) {
         if (tableId) {
-            //ÈçºÎ±£´æ±í¸ñÊı¾İ£¬ÒÑ¾­ÔÚÓ²ÅÌ±£´æjson
+            //å¦‚ä½•ä¿å­˜è¡¨æ ¼æ•°æ®ï¼Œå·²ç»åœ¨ç¡¬ç›˜ä¿å­˜json
             /* if (this.tableData?.tableId)
                 this.tableData?.tableId.dataArr.push(...data.dataArr); */
         }
@@ -165,7 +166,7 @@ export class WriteNote {
             rowArr.push(this.dataToBody(rowDataArr.join(""), "tr"));
         }
         const bodyHtml = `<tbody>${rowArr.join("")}</tbody>`;
-        //zotero note ²»Ö§³Ö caption ±íÍ·
+        //zotero note ä¸æ”¯æŒ caption è¡¨å¤´
         if (caption) {
             captionHtml = this.tablecaption(caption);
         }
@@ -173,9 +174,9 @@ export class WriteNote {
             headerHtml = this.tableHeader(header);
         }
         const tableHtml = this.addHeadTail(bodyHtml, headerHtml, captionHtml);
-        //¶ÔÏóÊôĞÔcontentÄÚÈİ¸üĞÂ
+        //å¯¹è±¡å±æ€§contentå†…å®¹æ›´æ–°
         this.content += tableHtml;
-        //·µ»Ø±í¸ñhtml£¬¹©ÆäËûÇé¿öÊ¹ÓÃ
+        //è¿”å›è¡¨æ ¼htmlï¼Œä¾›å…¶ä»–æƒ…å†µä½¿ç”¨
         return tableHtml;
     }
     addTitle(title?: string) {

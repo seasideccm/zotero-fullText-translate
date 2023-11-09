@@ -621,23 +621,17 @@ export const makeFontInfoNote = async (fontSimpleInfo: any, boldRedPointArr?: nu
     note.selectFontCollection("fontCollection");
     note.addContent("粗体红点数:\n" + boldRedPointArr);
     const excludeFields = ["loadName", "isItalic", "chars", "charsImg", "isBoldItalic", "isBold"];
+    const usedFields = Object.keys(Object.values(fontSimpleInfo)[0] as any)
+        .filter((field: string) => !excludeFields.includes(field));
     const data: {
         dataArr: any[][];
         caption?: string | undefined;
         header?: string[] | undefined;
     } = {
-        dataArr: Object.values(fontSimpleInfo)
-            //.filter((obj: any) => !Array.isArray(obj))
-            //.map((obj: any) => Object.values(obj))
-            .map((obj: any) => {
-                const fieldArr = Object.keys(obj).filter((field: string) => excludeFields.includes(field));
-                return fieldArr.map((field: string) => obj[field]);
-            })
-            .filter(e => e)
+        dataArr: Object.values(fontSimpleInfo).map((obj: any) =>
+            usedFields.map((field: string) => obj[field]))
     };
-
-    data.header = Object.keys(Object.values(fontSimpleInfo)[0] as any)
-        .filter((field: string) => excludeFields.includes(field));
+    data.header = usedFields;
 
     /* 
     const fontSimpleInfo: {
