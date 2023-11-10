@@ -4,50 +4,75 @@ import { fullTextTranslate } from "./fullTextTranslate";
 
 
 
-export class noteMaker {
+export class NoteMaker {
     title?: string;
-    titleHtml: string;
+    titleHtml?: string;
     parentItemKey?: string;
-    content: any;
+    content?: any;
     itemID?: number;
     libraryID?: number;
-    collectionName: string | null;
-    collectionID: number | null;
-    note!: Zotero.Item;
-    noteVersion: number;
-    allowSameTitle: boolean;
+    collectionName?: string;
+    collectionID?: number;
+    note?: Zotero.Item;
+    noteVersion?: number;
+    allowSameTitle?: boolean;
     tableData?: {
-        [tableId: string]: {
-            dataArr: any[][];
-            caption?: string;
-            header?: string;
+        [keyString: string]: {
+            dataArr?: any[][];
+            header?: string[];
         };
     };
-    constructor(options: any = {}, itemID?: number) {
-        this.titleHtml = this.addTitle(options.title);
-        this.title = options.title || null;
-        this.content = '';
-        this.noteVersion = options.noteVersion || 9;
-        this.itemID = itemID;
-        this.collectionName = options.collectionName || null;
-        this.collectionID = null;
-        this.allowSameTitle = options.allowSameTitle || false;
-        this.tableData = options.tableData;
+
+    constructor(
+        option: {
+            title?: string;
+            titleHtml?: string;
+            parentItemKey?: string;
+            content?: any;
+            itemID?: number;
+            libraryID?: number;
+            collectionName?: string;
+            collectionID?: number;
+            note?: Zotero.Item;
+            noteVersion?: number;
+            allowSameTitle?: boolean;
+            tableData?: {
+                [keyString: string]: {
+                    dataArr?: any[][];
+                    header?: string[];
+                };
+            };
+        }
+    ) {
+        this.titleHtml = this.addTitle(option.title);
+        this.title = option.title;
+        this.content = option.content;
+        this.noteVersion = option.noteVersion || 9;
+        this.itemID = option.itemID;
+        this.collectionName = option.collectionName;
+        this.collectionID = option.collectionID;
+        this.allowSameTitle = option.allowSameTitle || false;
+        this.tableData = option.tableData;
     }
 
     //根据分类名选中分类或创建并选中
-    async selectFontCollection(collectionName: string) {
+    async selectFontCollection(collectionName?: string) {
+        if (!this.collectionName && collectionName) {
+            this.collectionName = collectionName;
+        }
+        if (!this.collectionName) {
+            this.collectionName = Zotero.getString('pane.collections.untitled');
+        }
         let collectionID: number;
         const libraryID = Zotero.Libraries.userLibraryID;
         const allCollections = Zotero.Collections.getByLibrary(libraryID);
-        let fontCollection = allCollections.filter((c: Zotero.Collection) => c.name == collectionName)[0];
-
+        let fontCollection = allCollections.filter((c: Zotero.Collection) => c.name == this.collectionName)[0];
         if (fontCollection) {
             collectionID = fontCollection.id;
         } else {
             fontCollection = new Zotero.Collection;
             fontCollection.libraryID = libraryID;
-            fontCollection.name = collectionName;
+            fontCollection.name = this.collectionName!;
             collectionID = await fontCollection.saveTx() as number;
         }
         const zp = ztoolkit.getGlobal("ZoteroPane");
@@ -153,22 +178,10 @@ export class noteMaker {
         return notesRelate;
     }
     addTable(
-        data: {
-            dataArr: any[][];
-            caption?: string;
-            header?: string[];
-        },
-        //用于id选择器选择表格，制表时添加<table id=tableId></table>
-        tableId?: string
+        dataArr: any[][],
+        header: string[],
+        tableIndex: string,
     ) {
-        if (tableId) {
-            //如何保存表格数据，已经在硬盘保存json
-            /* if (this.tableData?.tableId)
-                this.tableData?.tableId.dataArr.push(...data.dataArr); */
-        }
-
-        const { dataArr } = data;
-        const { caption, header } = data;
         const rowArr = [];
         let headerHtml, captionHtml;
         for (let tr = 0; tr < dataArr.length; tr++) {
@@ -180,9 +193,9 @@ export class noteMaker {
         }
         const bodyHtml = `<tbody>${rowArr.join("")}</tbody>`;
         //zotero note 不支持 caption 表头
-        if (caption) {
-            captionHtml = this.tablecaption(caption);
-        }
+        /*         if (caption) {
+                    captionHtml = this.tablecaption(caption);
+                } */
         if (header) {
             headerHtml = this.tableHeader(header);
         }

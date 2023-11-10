@@ -5,7 +5,7 @@ import { fileSizeFormat } from "../utils/tools";
 import { saveImage } from "./annotationImage";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { prepareReader } from "./prepareReader";
-import { noteMaker } from "./noteMaker";
+import { NoteMaker } from "./NoteMaker";
 
 export const pdfFontInfo: {
     [key: string]: string;
@@ -75,13 +75,13 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     fontSimpleInfo.isItalic = judgeFontItalic(fontObj, charImgData);
     fontSimpleInfo.redPointNumbers = charImgData.data.filter((e: number, i: number) => i % 4 == 0).filter((e: number) => e > 0).length;
     const charPath = getPathDir(fontName, addonStorageDir + "\\fontImg\\", ".png").path;
-    if (!await OS.File.exists(charPath)) {
+    if (await OS.File.exists(charPath)) {
         //确定绘制的字符边界
         const charBorder = findRedsBorder(charImgData);
         if (charBorder) {
             charImgData = ctx.getImageData(charBorder.x1, charBorder.y1, charBorder.widthBox, charBorder.heightBox);
             fontSimpleInfo.charImg = makeImgDataURL(charImgData, ctx);
-            await saveImage(makeImgDataURL(charImgData, ctx), charPath);
+            await saveImage(fontSimpleInfo.charImg, charPath);
         }
         const fontNotIncludeChars = alphabetDigital.filter((char: string) => !fontObj.charsArr.includes(char));
         const charsPerLine = 15;
@@ -101,7 +101,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
             charsImgData = ctx.getImageData(border.x1, border.y1, border.widthBox, border.heightBox);
             const charsPath = getPathDir(fontName + "_Chars", addonStorageDir + "\\fontImg\\", ".png").path;
             fontSimpleInfo.charsImg = makeImgDataURL(charsImgData, ctx);
-            await saveImage(makeImgDataURL(charsImgData, ctx), charsPath);
+            await saveImage(fontSimpleInfo.charsImg, charsPath);
         }
     }
 
@@ -246,7 +246,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
         ctx.canvas.width = imgData.width;
         ctx.canvas.height = imgData.height;
         ctx.putImageData(imgData, 0, 0);
-        const imgDataURL = ctx.canvas.toDataURL('image/png');
+        const imgDataURL: string = ctx.canvas.toDataURL('image/png');
         ctx.canvas.width = ctx.canvas.height = 0;
         return imgDataURL;
     }
@@ -615,47 +615,26 @@ export const saveDiskFontSimpleInfo = async (fontSimpleInfoArr: any[], fromDisk?
 };
 
 export const makeFontInfoNote = async (fontSimpleInfo: any, boldRedPointArr?: number[]) => {
-    //collection
-    note.selectFontCollection("fontCollection");
-    note.addContent("粗体红点数:\n" + boldRedPointArr);
+    if (!addon.data.noteMaker) {
+        const option = {
+            title: "Font Style Collection",
+            collectionName: "fontCollection",
+        };
+        addon.data.noteMaker = new NoteMaker(option);
+    }
+    const fontInfoNoteMaker = addon.data.noteMaker;
+    fontInfoNoteMaker.selectFontCollection("fontCollection");
+    fontInfoNoteMaker.addContent("粗体红点数:\n" + boldRedPointArr);
     const excludeFields = ["loadName", "isItalic", "chars", "charsImg", "isBoldItalic", "isBold"];
     const usedFields = Object.keys(Object.values(fontSimpleInfo)[0] as any)
         .filter((field: string) => !excludeFields.includes(field));
-    const data: {
-        dataArr: any[][];
-        caption?: string | undefined;
-        header?: string[] | undefined;
-    } = {
-        dataArr: Object.values(fontSimpleInfo).map((obj: any) =>
-            usedFields.map((field: string) => obj[field]))
-    };
-    data.header = usedFields;
-
-    /* 
-    const fontSimpleInfo: {
-        fontName: string;
-        markerChar: string | null;
-        chars: string[] | null;
-        charImg: string | null;
-        charsImg: string | null;
-        redPointNumbers: number | null;
-        isItalic: boolean | null;
-        loadName: string;
-        pdfItemID: number;
-    }
-    
-    
-    ["fontName",
-        "loadName",
-        "redPointNumbers",
-        "isItalic",
-        "pdfItemID",
-        "style",
-        "isBold"]; */
-
-    note.addTable(data);
-    await note.makeNote();
-    const testnoteMaker = "test";
+    const dataArr = Object.values(fontSimpleInfo).map((obj: any) =>
+        usedFields.map((field: string) => obj[field]));
+    const header = usedFields;
+    const tableIndex = "tableFontInfo";
+    fontInfoNoteMaker.addTable(dataArr, header, tableIndex);
+    await fontInfoNoteMaker.makeNote();
+    const testNoteMaker = "test";
 };
 export const addCharImage = (imageDate: any[], field: string, noteID?: number) => {
     let note;
