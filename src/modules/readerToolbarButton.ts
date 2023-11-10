@@ -2,7 +2,7 @@ import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
 import { fileSizeFormat } from "../utils/tools";
-import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, clearCanvas, identityFontStyle, redPointCollectToDisk, makeFontInfoNote } from "./fontDetect";
+import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, clearCanvas, identityFontStyle, redPointCollectToDisk, makeFontInfoNote, addCharImage } from "./fontDetect";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
 import { prepareReader } from "./prepareReader";
@@ -224,6 +224,7 @@ const fontCheckCallBack = async () => {
             fontSimpleInfo = await saveDiskFontSimpleInfo(fontSimpleInfoArrs, fontSimpleInfo);
             await makeFontInfoNote(fontSimpleInfo, boldRedPointArr);
             const note = "note";
+            addCharImage(fontSimpleInfoArrs);
 
         }
         const lengthAfterSave = Object.keys(fontSimpleInfo).length;

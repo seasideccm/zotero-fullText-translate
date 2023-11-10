@@ -4,7 +4,7 @@ import { fullTextTranslate } from "./fullTextTranslate";
 
 
 
-export class WriteNote {
+export class noteMaker {
     title?: string;
     titleHtml: string;
     parentItemKey?: string;
@@ -57,8 +57,33 @@ export class WriteNote {
     }
 
     async makeNote() {
-        //parentKey==parentItemKey
-        let item, parentItemKey, isCreatNote, notesIDs, notesOfItem;
+        const note = await this.getFontNote();
+        if (!note) {
+            this.note = new Zotero.Item('note');
+            if (this.parentItemKey) {
+                this.note.parentItemKey = this.parentItemKey;
+            } else if (this.collectionID) {
+                this.note.addToCollection(this.collectionID);
+            } else if (this.itemID) {
+                const item = Zotero.Items.get(this.itemID);
+
+                if (item.getCollections().length == 1) {
+                    this.note.addToCollection(item.getCollections()[0]);
+                }
+                else {
+                    const zp = Zotero.getActiveZoteroPane();
+                    this.note.addToCollection(zp.collectionsView.selectedTreeRow.ref.id);
+                }
+                this.note.libraryID = this.libraryID || Zotero.Libraries.userLibraryID;
+            }
+            const noteTxt = this.titleHtml + this.content + "</div>";
+            this.note.setNote(noteTxt);
+            await this.note.saveTx();
+        }
+    }
+
+    async getFontNote() {
+        let item;
         if (this.itemID) {
             item = Zotero.Items.get(this.itemID);
             if (item.isNote()) {
@@ -67,36 +92,54 @@ export class WriteNote {
                     this.parentItemKey = item.parentItemKey;
                     this.libraryID = item.libraryID;
                 }
-            } else if (item.isRegularItem()) {
-                isCreatNote = true;
+            }
+        }
+        if (this.title && this.note && this.note.getNoteTitle() == this.title) {
+            return this.note;
+        }
+        const notesRelate = await this.getFontRelatedAllNotes();
+        if (!this.allowSameTitle) {
+            //如果多个同名笔记，认为不是目标笔记，
+            const oldNotes = notesRelate.filter((note: Zotero.Item) => note.getNoteTitle() == this.title);
+            let oldNote;
+            if (oldNotes.length == 1) {
+                oldNote = oldNotes[0];
+                this.note = oldNote;
+                return oldNote;
+            }
+            if (oldNotes.length > 1) {
+                fullTextTranslate.showInfo(getString("info-unableConfirmNote"), 3000);
+            }
+        }
+    }
+
+    async getFontRelatedAllNotes() {
+        let item, notesIDs, notesOfItem;
+        if (this.itemID) {
+            item = Zotero.Items.get(this.itemID);
+            if (item.isRegularItem()) {
                 this.parentItemKey = item.key;
+                this.libraryID = item.libraryID;
                 //获取条目笔记ID
                 notesIDs = item.getNotes();
             } else if (item.parentItemKey && !item.isNote()) {
-                isCreatNote = true;
                 this.parentItemKey = item.parentItemKey;
                 this.libraryID = item.libraryID;
-            }
-        } else {
-            if (this.title) {
-                if (this.note?.getNoteTitle() != this.title) {
-                    isCreatNote = true;
+                const parentItem = Zotero.Items.getByLibraryAndKey(item.libraryID, item.parentItemKey);
+                if (parentItem && (parentItem as Zotero.Item).isRegularItem()) {
+                    notesIDs = (parentItem as Zotero.Item).getNotes();
                 }
-            } else {
-                isCreatNote = true;
             }
-
         }
-
         //限定在所有独立笔记，或当前分类所选条目子笔记
+        const notesRelate = [];
         const zp = Zotero.getActiveZoteroPane();
         const libraryID = Zotero.Libraries.userLibraryID;
         //不含子条目       
         const allItems = await Zotero.Items.getAll(libraryID, true);
         const notesOfUserLibrary = allItems.filter((item: Zotero.Item) => item.itemType == "note");
-        const collection = zp.getSelectedCollection();
-        const notesRelate = [];
         notesRelate.push(...notesOfUserLibrary);
+        const collection = zp.getSelectedCollection();
         if (collection) {
             const itemsOfCollection = collection.getChildItems();
             const notesOfCurrentCollection = itemsOfCollection.filter((item: Zotero.Item) => item.itemType == "note");
@@ -107,37 +150,7 @@ export class WriteNote {
             notesOfItem = notesIDs.map((noteID: number) => Zotero.Items.get(noteID));
             notesRelate.push(...notesOfItem);
         }
-
-        if (!this.allowSameTitle) {
-            //如果多个同名笔记，认为不是目标笔记，
-            const oldNotes = notesRelate.filter((note: Zotero.Item) => note.getNoteTitle() == this.title);
-            let oldNote;
-            if (oldNotes.length == 1) {
-                oldNote = oldNotes[0];
-            }
-            if (oldNotes.length > 1) {
-                fullTextTranslate.showInfo(getString("info-unableConfirmNote"), 3000);
-                return;
-            }
-            if (oldNote) {
-                this.note = oldNote;
-                isCreatNote = false;
-            }
-        }
-        if (isCreatNote) {
-            this.note = new Zotero.Item('note');
-            if (this.parentItemKey) {
-                this.note.parentItemKey = this.parentItemKey;
-            } else if (this.collectionID) {
-                this.note.addToCollection(this.collectionID);
-            } else if (item?.getCollections().length) {
-                this.note.addToCollection(zp.collectionsView.selectedTreeRow.ref.id);
-            }
-            this.note.libraryID = this.libraryID || libraryID;
-        }
-        const noteTxt = this.titleHtml + this.content + "</div>";
-        this.note.setNote(noteTxt);
-        await this.note.saveTx();
+        return notesRelate;
     }
     addTable(
         data: {

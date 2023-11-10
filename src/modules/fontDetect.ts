@@ -5,7 +5,7 @@ import { fileSizeFormat } from "../utils/tools";
 import { saveImage } from "./annotationImage";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { prepareReader } from "./prepareReader";
-import { WriteNote } from "./writeNote";
+import { noteMaker } from "./noteMaker";
 
 export const pdfFontInfo: {
     [key: string]: string;
@@ -616,8 +616,6 @@ export const saveDiskFontSimpleInfo = async (fontSimpleInfoArr: any[], fromDisk?
 
 export const makeFontInfoNote = async (fontSimpleInfo: any, boldRedPointArr?: number[]) => {
     //collection
-
-    const note = new WriteNote({ title: "Font Style Collection" });
     note.selectFontCollection("fontCollection");
     note.addContent("粗体红点数:\n" + boldRedPointArr);
     const excludeFields = ["loadName", "isItalic", "chars", "charsImg", "isBoldItalic", "isBold"];
@@ -657,7 +655,16 @@ export const makeFontInfoNote = async (fontSimpleInfo: any, boldRedPointArr?: nu
 
     note.addTable(data);
     await note.makeNote();
-    const testWriteNote = "test";
+    const testnoteMaker = "test";
+};
+export const addCharImage = (imageDate: any[], field: string, noteID?: number) => {
+    let note;
+    if (noteID) {
+        note = Zotero.Items.get(noteID);
+    } else {
+
+    }
+
 };
 
 
