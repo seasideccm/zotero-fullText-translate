@@ -20,7 +20,7 @@ export interface IPosition {
 }
 export type IRects = (number)[];
 import { Blob } from "buffer";
-import { addonStorageDir, getPathDir, OS } from "../utils/prefs";
+import { addonStorageDir, getPathDir, OS, readJsonFromDisk, saveImage } from "../utils/prefs";
 
 
 
@@ -42,30 +42,9 @@ export function saveAnnotationImage() {
 
 
 
-export async function saveImage(dataURL: string, outputPath: string) {
-	if (!dataURL) return;
-	const parts = dataURL.split(',');
-	if (!parts[0].includes('base64')) return;
-	const mime = parts[0].match(/:(.*?);/)![1];
-	const bstr = atob(parts[1]);
-	let n = bstr.length;
-	const u8arr = new Uint8Array(n);
-	while (n--) {
-		u8arr[n] = bstr.charCodeAt(n);
-	}
-	//事先建好目录可以保存，图片大小适中
-	const dir = outputPath.replace(/[^/\\]+$/m, '');
-	if (!await OS.File.exists(dir)) {
-		await OS.File.makeDir(dir);
-	}
-	await OS.File.writeAtomic(outputPath, u8arr);
-	return {
-		u8arr: u8arr,
-		mime: mime
-	};
 
 
-}
+
 
 
 

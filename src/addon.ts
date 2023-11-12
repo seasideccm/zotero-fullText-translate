@@ -2,7 +2,8 @@ import { ColumnOptions } from "zotero-plugin-toolkit/dist/helpers/virtualizedTab
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
 import hooks from "./hooks";
 import { createZToolkit } from "./utils/ztoolkit";
-import { NoteMaker } from "./modules/NoteMaker";
+import { NoteMaker } from "./modules/noteMakerHelp";
+
 
 class Addon {
   public data: {

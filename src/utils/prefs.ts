@@ -1,3 +1,4 @@
+
 import { config } from "../../package.json";
 import { fullTextTranslateService } from "../modules/serviceManage";
 import { fileNameLegal } from "../utils/fileNameLegal";
@@ -89,7 +90,154 @@ export async function readJsonFromDisk(filename: string, dir?: string, ext?: str
   const path = getPathDir(filename, dir, ext).path;
   if (!await OS.File.exists(path)) { return; }
   const buf = await OS.File.read(path, {});
-  return JSON.parse(arrayBufferToString(buf));
+  const blob = new Blob([buf]);
+  const reader = new FileReader();
+  reader.readAsText(blob);
+  return JSON.parse(reader.result as string);
+  //特殊符号出乱码return JSON.parse(arrayBufferToString(buf));
+}
+
+const IMAGE_HEAD_SIGS = {
+  GIF: [0x47, 0x49, 0x46], //'G' 'I' 'F' ascii
+  PNG: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+  JPG: [0xff, 0xd8, 0xff, 0xe0],
+  BMP: [0x42, 0x4d]
+};
+
+function readUint32BE(bytes: any, start: number) {
+  const uarr = new Uint32Array(1);
+  uarr[0] = (bytes[start + 0] & 0xFF) << 24;
+  uarr[0] = uarr[0] | ((bytes[start + 1] & 0xFF) << 16);
+  uarr[0] = uarr[0] | ((bytes[start + 2] & 0xFF) << 8);
+  uarr[0] = uarr[0] | (bytes[start + 3] & 0xFF);
+  return uarr[0];
+}
+
+function ReadPNG(buf: any) {
+  if (buf.slice(0, 8).toString() === IMAGE_HEAD_SIGS.PNG.toString()) {
+    const width = readUint32BE(buf, 16);
+    const height = readUint32BE(buf, 20);
+    return { width, height };
+  }
+}
+/* function getExtension(fileName: string) {
+
+
+
+
+
+var suffix = fileName.slice(fileName.lastIndexOf(".") + 1)
+  const arr = fileName.split('.');
+  return arr[arr.length - 1];
+} */
+
+export function getImageBase64(blob: any) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onload = () => {
+      const base64 = reader.result;
+      resolve(base64);
+    };
+    reader.onerror = error => reject(error);
+  });
+}
+/* export function toBase64(blob:any){
+  return new Promise((resolve, reject) => {
+        const fileReader = new FileReader();
+        fileReader.onload = (e) => {
+          resolve(e.target.result);
+        };
+        fileReader.readAsDataURL(blob);
+        fileReader.onerror = () => {
+          reject(new Error('文件流异常'));
+        };
+      });
+} */
+
+
+export async function readImage(path: string) {
+  if (!await OS.File.exists(path)) { return; }
+  const buf = await OS.File.read(path, {});
+  const imgWidthHeight = ReadPNG(buf);
+  const blob = new Blob([buf]);
+  const temp = OS.Path.basename(path).split('.');
+  const fileType = "image/" + temp.pop();
+  const fileName = temp.join('');
+  const file = new File([blob], fileName, { type: fileType, lastModified: Date.now() });
+  const base64 = await getImageBase64(file);
+  //const blob = URL.createObjectURL(file);
+  /*   const reader = new FileReader();
+    let obj;
+    reader.addEventListener(
+      "load",
+      function () {
+        obj = {
+          width: imgWidthHeight?.width as number,
+          height: imgWidthHeight?.height as number,
+          base64: reader.result as string,
+        };
+      },
+      false,
+    );
+    if (file) {
+      reader.readAsDataURL(file);
+    }
+    while (obj == undefined) {
+      Zotero.Promise.delay(10);
+      if (obj) {
+        break;
+      }
+    }
+    return obj; */
+  return {
+    width: imgWidthHeight?.width as number,
+    height: imgWidthHeight?.height as number,
+    base64: base64 as string,
+  };
+
+}
+function base64ToBytes(imageDataURL: string): {
+  u8arr: Uint8Array; mime: string;
+} | undefined {
+  const parts = imageDataURL.split(',');
+  if (!parts[0].includes('base64')) return;
+  const mime = parts[0].match(/:(.*?);/)![1];
+  const bstr = atob(parts[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return {
+    u8arr: u8arr,
+    mime: mime,
+  };
+}
+
+export function base64ToBlob(imageDataURL: string): Blob | undefined {
+  const temp = base64ToBytes(imageDataURL);
+  if (!temp) return;
+  const blob = new Blob([temp.u8arr], { type: temp.mime });
+  return blob;
+}
+
+
+export async function saveImage(dataURL: string, outputPath: string) {
+  const temp = base64ToBytes(dataURL);
+  if (!temp) return;
+  const u8arr = temp.u8arr;
+  const mime = temp.mime;
+  //事先建好目录可以保存，图片大小适中
+  const dir = outputPath.replace(/[^/\\]+$/m, '');
+  if (!await OS.File.exists(dir)) {
+    await OS.File.makeDir(dir);
+  }
+  await OS.File.writeAtomic(outputPath, u8arr);
+  return {
+    u8arr: u8arr,
+    mime: mime
+  };
 }
 
 /**
@@ -101,7 +249,8 @@ export async function readJsonFromDisk(filename: string, dir?: string, ext?: str
  */
 export const getPathDir = (filename: string, dir?: string, ext?: string) => {
   filename = fileNameLegal(filename);
-  if (filename.match(/\.[^/\\]+$/m)) {
+  //文件名是完整路径
+  if (filename.match(/\.[^/\\]+$/m) && filename.match(/[/\\]/g)) {
     dir = "";
     ext = '';
   } else {
@@ -223,3 +372,5 @@ export function getSingleServiceUnderUse() {
   }
 
 }
+
+

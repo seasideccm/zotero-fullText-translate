@@ -60,14 +60,20 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
 
   let reader: any;
   n = 0;
+  let time;
+  if (result == "pagesLoaded") {
+    time = 500;
+  } else {
+    time = 50;
+  }
   while (!(reader = Zotero.Reader.getByTabID(tabID as string)) && n < 200) {
-    Zotero.Promise.delay(50);
+    Zotero.Promise.delay(time);
     if (!reader && ++n % 20 == 0) {
-      const sec = (n * 50 / 1000).toFixed(2);
+      const sec = (n * time / 1000).toFixed(2);
       ztoolkit.log(`prepare reader... ${sec} seconds past.`);
     }
     if (reader) {
-      const sec = (n * 50 / 1000).toFixed(2);
+      const sec = (n * time / 1000).toFixed(2);
       ztoolkit.log(`Spend ${sec} seconds reader loaded.`);
     }
   }

@@ -20,7 +20,7 @@ img.onload = function () {
 };
  
 // 将base64 转换为Blob
-function base64ToBlob(base64) {
+export function base64ToBlob(base64) {
   var arr = base64.split(","),
     mime = arr[0].match(/:(.*?);/)[1],
     bstr = atob(arr[1]),

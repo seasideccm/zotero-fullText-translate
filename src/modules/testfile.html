@@ -1,0 +1,26 @@
+<input type="file" onchange="previewFile()" /><br />
+<img src="" height="200" alt="Image preview..." />
+<script>
+  function previewFile() {
+    var preview = document.querySelector("img");
+    console.log("img:" + "file");
+    var file = document.querySelector("input[type=file]").files[0];
+
+    var reader = new FileReader();
+
+    reader.addEventListener(
+      "load",
+      function () {
+        preview.src = reader.result;
+      },
+      false,
+    );
+
+    if (file) {
+      console.log("file:", file);
+      console.log("typeof file:", typeof file);
+      reader.readAsDataURL(file);
+      console.log(reader.result);
+    }
+  }
+</script>

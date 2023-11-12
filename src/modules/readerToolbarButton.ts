@@ -1,10 +1,11 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
-import { getFileInfo, getPathDir, readJsonFromDisk, saveJsonToDisk } from "../utils/prefs";
+import { getFileInfo, getPathDir, readJsonFromDisk } from "../utils/prefs";
 import { fileSizeFormat } from "../utils/tools";
-import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, clearCanvas, identityFontStyle, redPointCollectToDisk, makeFontInfoNote, addCharImage } from "./fontDetect";
+import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, identityFontStyle, redPointCollectToDisk, makeFontInfoNote } from "./fontDetect";
 import { fullTextTranslate } from "./fullTextTranslate";
-import { clearAnnotations, imageToAnnotation } from "./imageToAnnotation";
+import { clearAnnotations } from "./imageToAnnotation";
+import { NoteMaker } from "./noteMakerHelp";
 import { prepareReader } from "./prepareReader";
 import { syncFontInfo } from "./syncInfo";
 
@@ -133,9 +134,14 @@ export async function readerToolbarButton() {
     const syncFontInfoMenuitemArr = [
         {
             label: "info-syncFontInfo",
-
-            //func: () => { }, //syncFontInfo,
             func: syncFontInfo,
+            args: []
+        },
+    ];
+    const insertImgMenuitemArr = [
+        {
+            label: "info-insertImg",
+            func: insertImg,
             args: []
         },
     ];
@@ -147,7 +153,8 @@ export async function readerToolbarButton() {
         pdf2NoteMenuitemArr,
         translateOnePdfMenuitemArr,
         fontMenuitemArr,
-        syncFontInfoMenuitemArr
+        syncFontInfoMenuitemArr,
+        insertImgMenuitemArr
     ];
     //按钮 button 作为 button 的参数
     const button = ztoolkit.UI.insertElementBefore({
@@ -202,6 +209,33 @@ const fontStyleCheck = async () => {
     showDialog(dialogData);
 };
 
+const insertImg = async () => {
+
+    if (!addon.data.noteMaker) {
+
+        const note = Zotero.getActiveZoteroPane().getSelectedItems()[0];
+        if (!note.isNote()) return;
+        //const note = Zotero.Items.get(noteID);
+        const option = {
+            title: "Font Style Collection",
+            collectionName: "fontCollection",
+            note: note,
+            content: note?.getNote()
+        };
+        addon.data.noteMaker = new NoteMaker(option);
+    }
+    const fontSimpleInfoArrs = (await getFontInfo()).fontSimpleInfoArr;
+    const option: any = {};
+    for (const fontSimpleInfo of fontSimpleInfoArrs) {
+        if (fontSimpleInfo.charImg && fontSimpleInfo.charImg.base64) {
+            const insertContent = await addon.data.noteMaker!.getImgHtml(fontSimpleInfo.charImg);
+            const key = fontSimpleInfo.fontName;
+            option[key] = insertContent;
+        }
+    }
+    await addon.data.noteMaker!.tableInsertContent(option, "markerChar");
+};
+
 const fontCheckCallBack = async () => {
     let fontSimpleInfo = await readJsonFromDisk(fontStyleFileName);
     let isReadDisk = false;
@@ -222,40 +256,37 @@ const fontCheckCallBack = async () => {
             const boldRedPointArr = identityFontStyle(fontSimpleInfoArrs);
             await redPointCollectToDisk(boldRedPointArr);
             fontSimpleInfo = await saveDiskFontSimpleInfo(fontSimpleInfoArrs, fontSimpleInfo);
-            await makeFontInfoNote(fontSimpleInfo, boldRedPointArr);
-            const note = "note";
-            addCharImage(fontSimpleInfoArrs);
-
-        }
-        const lengthAfterSave = Object.keys(fontSimpleInfo).length;
-        if (lengthBeforCheck != lengthAfterSave) {
-            hasThisPdfFont = true;
-        }
-    }
-    const fileInfo = await getFileInfo(getPathDir(fontStyleFileName).path);
-    let fileSize;
-    if (!fileInfo) {
-        fileSize = 0;
-    } else {
-        fileSize = fileInfo.size;
-    }
-    const textJsonStringify = JSON.stringify(
-        fontSimpleInfo,
-        (k, v) => {
-            if (k == "chars") {
-                return v.join("");
+            const noteID = await makeFontInfoNote(fontSimpleInfo, boldRedPointArr);
+            const lengthAfterSave = Object.keys(fontSimpleInfo).length;
+            if (lengthBeforCheck != lengthAfterSave) {
+                hasThisPdfFont = true;
             }
-            return v;
-        },
-        4);
-    const content = "isReadDisk: " + isReadDisk + " hasThisPdfFont: " + hasThisPdfFont + "\n\n"
-        + getString("info-fileInfo-size") + fileSizeFormat(fileSize) + "\n\n"
-        + textJsonStringify;
+        }
+        const fileInfo = await getFileInfo(getPathDir(fontStyleFileName).path);
+        let fileSize;
+        if (!fileInfo) {
+            fileSize = 0;
+        } else {
+            fileSize = fileInfo.size;
+        }
+        const textJsonStringify = JSON.stringify(
+            fontSimpleInfo,
+            (k, v) => {
+                if (k == "chars") {
+                    return v.join("");
+                }
+                return v;
+            },
+            4);
+        const content = "isReadDisk: " + isReadDisk + " hasThisPdfFont: " + hasThisPdfFont + "\n\n"
+            + getString("info-fileInfo-size") + fileSizeFormat(fileSize) + "\n\n"
+            + textJsonStringify;
 
-    const dialogData = {
-        "content": content
+        const dialogData = {
+            "content": content
+        };
+        return dialogData;
     };
-    return dialogData;
 };
 
 function makeDialog() {
@@ -347,4 +378,6 @@ const makeMenuitem = (option: { label: string, func: (...args: string[]) => void
         option.func(...option.args);
     });
 };
+
+
 
