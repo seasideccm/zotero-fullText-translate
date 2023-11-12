@@ -10,7 +10,7 @@ import { prepareReader } from "./prepareReader";
 import { syncFontInfo } from "./syncInfo";
 
 
-
+//url(assets/icons/searchbar-dropmarker@2x.4ebeb64c.png) no-repeat 0 0/100%
 
 const dropmarker =
 {
@@ -61,7 +61,186 @@ const toolbarButtonSpacer = {
     },
 };
 
+export async function zoteroMenubarButton() {
+    //按钮定位在哪里
+    //const parent = document.querySelector("#navigator-toolbox")!;
+    //const parent = document.querySelector("#toolbar-menubar")!;
+    const parent = document.querySelector("#menubar-items")!;
+    ///const ref = parent.querySelector("#helpMenu") as HTMLDivElement;
+    const menupopupID = "_menupopupImgTableTool2";
+    const imgTableSingleObjMenuitemArr = [
+        {
+            label: "menuitem-showSelectedAnnotations",
+            func: clearAnnotations,
+            args: ["show", "selected"]
+        },
+        {
+            label: "menuitem-deleteSelectedAnnotations",
+            func: clearAnnotations,
+            args: ["delete", "selected"]
+        },
+        {
+            label: "menuitem-hiddenSelectedAnnotations",
+            func: clearAnnotations,
+            args: ["hidden", "selected"]
+        },
+    ];
+    const imgTableAllObjMenuitemArr = [
+        {
+            label: "menuitem-hiddenAllAnnotations",
+            func: clearAnnotations,
+            args: ["hidden", "all"]
+        },
+        {
+            label: "menuitem-showAllAnnotations",
+            func: clearAnnotations,
+            args: ["show", "all"]
+        },
+        {
+            label: "menuitem-deleteAllAnnotations",
+            func: clearAnnotations,
+            args: ["delete", "all"]
+        },
+    ];
+    const pdf2NoteMenuitemArr = [
+        {
+            label: "menuitem-pdf2Note",
+            func: fullTextTranslate.onePdf2Note,
+            args: []
+        },
+    ];
+    const translateOnePdfMenuitemArr = [
+        {
+            label: "menuitem-pdf",
+            func: fullTextTranslate.translateOnePdf,
+            args: []
+        },
+    ];
+    const fontMenuitemArr = [
+        {
+            label: "info-checkFont",
+            func: fontStyleCheck,
+            args: []
+        },
+    ];
+    const syncFontInfoMenuitemArr = [
+        {
+            label: "info-syncFontInfo",
+            func: syncFontInfo,
+            args: []
+        },
+    ];
+    const insertImgMenuitemArr = [
+        {
+            label: "info-insertImg",
+            func: insertImg,
+            args: []
+        },
+    ];
 
+    //子菜单内容组成数组 menuitemGroupArr 作为 makeClickButton 的参数
+    const menuitemGroupArr = [
+        imgTableSingleObjMenuitemArr,
+        imgTableAllObjMenuitemArr,
+        pdf2NoteMenuitemArr,
+        translateOnePdfMenuitemArr,
+        fontMenuitemArr,
+        syncFontInfoMenuitemArr,
+        insertImgMenuitemArr
+    ];
+    //按钮 button 作为 button 的参数
+    //ztoolkit.Menu.register insertElementBefore
+    const topTool = ztoolkit.UI.appendElement(
+        {
+            enableElementJSONLog: false,
+            enableElementDOMLog: false,
+            ignoreIfExists: true,
+            namespace: "xul",
+            tag: "menubar",
+            id: config.addonRef + "_topTools",
+            //classList: ["tool-group", "annotation-tools"],
+            attributes: {
+                align: "right",
+            },
+            styles: {
+                //display: "flex",
+                //marginLeft: "200px",
+                //marginRight: "20px",
+                //float: "right",
+                width: "200px",
+                padding: "4px 4px"
+            },
+        },
+        parent
+    );
+    /* const buttonBackground2 =
+    {
+        tag: "span",
+        id: config.addonRef + "_buttonBackground2",
+        namespace: "html",
+        classList: ["button-buttonBackground2"],
+        styles: {
+            backgroundImage: `url(chrome://${config.addonRef}/content/icons/favicon.png)`,
+            backgroundSize: "auto 16px",
+            backgroundRepeat: "no-repeat",
+        }
+    }; */
+    const dropmarker2 =
+    {
+        tag: "dropmarker",
+        //id: config.addonRef + "_dropmarker2",
+        namespace: "xul",
+        type: "menu",
+        classList: ["toolbarbutton-menu-dropmarker"],
+        /* styles: {
+            background: "url(chrome://zotero/skin/searchbar-dropmarker@2x.png) no-repeat 0 0/100%",
+            display: "inline-block",
+            height: "4px",
+            margin: "6px 0",
+            marginInlineStart: "2px",
+            marginInlineEnd: "2px",
+            position: "relative",
+            verticalAlign: "top",
+            width: "7px",
+            zIndex: "1"
+        } */
+    };
+    /* <dropmarker xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" type="menu" class="toolbarbutton-menu-dropmarker"/> */
+
+
+    const button = ztoolkit.UI.appendElement({
+        enableElementJSONLog: false,
+        enableElementDOMLog: false,
+        ignoreIfExists: true,
+        namespace: "html",
+        tag: "button",
+        id: config.addonRef + "_imgTableTool2",
+        classList: ["zotero-tb-button"],
+        styles: {
+            backgroundImage: `url(chrome://${config.addonRef}/content/icons/favicon.png)`,
+            backgroundSize: "18px 18px",
+            backgroundPosition: "10% center",
+            backgroundRepeat: "no-repeat",
+            //float: "right",
+            display: "flex",
+            justifyContent: "flex-end",
+            width: "48px",
+            padding: "4px 3px 4px 22px",
+        },
+        attributes: {
+            title: getString("info-imgTableTool"),
+            tabindex: "-1",
+        },
+        listeners: [
+            {
+                type: "click",
+                listener: () => { makeClickButton(menupopupID, menuitemGroupArr, button); },
+            },
+        ],
+        children: [dropmarker2]
+
+    }, topTool) as HTMLButtonElement;
+}
 
 export async function readerToolbarButton() {
     //按钮定位在哪里
@@ -212,7 +391,6 @@ const fontStyleCheck = async () => {
 const insertImg = async () => {
 
     if (!addon.data.noteMaker) {
-
         const note = Zotero.getActiveZoteroPane().getSelectedItems()[0];
         if (!note.isNote()) return;
         //const note = Zotero.Items.get(noteID);
@@ -342,6 +520,7 @@ const makeClickButton = (idPostfix: string, menuitemGroupArr: any[][], thisButto
     const menupopup: any = makeMenupopup(idPostfix);
     menuitemGroupArr.filter((menuitemGroup: any[], i: number) => {
         menuitemGroup.map((e: any) => makeMenuitem(e, menupopup));
+        //首个菜单组之后，每组均添加分割条，最后一组之后不添加
         if (i < menuitemGroupArr.length - 1) {
             menuseparator(menupopup);
         }
