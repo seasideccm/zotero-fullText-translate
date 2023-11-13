@@ -111,6 +111,10 @@ export class NoteMaker {
         }
     }
 
+    /**
+     * 按标题或id，找字体笔记
+     * @returns 
+     */
     async getFontNote() {
         if (this.note) {
             return this.note;
@@ -131,7 +135,6 @@ export class NoteMaker {
         }
         const notesRelate = await this.getFontRelatedAllNotes();
         if (!this.allowSameTitle) {
-            //如果多个同名笔记，认为不是目标笔记，
             const oldNotes = notesRelate.filter((note: Zotero.Item) => note.getNoteTitle() == this.title);
             let oldNote;
             if (oldNotes.length == 1) {
@@ -140,7 +143,7 @@ export class NoteMaker {
                 return this.note;
             }
             if (oldNotes.length > 1) {
-                //oldNotes.map((note:Zotero.Item)=>note.dateModified).filter(e=>e)
+                //同名笔记返回最新的
                 oldNotes.sort((a, b) => {
                     return (b.dateModified > a.dateModified ? -1 : (b.dateModified < a.dateModified ? 1 : 0));
                 });

@@ -1,4 +1,4 @@
-import { ElementProps, TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
+import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getFileInfo, getPathDir, readJsonFromDisk } from "../utils/prefs";
@@ -356,19 +356,24 @@ const fontStyleCheck = async () => {
     showDialog(dialogData);
 };
 
-const insertImg = async () => {
+const insertImg = async (noteID?: number) => {
 
     if (!addon.data.noteMaker) {
-        const note = Zotero.getActiveZoteroPane().getSelectedItems()[0];
-        if (!note.isNote()) return;
-        //const note = Zotero.Items.get(noteID);
         const option = {
             title: "Font Style Collection",
             collectionName: "fontCollection",
-            note: note,
-            content: note?.getNote()
         };
-        addon.data.noteMaker = new NoteMaker(option);
+        const noteMaker = new NoteMaker(option);
+        let note = await noteMaker.getFontNote();
+        if (!note) {
+            note = Zotero.getActiveZoteroPane().getSelectedItems()[0];
+        }
+        if (!note && noteID) {
+
+            const note = Zotero.Items.get(noteID);
+        }
+        if (!note.isNote()) return;
+        addon.data.noteMaker = noteMaker;
     }
     const fontSimpleInfoArrs = (await getFontInfo()).fontSimpleInfoArr;
     const option: any = {};
