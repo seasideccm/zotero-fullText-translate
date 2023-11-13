@@ -1,3 +1,4 @@
+import { ElementProps, TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getFileInfo, getPathDir, readJsonFromDisk } from "../utils/prefs";
@@ -43,30 +44,29 @@ const buttonBackground =
         backgroundRepeat: "no-repeat",
     } */
 };
-const toolbarButtonSpacer = {
-    enableElementJSONLog: false,
-    enableElementDOMLog: false,
-    ignoreIfExists: true,
-    id: config.addonRef + "_toolbarButtonSpacer",
-    namespace: "html",
-    tag: "div",
-    classList: ["readerButtonSpacer"],
-    style: {
-        width: "30px",
-        display: "inline-block",
-        height: "1px",
-    },
-    properties: {
-        innerHTML: "&emsp;"
-    },
-};
+
 
 export async function zoteroMenubarButton() {
-    //按钮定位在哪里
     //const parent = document.querySelector("#navigator-toolbox")!;
-    //const parent = document.querySelector("#toolbar-menubar")!;
-    const parent = document.querySelector("#menubar-items")!;
-    ///const ref = parent.querySelector("#helpMenu") as HTMLDivElement;
+    const parent = document.querySelector("#toolbar-menubar")!;
+    const preDefinedTag: TagElementProps = {
+        tag: "",
+        enableElementRecord: true,
+        enableElementJSONLog: false,
+        enableElementDOMLog: false,
+        ignoreIfExists: true,
+        namespace: "xul",
+    };
+    const toolbarspringProps = { ...preDefinedTag };
+    toolbarspringProps.tag = "toolbarspring";
+    const toolbarspring = ztoolkit.UI.appendElement(
+        toolbarspringProps, parent
+    );
+    const toolbarseparatorProps = { ...preDefinedTag };
+    toolbarseparatorProps.tag = "toolbarseparator";
+    const toolbarseparator = ztoolkit.UI.appendElement(
+        toolbarseparatorProps, parent
+    );
     const menupopupID = "_menupopupImgTableTool2";
     const imgTableSingleObjMenuitemArr = [
         {
@@ -137,8 +137,6 @@ export async function zoteroMenubarButton() {
             args: []
         },
     ];
-
-    //子菜单内容组成数组 menuitemGroupArr 作为 makeClickButton 的参数
     const menuitemGroupArr = [
         imgTableSingleObjMenuitemArr,
         imgTableAllObjMenuitemArr,
@@ -148,65 +146,32 @@ export async function zoteroMenubarButton() {
         syncFontInfoMenuitemArr,
         insertImgMenuitemArr
     ];
-    //按钮 button 作为 button 的参数
-    //ztoolkit.Menu.register insertElementBefore
-    const topTool = ztoolkit.UI.appendElement(
-        {
-            enableElementJSONLog: false,
-            enableElementDOMLog: false,
-            ignoreIfExists: true,
-            namespace: "xul",
-            tag: "menubar",
-            id: config.addonRef + "_topTools",
-            //classList: ["tool-group", "annotation-tools"],
-            attributes: {
-                align: "right",
-            },
-            styles: {
-                //display: "flex",
-                //marginLeft: "200px",
-                //marginRight: "20px",
-                //float: "right",
-                width: "200px",
-                padding: "4px 4px"
-            },
+
+    const menubarPropsTemp1 = preDefinedTag;
+    menubarPropsTemp1.tag = "menubar";
+    const menubarPropsTemp2 = {
+        id: config.addonRef + "_topTools",
+        //classList: ["tool-group", "annotation-tools"],
+        attributes: {
+            align: "right",
         },
+        styles: {
+            //width: "200px",
+            padding: "4px 4px"
+        },
+    };
+    const menubarProps = Object.assign({}, menubarPropsTemp1, menubarPropsTemp2);
+    const topTool = ztoolkit.UI.appendElement(
+        menubarProps,
         parent
     );
-    /* const buttonBackground2 =
-    {
-        tag: "span",
-        id: config.addonRef + "_buttonBackground2",
-        namespace: "html",
-        classList: ["button-buttonBackground2"],
-        styles: {
-            backgroundImage: `url(chrome://${config.addonRef}/content/icons/favicon.png)`,
-            backgroundSize: "auto 16px",
-            backgroundRepeat: "no-repeat",
-        }
-    }; */
     const dropmarker2 =
     {
         tag: "dropmarker",
-        //id: config.addonRef + "_dropmarker2",
         namespace: "xul",
         type: "menu",
         classList: ["toolbarbutton-menu-dropmarker"],
-        /* styles: {
-            background: "url(chrome://zotero/skin/searchbar-dropmarker@2x.png) no-repeat 0 0/100%",
-            display: "inline-block",
-            height: "4px",
-            margin: "6px 0",
-            marginInlineStart: "2px",
-            marginInlineEnd: "2px",
-            position: "relative",
-            verticalAlign: "top",
-            width: "7px",
-            zIndex: "1"
-        } */
     };
-    /* <dropmarker xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" type="menu" class="toolbarbutton-menu-dropmarker"/> */
-
 
     const button = ztoolkit.UI.appendElement({
         enableElementJSONLog: false,
@@ -240,6 +205,9 @@ export async function zoteroMenubarButton() {
         children: [dropmarker2]
 
     }, topTool) as HTMLButtonElement;
+    const toolbarseparator2 = ztoolkit.UI.appendElement(
+        toolbarseparatorProps, parent
+    );
 }
 
 export async function readerToolbarButton() {

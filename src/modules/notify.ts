@@ -1,4 +1,4 @@
-import { readerToolbarButton, zoteroMenubarButton } from "./readerToolbarButton";
+import { zoteroMenubarButton } from "./toolbarButton";
 
 export function registerNotifier() {
     const callback = {
@@ -39,20 +39,21 @@ async function onNotify(
 ) {
     // You can add your code to the corresponding notify type
     //ztoolkit.log("notify is coming【", "event:", event, "type:", type, "ids:", ids, "extraData:", extraData + "】");
+    //观察 zotero 通知
     ztoolkit.log(
         "event::", event,
         "type::", type,
         "ids::", ids,
         "extraData::", JSON.stringify(extraData, null, 4)
     );
-    if (
+    /* if (
         event == "select" &&
         type == "tab" &&
         extraData[ids[0]].type == "reader"
     ) {
 
-        //readerToolbarButton();
-    }
+        readerToolbarButton();
+    } */
     /* if (event == "finish" && type == "sync") {
         zoteroMenubarButton();
     } */
