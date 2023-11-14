@@ -1,4 +1,4 @@
-import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
+import { ElementProps, TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getFileInfo, getPathDir, readJsonFromDisk } from "../utils/prefs";
@@ -47,25 +47,67 @@ const buttonBackground =
 
 
 export async function zoteroMenubarButton() {
-    //const parent = document.querySelector("#navigator-toolbox")!;
     const parent = document.querySelector("#toolbar-menubar")!;
-    const preDefinedTag: TagElementProps = {
+
+    /* const preDefinedTag: TagElementProps = {
         tag: "",
         enableElementRecord: true,
         enableElementJSONLog: false,
         enableElementDOMLog: false,
         ignoreIfExists: true,
         namespace: "xul",
-    };
-    const toolbarspringProps = { ...preDefinedTag };
-    toolbarspringProps.tag = "toolbarspring";
+    }; */
+    function makeProps(option: {
+        tag?: string;
+        id?: string;
+        namespace?: "xul" | "html" | "svg";
+        classList?: Array<string>;
+        styles?: Partial<CSSStyleDeclaration>;
+        properties?: {
+            [key: string]: unknown;
+        };
+        directAttributes?: {
+            [key: string]: string | boolean | number | null | undefined;
+        };
+        attributes?: {
+            [key: string]: string | boolean | number | null | undefined;
+        };
+        listeners?: Array<{
+            type: string;
+            listener: EventListenerOrEventListenerObject | ((e: Event) => void) | null | undefined;
+            options?: boolean | AddEventListenerOptions;
+        }>;
+        children?: Array<TagElementProps>;
+        ignoreIfExists?: boolean;
+        skipIfExists?: boolean;
+        removeIfExists?: boolean;
+        checkExistenceParent?: HTMLElement;
+        customCheck?: (doc: Document, options: ElementProps) => boolean;
+        subElementOptions?: Array<TagElementProps>;
+        enableElementRecord?: boolean;
+        enableElementJSONLog?: boolean;
+        enableElementDOMLog?: boolean;
+    }): any {
+        const preDefinedObj = {
+            //tag: "" ,
+            enableElementRecord: true,
+            enableElementJSONLog: false,
+            enableElementDOMLog: false,
+            ignoreIfExists: true,
+            namespace: "xul",
+        };
+
+        const tempObj = Object.assign(preDefinedObj, option);
+        return tempObj;
+    }
+
+    const toolbarspringProps = makeProps({ tag: "toolbarspring" });
+
     const toolbarspring = ztoolkit.UI.appendElement(
         toolbarspringProps, parent
     );
-    const toolbarseparatorProps = { ...preDefinedTag };
-    toolbarseparatorProps.tag = "toolbarseparator";
     const toolbarseparator = ztoolkit.UI.appendElement(
-        toolbarseparatorProps, parent
+        makeProps({ tag: "toolbarseparator" }), parent
     );
     const menupopupID = "_menupopupImgTableTool2";
     const imgTableSingleObjMenuitemArr = [
@@ -147,9 +189,8 @@ export async function zoteroMenubarButton() {
         insertImgMenuitemArr
     ];
 
-    const menubarPropsTemp1 = preDefinedTag;
-    menubarPropsTemp1.tag = "menubar";
-    const menubarPropsTemp2 = {
+    const menubarProps = makeProps({
+        tag: "menubar",
         id: config.addonRef + "_topTools",
         //classList: ["tool-group", "annotation-tools"],
         attributes: {
@@ -159,8 +200,7 @@ export async function zoteroMenubarButton() {
             //width: "200px",
             padding: "4px 4px"
         },
-    };
-    const menubarProps = Object.assign({}, menubarPropsTemp1, menubarPropsTemp2);
+    });
     const topTool = ztoolkit.UI.appendElement(
         menubarProps,
         parent
@@ -206,7 +246,7 @@ export async function zoteroMenubarButton() {
 
     }, topTool) as HTMLButtonElement;
     const toolbarseparator2 = ztoolkit.UI.appendElement(
-        toolbarseparatorProps, parent
+        makeProps({ tag: "toolbarseparator" }), parent
     );
 }
 

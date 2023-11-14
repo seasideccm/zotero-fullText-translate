@@ -242,6 +242,10 @@ export class NoteMaker {
         const imgHtml: string = `<img alt="" data-attachment-key="${attachment.key}" width="${width}" height="${height}">`;
         return imgHtml;
     }
+
+    async tableInsertContentByLocation(content: string, rowIndex: string, columnIndex: string, insertRow?: boolean, insertColumn?: boolean) {
+
+    }
     async tableInsertContent(option: {
         [primaryKey: string]: string;
     }, field?: string,
@@ -250,13 +254,17 @@ export class NoteMaker {
         //定位字段在数组中的索引      
         if (!this.content) {
             if (this.note) {
-                this.content = this.note.getNote();
+                const noteTitle = this.note.getNoteTitle;
+                const regPrefix = `<div data-schema-version=`;
+                const reg = new RegExp(regPrefix + ".+?" + noteTitle + "</p>", "g");
+                this.content = this.note.getNote().replace(reg, '');
             } else {
                 return;
             }
         }
         //查找标题开始标志,必须定义 Regex 才可以不断向前
         // exec 每次匹配一项，reg 如有全局标识 g，则下次查找会从记录的索引处开始
+        // ☆匹配内容换掉也会从记录的索引开始
         //为了reg始终记录index，在最顶层定义
 
         //定位表格
@@ -265,15 +273,13 @@ export class NoteMaker {
         const regHeaderWhole = makeRegExp("th");
         //定位行
         const regRow = makeRegExp("tr");
-
-
         const primaryKeys = Object.keys(option);
         const content = this.content;
         const contentArr = [];
-        let getResult = checkTable(content).next();
-        let result = getResult.done;
-        while (result != undefined && result == false && getResult.value) {
-            const tableContent = getResult.value;
+        let currentTargetTable = findTable(content).next();
+        let doneFindTabe = currentTargetTable.done;
+        while (doneFindTabe != undefined && doneFindTabe == false && currentTargetTable.value) {
+            const tableContent = currentTargetTable.value;
             const fieldIndex = getFieldIndex(tableContent, field, rowIndex);
             if (fieldIndex && fieldIndex != -1) {
                 //查找行,处理完行再找下一个表格
@@ -294,11 +300,14 @@ export class NoteMaker {
                 contentArr.push(tableContentModify);
             }
 
-            getResult = checkTable(content).next();
-            result = getResult.done;
+            currentTargetTable = findTable(content).next();
+            doneFindTabe = currentTargetTable.done;
         }
-        this.content = contentArr.join("");
-        await this.makeNote();
+        //内容拆分数组长度大于1则重建笔记
+        if (contentArr.length > 1) {
+            this.content = contentArr.join("");
+            await this.makeNote();
+        }
 
         function makeRegExp(tag: string, matchMode: "lazy" | "greedy" = "lazy") {
             return matchMode == "lazy" ? new RegExp(`(?<=<${tag}>).+?(?=</${tag}>)`, "g") : new RegExp(`(?<=<${tag}>).+(?=</${tag}>)`, "g");
@@ -322,23 +331,24 @@ export class NoteMaker {
             };
         }
 
-        function* checkTable(content: string) {
-            let resultTable = startEndIndex(regTable, content);
-            //找不到目标表格（可能并非首张表格），退出循环
-            while (resultTable) {
-                const primaryKeysIncluded = primaryKeys.filter(primaryKey => resultTable!.matchContent.includes(primaryKey));
+        function* findTable(content: string) {
+            //通过正则表达式获取表格内容，首尾索引值
+            let findTableResult = startEndIndex(regTable, content);
+            //每次成功提取表格后返回表格文本内容
+            while (findTableResult) {
+                const primaryKeysIncluded = primaryKeys.filter(primaryKey => findTableResult!.matchContent.includes(primaryKey));
                 if (primaryKeysIncluded.length) {
                     //找到目标表格
                     //按顺序分割文本，提出操作表格，剩余部分作为查找下张表的内容
-                    contentArr.push(content.slice(0, resultTable.startIndex));
-                    const tableContent = resultTable.matchContent;
-                    content = content.slice(resultTable.startIndex + tableContent.length);
+                    contentArr.push(content.slice(0, findTableResult.startIndex));
+                    const tableContent = findTableResult.matchContent;
+                    content = content.slice(findTableResult.startIndex + tableContent.length);
                     yield tableContent;
                 }
-                //找不到关键字段，查找下一个表格
-                resultTable = startEndIndex(regTable, content);
+                //找不到关键字段时它可能在下一张表格中
+                findTableResult = startEndIndex(regTable, content);
             }
-            //将剩余文本纳入数组中
+            //找不到目标表格时（可能并非首张表格），将剩余文本内容纳入数组中后退出循环
             contentArr.push(content);
         }
 

@@ -16,8 +16,20 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
       const item = Zotero.getActiveZoteroPane().getSelectedItems()[0];
       if (!item.isPDFAttachment()) {
         itmeID = item.getAttachments().filter(id => Zotero.Items.get(id).isPDFAttachment())[0];
+        //选中的条目没有pdf，查看打开的标签是否有reader，如果有则选择最后激活的reader
+        if (!itmeID) {
+          itmeID = Zotero_Tabs._tabs
+            .map((x: any) => { if (x.type == 'reader' && Zotero.Items.exists(x.itemID)) { return x; } })
+            .filter(e => e)
+            .sort((a, b) => a.timeUnselected - b.timeUnselected)
+            .slice(-1)[0].id;
+          //Zotero.Session.state.windows.map((x: any) => { if (x.type == 'reader' && Zotero.Items.exists(x.itemID)) { return x.itemID; } });
+        }
       } else {
         itmeID = item.id;
+      }
+      if (!itmeID) {
+        return;
       }
       if (!Zotero_Tabs.getTabIDByItemID(itmeID)) {
         await Zotero.Reader.open(itmeID);
