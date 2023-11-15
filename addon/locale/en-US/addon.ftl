@@ -44,6 +44,7 @@ info-selectLastNote = select Last Note
 info-imgTableTool = image and Table Tools
 info-insertImg = insert Img To Table
 info-unableConfirmNote = Unable to confirm which note to write, please check the note title
+info-noItemSelectedNoReaderOpened = no ItemSelected And ReaderOpened
 dialog-label = fullTextTranslate
 menuitem-getPdfContent = getPdfContent
 info-notPdf = item selected is note pdf

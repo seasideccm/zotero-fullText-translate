@@ -44,6 +44,7 @@ info-unableConfirmNote = 无法确认写入哪个笔记，请检查笔记标题
 info-customField=自定义标题
 info-selectLastNote = 选择最后修改的笔记
 info-insertImg = 表格插入图片
+info-noItemSelectedNoReaderOpened = 既无选择的条目也无打开的阅读器
 dialog-label = 翻山蚁
 menuitem-getPdfContent = pdf转笔记
 info-notPdf = 所选项目不是 PDF

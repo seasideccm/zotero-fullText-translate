@@ -254,7 +254,7 @@ export class NoteMaker {
         //定位字段在数组中的索引      
         if (!this.content) {
             if (this.note) {
-                const noteTitle = this.note.getNoteTitle;
+                const noteTitle = this.note.getNoteTitle();
                 const regPrefix = `<div data-schema-version=`;
                 const reg = new RegExp(regPrefix + ".+?" + noteTitle + "</p>", "g");
                 this.content = this.note.getNote().replace(reg, '');

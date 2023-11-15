@@ -1,3 +1,4 @@
+import { fullTextTranslate } from "./fullTextTranslate";
 
 
 
@@ -14,26 +15,25 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
     //如果页面不是 pdf reader，则打开选中的 pdf 或条目下的首个 pdf
     if (Zotero_Tabs.selectedID == "zotero-pane") {
       const item = Zotero.getActiveZoteroPane().getSelectedItems()[0];
-      if (!item.isPDFAttachment()) {
-        itmeID = item.getAttachments().filter(id => Zotero.Items.get(id).isPDFAttachment())[0];
+      if (!item || !item.isPDFAttachment()) {
+        if (item) {
+          itmeID = item.getAttachments().filter(id => Zotero.Items.get(id).isPDFAttachment())[0];
+        }
         //选中的条目没有pdf，查看打开的标签是否有reader，如果有则选择最后激活的reader
         if (!itmeID) {
-          itmeID = Zotero_Tabs._tabs
-            .map((x: any) => { if (x.type == 'reader' && Zotero.Items.exists(x.itemID)) { return x; } })
-            .filter(e => e)
-            .sort((a, b) => a.timeUnselected - b.timeUnselected)
-            .slice(-1)[0].id;
-          //Zotero.Session.state.windows.map((x: any) => { if (x.type == 'reader' && Zotero.Items.exists(x.itemID)) { return x.itemID; } });
+          itmeID = getLatestReader();
+
         }
       } else {
         itmeID = item.id;
       }
       if (!itmeID) {
+        fullTextTranslate.showInfo("info-noItemSelectedNoReaderOpened", 3000);
         return;
       }
-      if (!Zotero_Tabs.getTabIDByItemID(itmeID)) {
-        await Zotero.Reader.open(itmeID);
-      }
+
+      await Zotero.Reader.open(itmeID);
+
       //todo 检查其他打开的 pdf reader
       tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
     } else {
@@ -42,7 +42,8 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
         tabID = Zotero_Tabs.selectedID;
       } else {
         //查找pdf标签，找不到则退出      
-        const tab = Zotero_Tabs._tabs.find(x => x.type === 'reader');
+        const tab = getLatestTab(true);
+        //Zotero_Tabs._tabs.find(x => x.type === 'reader');
         if (tab) {
           tabID = tab.id;
         } else {
@@ -153,7 +154,32 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
         return reader;
     }
   };
-
+  function getLatestReader() {
+    return Zotero_Tabs._tabs
+      .map((x: any) => {
+        if ((x.type == 'reader' || x.type == 'reader-unloaded')
+          && Zotero.Items.exists(x.data.itemID)) {
+          return x;
+        }
+      })
+      .filter(e => e)
+      .sort((a, b) => a.timeUnselected - b.timeUnselected)
+      .slice(-1)[0].data.itemID;
+  }
+  function getLatestTab(onlyReaderTab?: boolean) {
+    let condition: any;
+    onlyReaderTab ? condition = (x: any) => (x.type == 'reader' || x.type == 'reader-unloaded') : 1;
+    return Zotero_Tabs._tabs
+      .map((x: any) => {
+        if (condition() && Zotero.Items.exists(x.data.itemID)) {
+          return x;
+        }
+      })
+      .filter(e => e)
+      .sort((a, b) => a.timeUnselected - b.timeUnselected)
+      .slice(-1)[0];
+  }
+  //Zotero.Session.state.windows.map((x: any) => { if (x.type == 'reader' && Zotero.Items.exists(x.itemID)) { return x.itemID; } });
 
 }
 
