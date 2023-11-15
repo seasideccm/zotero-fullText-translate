@@ -14,7 +14,7 @@ export class NoteMaker {
     collectionName?: string;
     collectionID?: number;
     note?: Zotero.Item;
-    noteVersion?: number;
+    //noteVersion?: number;
     allowSameTitle?: boolean;
     tableData?: {
         [keyString: string]: {
@@ -34,7 +34,7 @@ export class NoteMaker {
             collectionName?: string;
             collectionID?: number;
             note?: Zotero.Item;
-            noteVersion?: number;
+            //noteVersion?: number;
             allowSameTitle?: boolean;
             tableData?: {
                 [keyString: string]: {
@@ -47,7 +47,7 @@ export class NoteMaker {
         this.titleHtml = this.addTitle(option.title);
         this.title = option.title;
         this.content = option.content;
-        this.noteVersion = option.noteVersion || 9;
+        //this.noteVersion = option.noteVersion ? option.noteVersion : 9;
         this.itemID = option.itemID;
         this.collectionName = option.collectionName;
         this.collectionID = option.collectionID;
@@ -422,6 +422,13 @@ export class NoteMaker {
 
 
     addTitle(title?: string) {
+
+        if (this.note) {
+
+            const reg = /<div data-schema-version=(.+)>/;
+
+            //this.note.getNote().match()
+        }
         if (!title) {
             return `<div data-schema-version="${this.noteVersion}">`;
         } else {
