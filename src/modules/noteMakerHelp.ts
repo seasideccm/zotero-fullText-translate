@@ -391,49 +391,21 @@ export class NoteMaker {
                 }
                 resultCell = startEndIndex(regCell, contentRow);
             }
-
-
-
-
-
-
-            /* while (i && strIndex && strIndex < rowEndIndex) {//应该是表格边界
-                i -= 1;
-                //确保向前搜索，如果符合条件的单元格索引小于等于行索引，就继续向前
-                let strIndexTemp: number | undefined = strIndex;
-                while (strIndexTemp && strIndexTemp <= strIndex) {
-                    strIndexTemp = regCell.exec(content)?.index;
-                }
-                strIndex = strIndexTemp;
-            }
-            if (strIndex) {
-                //插入内容
-                content = content.slice(0, strIndex) + imgHtml + content.slice(strIndex);
-                //查找下一行，重置i，此时strIndex为真，继续内层 while 循环
-                i = fieldIndex + 1;
-            } else {
-                //单元格未找到，该表格结束
-                return;
-            } */
-
         }
     }
-
-
-
     addTitle(title?: string) {
-
+        let dataSchemaVersion = "9";
         if (this.note) {
-
-            const reg = /<div data-schema-version=(.+)>/;
-
-            //this.note.getNote().match()
+            const reg = /<div data-schema-version=(.+?)>/;
+            const match = this.note.getNote().match(reg);
+            if (match && match[1]) {
+                dataSchemaVersion = match[1];
+            }
         }
         if (!title) {
-            return `<div data-schema-version="${this.noteVersion}">`;
+            return `<div data-schema-version="${dataSchemaVersion}">`;
         } else {
-
-            return `<div data-schema-version="${this.noteVersion}"><p>${title}</p>`;
+            return `<div data-schema-version="${dataSchemaVersion}"><p>${title}</p>`;
         }
     }
     addContent(text: string) {
