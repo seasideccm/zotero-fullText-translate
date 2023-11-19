@@ -646,7 +646,7 @@ export const makeFontInfoNote = async (fontSimpleInfo: any, boldRedPointArr?: nu
         addon.data.noteMaker = new NoteMaker(option);
     }
     const fontInfoNoteMaker = addon.data.noteMaker;
-    fontInfoNoteMaker.selectFontCollection("fontCollection");
+    fontInfoNoteMaker.selectTargetCollection("fontCollection");
     fontInfoNoteMaker.addContent("粗体红点数:\n" + boldRedPointArr);
     const excludeFields = ["loadName", "isItalic", "chars", "charsImg", "isBoldItalic", "isBold"];
     const usedFields = Object.keys(Object.values(fontSimpleInfo)[0] as any)

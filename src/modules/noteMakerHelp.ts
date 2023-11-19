@@ -47,7 +47,6 @@ export class NoteMaker {
         this.titleHtml = this.addTitle(option.title);
         this.title = option.title;
         this.content = option.content;
-        //this.noteVersion = option.noteVersion ? option.noteVersion : 9;
         this.itemID = option.itemID;
         this.collectionName = option.collectionName;
         this.collectionID = option.collectionID;
@@ -57,7 +56,7 @@ export class NoteMaker {
     }
 
     //根据分类名选中分类或创建并选中
-    async selectFontCollection(collectionName?: string) {
+    async selectTargetCollection(collectionName?: string) {
         if (!this.collectionName && collectionName) {
             this.collectionName = collectionName;
         }
@@ -105,9 +104,20 @@ export class NoteMaker {
         }
         const noteTxt = this.titleHtml + this.content + "</div>";
         this.note!.setNote(noteTxt);
-        const noteID = await this.note!.saveTx();
-        if (typeof noteID == "number") {
-            return noteID;
+        const isSuccess = await this.note!.saveTx();
+        if (isSuccess) {
+            return this.note?.id;
+        }
+    }
+    updateContent() {
+        if (this.note) {
+            const noteTitle = this.note.getNoteTitle();
+            const regPrefix = `<div data-schema-version=`;
+            const reg = new RegExp(regPrefix + ".+?" + noteTitle + "</p>", "g");
+            this.content = this.note.getNote().replace(reg, '');
+            ztoolkit.log("笔记内容已更新");
+        } else {
+            return;
         }
     }
 
@@ -253,14 +263,7 @@ export class NoteMaker {
     ) {
         //定位字段在数组中的索引      
         if (!this.content) {
-            if (this.note) {
-                const noteTitle = this.note.getNoteTitle();
-                const regPrefix = `<div data-schema-version=`;
-                const reg = new RegExp(regPrefix + ".+?" + noteTitle + "</p>", "g");
-                this.content = this.note.getNote().replace(reg, '');
-            } else {
-                return;
-            }
+            this.updateContent();
         }
         //查找标题开始标志,必须定义 Regex 才可以不断向前
         // exec 每次匹配一项，reg 如有全局标识 g，则下次查找会从记录的索引处开始
@@ -276,7 +279,9 @@ export class NoteMaker {
         const primaryKeys = Object.keys(option);
         const content = this.content;
         const contentArr = [];
-        let currentTargetTable = findTable(content).next();
+        //生成器函数必须赋值给常量，通过常量调用 next。如果直接带参数运行，则每次都是从头开始，而非接着继续
+        const resultFindTable = findTable(content);
+        let currentTargetTable = resultFindTable.next();
         let doneFindTabe = currentTargetTable.done;
         while (doneFindTabe != undefined && doneFindTabe == false && currentTargetTable.value) {
             const tableContent = currentTargetTable.value;
@@ -289,6 +294,7 @@ export class NoteMaker {
                     const insertContent = option[primaryKey];
                     //在表格中找到目标行
                     const resultRow = findRow(primaryKey, tableContentModify);
+                    //如果未找到定位行的关键字，或者表格已经有了要修改的内容，则跳过后续步骤
                     if (!resultRow || resultRow.matchContent.includes(insertContent)) continue;
                     //在行中找到目标单元格并插入内容
                     const cellEndIndex = findCellInsertContent(fieldIndex, resultRow.matchContent);
@@ -299,8 +305,7 @@ export class NoteMaker {
                 }
                 contentArr.push(tableContentModify);
             }
-
-            currentTargetTable = findTable(content).next();
+            currentTargetTable = resultFindTable.next();
             doneFindTabe = currentTargetTable.done;
         }
         //内容拆分数组长度大于1则重建笔记
@@ -310,7 +315,7 @@ export class NoteMaker {
         }
 
         function makeRegExp(tag: string, matchMode: "lazy" | "greedy" = "lazy") {
-            return matchMode == "lazy" ? new RegExp(`(?<=<${tag}>).+?(?=</${tag}>)`, "g") : new RegExp(`(?<=<${tag}>).+(?=</${tag}>)`, "g");
+            return matchMode == "lazy" ? new RegExp(`(?<=<${tag}>).+?(?=</${tag}>)`, "gs") : new RegExp(`(?<=<${tag}>).+(?=</${tag}>)`, "g");
         }
         /**
          * 传入 reg 可反复调用，连续匹配         * 
@@ -349,7 +354,9 @@ export class NoteMaker {
                 findTableResult = startEndIndex(regTable, content);
             }
             //找不到目标表格时（可能并非首张表格），将剩余文本内容纳入数组中后退出循环
-            contentArr.push(content);
+            if (content.length) {
+                contentArr.push(content);
+            }
         }
 
         function getFieldIndex(tableContent: string, field?: string, rowIndex?: number) {
@@ -360,7 +367,9 @@ export class NoteMaker {
             let resultHeader = startEndIndex(regHeaderWhole, tableContent);
             const headerArr = [];
             while (resultHeader) {
-                headerArr.push(resultHeader.matchContent);
+                const regCellHeader = /\n*<.+?>\n*/g;
+                const headerField = resultHeader.matchContent.replace(regCellHeader, '');
+                headerArr.push(headerField);
                 resultHeader = startEndIndex(regHeaderWhole, tableContent);
             }
             //定位字段在数组中的索引

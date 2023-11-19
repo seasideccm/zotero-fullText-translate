@@ -1,74 +1,86 @@
 import { fullTextTranslate } from "./fullTextTranslate";
 
-
-
-export async function prepareReader(result: "beforReaderInit" | "waitForReader" | "initializedReader" | "initializedPDFView" | "initializedPDFViewerApplication" | "pdfLoaded" | "firstPageLoaded"
-  | "pagesLoaded"
-  , itmeID?: number) {
+export async function prepareReader(result: "beforReaderInit" | "waitForReader" | "initializedReader"
+  | "initializedPDFView" | "initializedPDFViewerApplication" | "pdfLoaded" | "firstPageLoaded" | "pagesLoaded"
+) {
   let tabID;
   let n = 0;
   while (!Zotero_Tabs.selectedID && n++ < 50) {
     Zotero.Promise.delay(50);
   }
   //参数itemID未传递
-  if (!itmeID) {
-    //如果页面不是 pdf reader，则打开选中的 pdf 或条目下的首个 pdf
-    if (Zotero_Tabs.selectedID == "zotero-pane") {
-      const item = Zotero.getActiveZoteroPane().getSelectedItems()[0];
-      if (!item || !item.isPDFAttachment()) {
-        if (item) {
-          itmeID = item.getAttachments().filter(id => Zotero.Items.get(id).isPDFAttachment())[0];
-        }
-        //选中的条目没有pdf，查看打开的标签是否有reader，如果有则选择最后激活的reader
-        if (!itmeID) {
-          itmeID = getLatestReader();
 
-        }
-      } else {
-        itmeID = item.id;
-      }
-      if (!itmeID) {
-        fullTextTranslate.showInfo("info-noItemSelectedNoReaderOpened", 3000);
-        return;
-      }
+  //如果页面不是 pdf reader，则打开选中的 pdf 或条目下的首个 pdf
+  let itemID;
+  if (!tabID && Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.type === 'reader') {
+    //所选标签即为pdf
+    tabID = Zotero_Tabs.selectedID;
+    itemID = Zotero_Tabs._getTab(tabID).tab.data.itemID;
 
-      await Zotero.Reader.open(itmeID);
-
-      //todo 检查其他打开的 pdf reader
-      tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
-    } else {
-      if (Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.type === 'reader') {
-        //所选标签即为pdf
-        tabID = Zotero_Tabs.selectedID;
-      } else {
-        //查找pdf标签，找不到则退出      
-        const tab = getLatestTab(true);
-        //Zotero_Tabs._tabs.find(x => x.type === 'reader');
-        if (tab) {
-          tabID = tab.id;
-        } else {
-          const item = Zotero.getActiveZoteroPane().getSelectedItems()[0];
-          itmeID = item.getAttachments().filter(id => Zotero.Items.get(id).isPDFAttachment())[0];
-          await Zotero.Reader.open(itmeID);
-          tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
-        }
-      }
-    }
   } else {
+    const item = Zotero.getActiveZoteroPane().getSelectedItems()[0];
+    if (item) {
+      if (!item.isPDFAttachment()) {
+        itemID = item.getAttachments().filter(id => Zotero.Items.get(id).isPDFAttachment())[0];
+      } else {
+        itemID = item.id;
+      }
+    }
+    //选中的条目没有pdf，查看打开的标签是否有reader，如果有则选择最后激活的reader
+    if (!itemID) {
+      itemID = getLatestReader();
+    }
+    /* if (!itemID) {
+      fullTextTranslate.showInfo("info-noItemSelectedNoReaderOpened", 3000);
+      return;
+    } */
+
+  }
+  if (itemID) {
+    await Zotero.Reader.open(itemID);
+    tabID = Zotero_Tabs.getTabIDByItemID(itemID);
+  }
+  //if (Zotero_Tabs.selectedID == "zotero-pane") 
+
+  /* if (!tabID && Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.type != 'reader') {
+    tabID = getLatestTab(true);
+    itemID=Zotero_Tabs._getTab(tabID).tab.data.itemID
+    await Zotero.Reader.open(itemID);
+  } */
+  if (!tabID) return getObj;
+
+
+
+  /*   else {
+      //查找pdf标签，找不到则退出      
+      const tab = getLatestTab(true);
+      //Zotero_Tabs._tabs.find(x => x.type === 'reader');
+      if (tab) {
+        tabID = tab.id;
+      } else {
+        const item = Zotero.getActiveZoteroPane().getSelectedItems()[0];
+        itemID = item.getAttachments().filter(id => Zotero.Items.get(id).isPDFAttachment())[0];
+        await Zotero.Reader.open(itemID);
+        tabID = Zotero_Tabs.getTabIDByItemID(itemID);
+      }
+    } */
+
+
+  /* if(itemID) {
     //传递了参数itemID，如果 pdf 尚未打开    
-    if (!Zotero_Tabs.getTabIDByItemID(itmeID)) {
+    if (!Zotero_Tabs.getTabIDByItemID(itemID)) {
       //判断是否是 pdf ，不是则获取第一个 pdf 的itemID
-      if (!Zotero.Items.get(itmeID).isPDFAttachment()) {
-        const item = Zotero.Items.get(itmeID);
-        itmeID = item.getAttachments().filter(id => Zotero.Items.get(id).isPDFAttachment())[0];
-        if (!Zotero_Tabs.getTabIDByItemID(itmeID)) {
+      if (!Zotero.Items.get(itemID).isPDFAttachment()) {
+        const item = Zotero.Items.get(itemID);
+        itemID = item.getAttachments().filter(id => Zotero.Items.get(id).isPDFAttachment())[0];
+        if (!Zotero_Tabs.getTabIDByItemID(itemID)) {
           //打开 pdf
-          await Zotero.Reader.open(itmeID);
+          await Zotero.Reader.open(itemID);
         }
       }
     }
-    tabID = Zotero_Tabs.getTabIDByItemID(itmeID);
-  }
+    tabID = Zotero_Tabs.getTabIDByItemID(itemID);
+  } */
 
 
   let reader: any;
@@ -79,6 +91,7 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   } else {
     time = 50;
   }
+  //Zotero_Tabs.select(tabID as string);
   while (!(reader = Zotero.Reader.getByTabID(tabID as string)) && n < 200) {
     Zotero.Promise.delay(time);
     if (!reader && ++n % 20 == 0) {
@@ -91,7 +104,7 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
     }
   }
 
-  Zotero_Tabs.select(tabID as string);
+
 
   if (result == "beforReaderInit") {
     return getObj;
@@ -138,6 +151,7 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   function getObj(obj: "reader" | "internalReader" | "PDFView"
     | "PDFViewerApplication" | "pdfViewer" | "pages" | "pdfPages"
     | "pdfDocument" | "pdfItemID" | "document" | "documentPDFView") {
+    if (!reader) return;
     switch (obj) {
       case "reader": return reader;
       case "internalReader": return internalReader;

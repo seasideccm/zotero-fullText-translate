@@ -21,6 +21,7 @@ class Addon {
     };
     dialog?: DialogHelper;
     noteMaker?: NoteMaker;
+    globalObjs?: any[];
   };
   // Lifecycle hooks
   public hooks: typeof hooks;
@@ -35,6 +36,7 @@ class Addon {
     };
     this.hooks = hooks;
     this.api = {};
+
   }
 }
 

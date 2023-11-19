@@ -48,66 +48,11 @@ const buttonBackground =
 
 export async function zoteroMenubarButton() {
     const parent = document.querySelector("#toolbar-menubar")!;
-
-    /* const preDefinedTag: TagElementProps = {
-        tag: "",
-        enableElementRecord: true,
-        enableElementJSONLog: false,
-        enableElementDOMLog: false,
-        ignoreIfExists: true,
-        namespace: "xul",
-    }; */
-    function makeProps(option: {
-        tag?: string;
-        id?: string;
-        namespace?: "xul" | "html" | "svg";
-        classList?: Array<string>;
-        styles?: Partial<CSSStyleDeclaration>;
-        properties?: {
-            [key: string]: unknown;
-        };
-        directAttributes?: {
-            [key: string]: string | boolean | number | null | undefined;
-        };
-        attributes?: {
-            [key: string]: string | boolean | number | null | undefined;
-        };
-        listeners?: Array<{
-            type: string;
-            listener: EventListenerOrEventListenerObject | ((e: Event) => void) | null | undefined;
-            options?: boolean | AddEventListenerOptions;
-        }>;
-        children?: Array<TagElementProps>;
-        ignoreIfExists?: boolean;
-        skipIfExists?: boolean;
-        removeIfExists?: boolean;
-        checkExistenceParent?: HTMLElement;
-        customCheck?: (doc: Document, options: ElementProps) => boolean;
-        subElementOptions?: Array<TagElementProps>;
-        enableElementRecord?: boolean;
-        enableElementJSONLog?: boolean;
-        enableElementDOMLog?: boolean;
-    }): any {
-        const preDefinedObj = {
-            //tag: "" ,
-            enableElementRecord: true,
-            enableElementJSONLog: false,
-            enableElementDOMLog: false,
-            ignoreIfExists: true,
-            namespace: "xul",
-        };
-
-        const tempObj = Object.assign(preDefinedObj, option);
-        return tempObj;
-    }
-
-    const toolbarspringProps = makeProps({ tag: "toolbarspring" });
-
-    const toolbarspring = ztoolkit.UI.appendElement(
-        toolbarspringProps, parent
+    ztoolkit.UI.appendElement(
+        makeElementProps({ tag: "toolbarspring" }), parent
     );
-    const toolbarseparator = ztoolkit.UI.appendElement(
-        makeProps({ tag: "toolbarseparator" }), parent
+    ztoolkit.UI.appendElement(
+        makeElementProps({ tag: "toolbarseparator" }), parent
     );
     const menupopupID = "_menupopupImgTableTool2";
     const imgTableSingleObjMenuitemArr = [
@@ -188,8 +133,15 @@ export async function zoteroMenubarButton() {
         syncFontInfoMenuitemArr,
         insertImgMenuitemArr
     ];
+    const toolbaritemProps = makeElementProps({
+        tag: "toolbaritem",
+        id: config.addonRef + "_toolbaritem",
+        attributes: {
+            align: "right",
+        },
 
-    const menubarProps = makeProps({
+    });
+    const menubarProps = makeElementProps({
         tag: "menubar",
         id: config.addonRef + "_topTools",
         //classList: ["tool-group", "annotation-tools"],
@@ -201,19 +153,13 @@ export async function zoteroMenubarButton() {
             padding: "4px 4px"
         },
     });
-    const topTool = ztoolkit.UI.appendElement(
-        menubarProps,
-        parent
-    );
-    const dropmarker2 =
-    {
+    const dropmarker = {
         tag: "dropmarker",
         namespace: "xul",
         type: "menu",
         classList: ["toolbarbutton-menu-dropmarker"],
     };
-
-    const button = ztoolkit.UI.appendElement({
+    const buttonProps = makeElementProps({
         enableElementJSONLog: false,
         enableElementDOMLog: false,
         ignoreIfExists: true,
@@ -242,12 +188,97 @@ export async function zoteroMenubarButton() {
                 listener: () => { makeClickButton(menupopupID, menuitemGroupArr, button); },
             },
         ],
-        children: [dropmarker2]
-
-    }, topTool) as HTMLButtonElement;
-    const toolbarseparator2 = ztoolkit.UI.appendElement(
-        makeProps({ tag: "toolbarseparator" }), parent
+        children: [dropmarker]
+    });
+    const toolbaritem = ztoolkit.UI.appendElement(
+        toolbaritemProps,
+        parent
     );
+    const topTool = ztoolkit.UI.appendElement(
+        menubarProps,
+        toolbaritem
+    );
+    const button = ztoolkit.UI.appendElement(
+        /*         {
+                namespace: "html",
+                tag: "button",
+                id: config.addonRef + "_imgTableTool2",
+                classList: ["zotero-tb-button"],
+                styles: {
+                    backgroundImage: `url(chrome://${config.addonRef}/content/icons/favicon.png)`,
+                    backgroundSize: "18px 18px",
+                    backgroundPosition: "10% center",
+                    backgroundRepeat: "no-repeat",
+                    //float: "right",
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    width: "48px",
+                    padding: "4px 3px 4px 22px",
+                },
+                attributes: {
+                    title: getString("info-imgTableTool"),
+                    tabindex: "-1",
+                },
+                listeners: [
+                    {
+                        type: "click",
+                        listener: () => { makeClickButton(menupopupID, menuitemGroupArr, button); },
+                    },
+                ],
+                children: [dropmarker]
+        
+            } */
+        buttonProps,
+        topTool
+    ) as HTMLButtonElement;
+    ztoolkit.UI.appendElement(
+        makeElementProps({ tag: "toolbarseparator" }), parent
+    );
+}
+
+
+function makeElementProps(option: {
+    tag?: string;
+    id?: string;
+    namespace?: "xul" | "html" | "svg";
+    classList?: Array<string>;
+    styles?: Partial<CSSStyleDeclaration>;
+    properties?: {
+        [key: string]: unknown;
+    };
+    directAttributes?: {
+        [key: string]: string | boolean | number | null | undefined;
+    };
+    attributes?: {
+        [key: string]: string | boolean | number | null | undefined;
+    };
+    listeners?: Array<{
+        type: string;
+        listener: EventListenerOrEventListenerObject | ((e: Event) => void) | null | undefined;
+        options?: boolean | AddEventListenerOptions;
+    }>;
+    children?: Array<TagElementProps>;
+    ignoreIfExists?: boolean;
+    skipIfExists?: boolean;
+    removeIfExists?: boolean;
+    checkExistenceParent?: HTMLElement;
+    customCheck?: (doc: Document, options: ElementProps) => boolean;
+    subElementOptions?: Array<TagElementProps>;
+    enableElementRecord?: boolean;
+    enableElementJSONLog?: boolean;
+    enableElementDOMLog?: boolean;
+}): any {
+    const preDefinedObj = {
+        //tag: "" ,
+        enableElementRecord: true,
+        enableElementJSONLog: false,
+        enableElementDOMLog: false,
+        ignoreIfExists: true,
+        namespace: "xul",
+    };
+
+    const tempObj = Object.assign(preDefinedObj, option);
+    return tempObj;
 }
 
 export async function readerToolbarButton() {
@@ -397,7 +428,6 @@ const fontStyleCheck = async () => {
 };
 
 const insertImg = async (noteID?: number) => {
-
     if (!addon.data.noteMaker) {
         const option = {
             title: "Font Style Collection",

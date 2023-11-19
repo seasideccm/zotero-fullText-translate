@@ -1,4 +1,5 @@
 import { zoteroMenubarButton } from "./toolbarButton";
+import { NoteMaker } from './noteMakerHelp';
 
 export function registerNotifier() {
     const callback = {
@@ -54,9 +55,11 @@ async function onNotify(
 
         readerToolbarButton();
     } */
-    /* if (event == "finish" && type == "sync") {
-        zoteroMenubarButton();
-    } */
+    if (event == "modify" && type == "item") {
+        if (typeof ids[0] == "number" && ids[0] == addon.data.noteMaker?.note?.id) {
+            addon.data.noteMaker?.updateContent();
+        }
+    }
     if (event == "refresh" && type == "itemtree") {
         zoteroMenubarButton();
     }
