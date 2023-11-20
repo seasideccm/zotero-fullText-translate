@@ -9,6 +9,7 @@ import { clearAnnotations } from "./imageToAnnotation";
 import { NoteMaker } from "./noteMakerHelp";
 import { prepareReader } from "./prepareReader";
 import { syncFontInfo } from "./syncInfo";
+import { viewImgMenuArr } from "./imageViewer";
 
 
 //url(assets/icons/searchbar-dropmarker@2x.4ebeb64c.png) no-repeat 0 0/100%
@@ -131,7 +132,8 @@ export async function zoteroMenubarButton() {
         translateOnePdfMenuitemArr,
         fontMenuitemArr,
         syncFontInfoMenuitemArr,
-        insertImgMenuitemArr
+        insertImgMenuitemArr,
+        viewImgMenuArr
     ];
     const toolbaritemProps = makeElementProps({
         tag: "toolbaritem",
@@ -372,7 +374,8 @@ export async function readerToolbarButton() {
         translateOnePdfMenuitemArr,
         fontMenuitemArr,
         syncFontInfoMenuitemArr,
-        insertImgMenuitemArr
+        insertImgMenuitemArr,
+        viewImgMenuArr
     ];
     //按钮 button 作为 button 的参数
     const button = ztoolkit.UI.insertElementBefore({
