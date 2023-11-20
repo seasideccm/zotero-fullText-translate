@@ -1,7 +1,7 @@
 import { ElementProps, TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
-import { getFileInfo, getPathDir, readJsonFromDisk } from "../utils/prefs";
+import { addonStorageDir, getFileInfo, getPathDir, readJsonFromDisk } from "../utils/prefs";
 import { fileSizeFormat } from "../utils/tools";
 import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, identityFontStyle, redPointCollectToDisk, makeFontInfoNote } from "./fontDetect";
 import { fullTextTranslate } from "./fullTextTranslate";
@@ -456,33 +456,57 @@ const insertImg = async (noteID?: number) => {
     }
     await addon.data.noteMaker!.tableInsertContent(option, "markerChar");
 };
-
+//主要功能：生成笔记，新字体存盘
 const fontCheckCallBack = async () => {
-    let fontSimpleInfo = await readJsonFromDisk(fontStyleFileName);
+    let fontsSimpleInfo;
     let isReadDisk = false;
     let hasThisPdfFont = false;
+    let thisPdfFonts: any[] = [];
     let pdfItemIDChecked = false;
     let lengthBeforCheck = 0;
-    if (fontSimpleInfo) {
-        isReadDisk = true;
-        const pdfItemID = Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data.itemID;
-        //const pdfItemID = Zotero_Tabs._tabs.filter((tab: any) => tab.id == Zotero_Tabs.selectedID)[0].data.itemID;
-        pdfItemIDChecked = (Object.values(fontSimpleInfo) as any).some((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
-        lengthBeforCheck = Object.keys(fontSimpleInfo).length;
+    let pdfItemID: number;
+    let hasFontsNoImg: boolean = false;
+    if (addon.data.globalObjs?.fontsSimpleInfo) {
+        fontsSimpleInfo = addon.data.globalObjs?.fontsSimpleInfo;
+    } else {
+        fontsSimpleInfo = await readJsonFromDisk(fontStyleFileName);
+        if (fontsSimpleInfo) {
+            isReadDisk = true;
+            pdfItemID = Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data.itemID;
+            //const pdfItemID = Zotero_Tabs._tabs.filter((tab: any) => tab.id == Zotero_Tabs.selectedID)[0].data.itemID;
+            pdfItemIDChecked = (Object.values(fontsSimpleInfo) as any).some((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
+            lengthBeforCheck = Object.keys(fontsSimpleInfo).length;
+            addon.data.globalObjs.fontsSimpleInfo = fontsSimpleInfo;
+        }
     }
-    if (!pdfItemIDChecked || pdfItemIDChecked) {
-        const fontSimpleInfoArrs = (await getFontInfo()).fontSimpleInfoArr;
+    if (fontsSimpleInfo) {
+        thisPdfFonts = Object.values(fontsSimpleInfo).filter((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
+        for (const obj of thisPdfFonts) {
+            const charPath = getPathDir(obj.fontName, addonStorageDir + "\\fontImg\\", ".png").path;
+            if (await OS.File.exists(charPath)) {
+                fontsSimpleInfo.hasFontImg = true;
+            } else {
+                fontsSimpleInfo.hasFontImg = false;
+                hasFontsNoImg = true;
+            }
+        }
+    }
+    //新字体或图片不存在则获取字体信息
+    if (!pdfItemIDChecked || hasFontsNoImg) {
+        const fontSimpleInfoArrs = (await getFontInfo(thisPdfFonts)).fontSimpleInfoArr;
         //await clearCanvas();
         if (fontSimpleInfoArrs.length) {
-            const boldRedPointArr = identityFontStyle(fontSimpleInfoArrs);
+            const boldRedPointArr = fontSimpleInfoArrs.map((obj: any) => obj.redPointNumbers);
             await redPointCollectToDisk(boldRedPointArr);
-            fontSimpleInfo = await saveDiskFontSimpleInfo(fontSimpleInfoArrs, fontSimpleInfo);
-            const noteID = await makeFontInfoNote(fontSimpleInfo, boldRedPointArr);
-            const lengthAfterSave = Object.keys(fontSimpleInfo).length;
+            fontsSimpleInfo = await saveDiskFontSimpleInfo(fontSimpleInfoArrs, fontsSimpleInfo);
+            addon.data.globalObjs.fontsSimpleInfo = fontsSimpleInfo;
+            await makeFontInfoNote(fontsSimpleInfo, boldRedPointArr);
+            const lengthAfterSave = Object.keys(fontsSimpleInfo).length;
             if (lengthBeforCheck != lengthAfterSave) {
                 hasThisPdfFont = true;
             }
         }
+        //生成对话框内容
         const fileInfo = await getFileInfo(getPathDir(fontStyleFileName).path);
         let fileSize;
         if (!fileInfo) {
@@ -491,7 +515,7 @@ const fontCheckCallBack = async () => {
             fileSize = fileInfo.size;
         }
         const textJsonStringify = JSON.stringify(
-            fontSimpleInfo,
+            fontsSimpleInfo,
             (k, v) => {
                 if (k == "chars") {
                     return v.join("");

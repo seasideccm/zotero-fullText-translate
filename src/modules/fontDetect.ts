@@ -81,9 +81,11 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     fontSimpleInfo.markerChar = markerChar;
     ctx.fillText(markerChar, offsetX, browserFontSize);
     let charImgData: ImageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+    //判断是否为斜体
     fontSimpleInfo.isItalic = judgeFontItalic(fontObj, charImgData);
     fontSimpleInfo.redPointNumbers = charImgData.data.filter((e: number, i: number) => i % 4 == 0).filter((e: number) => e > 0).length;
     const charPath = getPathDir(fontName, addonStorageDir + "\\fontImg\\", ".png").path;
+    //图片不存在则绘制，已存在则读取
     if (!await OS.File.exists(charPath)) {
         //确定绘制的字符边界
         const charBorder = findRedsBorder(charImgData);
@@ -123,9 +125,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     } else {
         //读取图像数据
         fontSimpleInfo.charImg = await readImage(charPath);
-        const test = fontSimpleInfo.charImg;
     }
-
     return fontSimpleInfo;
     function judgeFontItalic(fontObj: any, imageData: ImageData) {
         const redPixels = imageData.data.filter((e: number, i: number) => i % 4 == 0);
@@ -495,7 +495,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
 function makeSelector(pageIndex: number) {
     return `#viewer.pdfViewer .page:nth-child(${pageIndex}) .canvasWrapper`;
 }
-export async function getFontInfo() {
+export async function getFontInfo(thisPdfFonts?: any) {
     const g_F_ByPage: any = {};
     const fontInfoObj: any = {};
     const pdfItemID = (await prepareReader("pagesLoaded"))("pdfItemID");
@@ -550,6 +550,15 @@ export async function getFontInfo() {
 
     //将尽可能多的该字体对应的字符收集全
     for (const loadedName of Object.keys(fontInfoObj)) {
+        //跳过已经有图像和红点数目的字体
+        const font = fontInfoObj[loadedName];
+        if (thisPdfFonts) {
+            const thisPdfFontName = thisPdfFonts.fontName;
+            const fontName = font.name.replace(regFontName, "");
+            if (thisPdfFontName == fontName && thisPdfFonts.hasFontImg && thisPdfFonts.redPointNumbers) {
+                continue;
+            }
+        }
         const charsObj: any = {};
         const strsOfloadedName = itemsAll.filter((item: PDFItem) =>
             item.fontName == loadedName && item.str && !(item.str == "" || item.str == " "
@@ -562,9 +571,9 @@ export async function getFontInfo() {
         });
         //const charsArr = Object.keys(charsObj).filter((char: string) => char != " ");
         const charsArr = Object.keys(charsObj);
-        const font = fontInfoObj[loadedName];
         font.charsArr = charsArr;
         font.strs = strsOfloadedName.sort((a: string, b: string) => b.length - a.length).slice(0, 3);
+        //确定识别方案
         for (const type of Object.keys(fontStyleJudgeType)) {
             const judgeCharArr = fontStyleJudgeType[(type as unknown) as keyof typeof fontStyleJudgeType];
             if (charsArr.some((char: string) => judgeCharArr.includes(char))) {
@@ -574,14 +583,12 @@ export async function getFontInfo() {
             }
 
         }
-        let fontSimpleInfo;
-        if (!font.isType3Font) {
-            fontSimpleInfo = await identifyRedPointAndItalic(font, ctx, pdfItemID);
-        }
+        const fontSimpleInfo = await identifyRedPointAndItalic(font, ctx, pdfItemID);
         if (fontSimpleInfo) {
             fontSimpleInfoArr.push(fontSimpleInfo);
         }
     };
+    identityFontStyle(fontSimpleInfoArr);
     return {
         g_F_ByPage: g_F_ByPage,
         fontInfoObj: fontInfoObj,
@@ -616,9 +623,9 @@ export const saveDiskFontSimpleInfo = async (fontSimpleInfoArr: any[], fromDisk?
         obj.charsImg ? delete obj.charsImg : () => { };
     });
     obj.filter((e: any) => e).filter((fontSimpleInfo: any) => {
-        if (!fromDisk[fontSimpleInfo.fontName]) {
-            fromDisk[fontSimpleInfo.fontName] = fontSimpleInfo;
-        }
+        fromDisk[fontSimpleInfo.fontName] = fontSimpleInfo;
+        /* if (!fromDisk[fontSimpleInfo.fontName]) {
+        } */
     });
     await saveJsonToDisk(fromDisk, fontStyleFileName);
 
@@ -660,9 +667,6 @@ export const makeFontInfoNote = async (fontSimpleInfo: any, boldRedPointArr?: nu
     return noteID;
 };
 
-
-
-
 export function getCtx(idRenderFinished: number, documentViewer: Document) {
 
     const selector = makeSelector(idRenderFinished);
@@ -700,7 +704,7 @@ export const identityFontStyle = (fontSimpleInfoArr: any[]) => {
     redPointThisPdfArr.sort((a, b) => b - a);
     const boldRedPointArr: number[] = [];
     for (const fontSimpleInfo of fontSimpleInfoArr) {
-        if (/(Bold$)|(\.B(\+\d+)?$)|(Heavey$)|(Black$)|(-Semibold$)|(-Bold-)/mi.test(fontSimpleInfo.fontName)) {
+        /* if (/(Bold$)|(\.B(\+\d+)?$)|(Heavey$)|(Black$)|(-Semibold$)|(-Bold-)/mi.test(fontSimpleInfo.fontName)) {
             fontSimpleInfo.style = "bold";
             fontSimpleInfo.isBold = "true";
             if (fontSimpleInfo.redPointNumbers) {
@@ -712,17 +716,19 @@ export const identityFontStyle = (fontSimpleInfoArr: any[]) => {
             if (fontSimpleInfo.redPointNumbers) {
                 boldRedPointArr.push(fontSimpleInfo.redPointNumbers);
             }
-        } else if (/(Italic$)|(\.I$)|(Oblique$)|(-LightIt$)|(-It$)/mi.test(fontSimpleInfo.fontName)) {
+        } else if (/(Italic$)|(RegularIt$)|(\.I$)|(Oblique$)|(-LightIt$)|(-It$)/mi.test(fontSimpleInfo.fontName)) {
             fontSimpleInfo.style = "italic";
             fontSimpleInfo.isItalic = "true";
-        } else if (/Regular/i.test(fontSimpleInfo.fontName)) {
+        } else if (/\bRegular\b/i.test(fontSimpleInfo.fontName)) {
             fontSimpleInfo.style = "Regular";
 
-        } else {
+        } */
+        const isSuccess = judgeFontStyleByName(fontSimpleInfo, boldRedPointArr);
+        if (!isSuccess) {
             //canvas渲染字体判断字体格式
             //由于渲染的字母不同，粗体红点数各异
-            /* fontSimpleInfo.redPoint >= boldRedPointArr.slice(-1)[0] ? fontSimpleInfo.style = "bold" : judgePdfFontStyoe(fontSimpleInfo); */
-            judgePdfFontStyoe(fontSimpleInfo);
+            /* fontSimpleInfo.redPoint >= boldRedPointArr.slice(-1)[0] ? fontSimpleInfo.style = "bold" : judgePdfFontStyle(fontSimpleInfo); */
+            judgePdfFontStyle(fontSimpleInfo);
             if (fontSimpleInfo.isItalic) {
                 fontSimpleInfo.style == "bold" || fontSimpleInfo.style == "boldItalic" ? fontSimpleInfo.style = "boldItalic" : fontSimpleInfo.style = "italic";
             }
@@ -735,7 +741,7 @@ export const identityFontStyle = (fontSimpleInfoArr: any[]) => {
     boldRedPointArr.sort();
     return boldRedPointArr;
 
-    function judgePdfFontStyoe(fontSimpleInfo: any) {
+    function judgePdfFontStyle(fontSimpleInfo: any) {
         const boldCutoffUnit = 7;
         const boldCutoff = boldCutoffUnit * fontSimpleInfo.browserFontSize;
         //const index = redPointNumbersThisPdfArr.indexOf(fontSimpleInfo.redPointNumbers);
@@ -746,6 +752,27 @@ export const identityFontStyle = (fontSimpleInfoArr: any[]) => {
         }
     }
 };
+
+export function judgeFontStyleByName(fontSimpleInfo: any, boldRedPointArr: number[]) {
+    if (/(Bold$)|(\.B(\+\d+)?$)|(Heavey$)|(Black$)|(-Semibold$)|(-Bold-)/mi.test(fontSimpleInfo.fontName)) {
+        fontSimpleInfo.isBold = "true";
+        if (fontSimpleInfo.redPointNumbers) {
+            boldRedPointArr.push(fontSimpleInfo.redPointNumbers);
+        }
+        return fontSimpleInfo.style = "bold";
+    } else if (/(BoldItal$)|(.BI$)|(-SemiboldIt$)|(BoldItalic$)/mi.test(fontSimpleInfo.fontName)) {
+        fontSimpleInfo.isBoldItalic = "true";
+        if (fontSimpleInfo.redPointNumbers) {
+            boldRedPointArr.push(fontSimpleInfo.redPointNumbers);
+        }
+        return fontSimpleInfo.style = "boldItalic";
+    } else if (/(Italic$)|(RegularIt$)|(\.I$)|(Oblique$)|(-LightIt$)|(-It$)/mi.test(fontSimpleInfo.fontName)) {
+        fontSimpleInfo.isItalic = "true";
+        return fontSimpleInfo.style = "italic";
+    } else if (/\bRegular\b/i.test(fontSimpleInfo.fontName)) {
+        return fontSimpleInfo.style = "Regular";
+    } else return;
+}
 
 export async function capturePdfWorkerMessage() {
     const reader = await ztoolkit.Reader.getReader() as _ZoteroTypes.ReaderInstance;
@@ -786,21 +813,4 @@ export async function redPointCollectToDisk(boldRedPointArr: number[]) {
         await saveJsonToDisk(boldRedPointArr, "boldRedPointArr");
     }
 }
-
-
-
-/* export class FontDetector {
-    [key: string]: any;
-    constructor() {
-        this.fontStyleJudgeType = {
-            0: upDownBeginleftPoint,
-            1: downBeginLeftPoint,
-            2: upBeginRightPoint,
-            3: upDownCenterPoint,
-        };
-    }
-    check() {
-        return this.fontStyleJudgeType[0];
-    }
-} */
 
