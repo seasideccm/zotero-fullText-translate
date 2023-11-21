@@ -50,10 +50,10 @@ const buttonBackground =
 export async function zoteroMenubarButton() {
     const parent = document.querySelector("#toolbar-menubar")!;
     ztoolkit.UI.appendElement(
-        makeElementProps({ tag: "toolbarspring" }), parent
+        makeElementProps({ tag: "toolbarspring" }) as TagElementProps, parent
     );
     ztoolkit.UI.appendElement(
-        makeElementProps({ tag: "toolbarseparator" }), parent
+        makeElementProps({ tag: "toolbarseparator" }) as TagElementProps, parent
     );
     const menupopupID = "_menupopupImgTableTool2";
     const imgTableSingleObjMenuitemArr = [
@@ -161,7 +161,7 @@ export async function zoteroMenubarButton() {
         type: "menu",
         classList: ["toolbarbutton-menu-dropmarker"],
     };
-    const buttonProps = makeElementProps({
+    const buttonProps: TagElementProps = makeElementProps({
         enableElementJSONLog: false,
         enableElementDOMLog: false,
         ignoreIfExists: true,
@@ -191,13 +191,13 @@ export async function zoteroMenubarButton() {
             },
         ],
         children: [dropmarker]
-    });
+    }) as TagElementProps;
     const toolbaritem = ztoolkit.UI.appendElement(
-        toolbaritemProps,
+        toolbaritemProps as TagElementProps,
         parent
     );
     const topTool = ztoolkit.UI.appendElement(
-        menubarProps,
+        menubarProps as TagElementProps,
         toolbaritem
     );
     const button = ztoolkit.UI.appendElement(
@@ -234,7 +234,7 @@ export async function zoteroMenubarButton() {
         topTool
     ) as HTMLButtonElement;
     ztoolkit.UI.appendElement(
-        makeElementProps({ tag: "toolbarseparator" }), parent
+        makeElementProps({ tag: "toolbarseparator" }) as TagElementProps, parent
     );
 }
 
@@ -269,16 +269,14 @@ export function makeElementProps(option: {
     enableElementRecord?: boolean;
     enableElementJSONLog?: boolean;
     enableElementDOMLog?: boolean;
-}): any {
+}) {
     const preDefinedObj = {
-        //tag: "" ,
         enableElementRecord: true,
         enableElementJSONLog: false,
         enableElementDOMLog: false,
         ignoreIfExists: true,
         namespace: "xul",
     };
-
     const tempObj = Object.assign(preDefinedObj, option);
     return tempObj;
 }
@@ -617,16 +615,31 @@ const makeMenupopup = (idPostfix: string) => {
 
 
 const makeMenuitem = (option: { label: string, func: (...args: string[]) => void, args: string[]; }, menupopup: any,) => {
-    ztoolkit.UI.appendElement({
+    const makeMenuitem = ztoolkit.UI.appendElement({
         tag: "menuitem",
         namespace: "xul",
         attributes: {
             label: getString(option.label),
         }
-    }, menupopup).addEventListener("command", () => {
-        option.func(...option.args);
-    });
+    }, menupopup);
+    const func = option.func;
+    if (judgeAsync(func)) {
+        makeMenuitem.addEventListener("command", async () => {
+            await func(...option.args);
+        });
+    } else {
+        makeMenuitem.addEventListener("command", () => {
+            option.func(...option.args);
+        });
+    }
 };
+
+
+export const judgeAsync = (fun: any) => {
+    const AsyncFunction = (async () => { }).constructor;
+    return fun instanceof AsyncFunction;
+}
+
 
 
 

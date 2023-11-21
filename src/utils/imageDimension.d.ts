@@ -1,0 +1,1 @@
+export declare function resolution(data: string | TypedArray): { width: number, height: number; } | undefined;

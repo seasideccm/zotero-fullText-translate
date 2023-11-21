@@ -113,7 +113,7 @@ function readUint32BE(bytes: any, start: number) {
   return uarr[0];
 }
 
-function ReadPNG(buf: any) {
+export function ReadPNG(buf: any) {
   if (buf.slice(0, 8).toString() === IMAGE_HEAD_SIGS.PNG.toString()) {
     const width = readUint32BE(buf, 16);
     const height = readUint32BE(buf, 20);
@@ -194,10 +194,11 @@ export async function readImage(path: string) {
     width: imgWidthHeight?.width as number,
     height: imgWidthHeight?.height as number,
     base64: base64 as string,
+    fileType: fileType,
   };
 
 }
-function base64ToBytes(imageDataURL: string): {
+export function base64ToBytes(imageDataURL: string): {
   u8arr: Uint8Array; mime: string;
 } | undefined {
   const parts = imageDataURL.split(',');
