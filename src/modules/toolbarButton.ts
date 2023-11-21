@@ -239,7 +239,7 @@ export async function zoteroMenubarButton() {
 }
 
 
-function makeElementProps(option: {
+export function makeElementProps(option: {
     tag?: string;
     id?: string;
     namespace?: "xul" | "html" | "svg";

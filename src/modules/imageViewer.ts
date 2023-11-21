@@ -1,4 +1,6 @@
 import { config } from "../../package.json";
+import { readImage } from "../utils/prefs";
+import { makeElementProps } from "./toolbarButton";
 
 
 export const viewImgMenuArr = [
@@ -9,13 +11,73 @@ export const viewImgMenuArr = [
     },
 ];
 function viewImg() {
-    const dialogData = makeDialogData(makeContent());
-    makeDialogImgViewer();
-    showDialog(dialogData);
+    const dialogCellID = "dialogImgViewer-container";
+    const childs = getImgsElementProps();
+    const elementDiv = {
+        tag: "div",
+        namespace: "html",
+        id: dialogCellID,
+        attributes: {
+            style: "width: 800; height: 600;",
+            //数据绑定的数据来源于dialogData的哪个键值
+            //"data-bind": "content",
+            //元素某个property
+            //"data-prop": "innerHTML",
+        },
+        children: childs,
+        /* [
+           {
+               tag: "img",
+               namespace: "html",
+               id: "showImg-" + "attachmentKey",
+               attributes: { src: src, },
+           },
+       ] */
+    };
+    makeDialogImgViewer(elementDiv);
+    showDialog();
 }
 
 
-function makeContent(itemID?: number) {
+function makeDialogImgViewer(elementDiv: any) {
+    if (!addon.data.globalObjs?.dialogImgViewer) {
+        const dialogImgViewer = new ztoolkit.Dialog(1, 1)
+            .addCell(0, 0,
+                elementDiv
+            );
+        addon.data.globalObjs = {
+            dialogImgViewer: dialogImgViewer,
+        };
+    }
+}
+
+function showDialog(dialogData?: any) {
+    const title = `${config.addonRef}`;
+    const windowFeatures = {
+        centerscreen: true,
+        resizable: true,
+        fitContent: true,
+        noDialogMode: true,
+    };
+
+    const dialogCellID = "dialogImgViewer-container";
+    const dialogImgViewer = addon.data.globalObjs?.dialogImgViewer;
+    if (dialogImgViewer.window) {
+        if (dialogImgViewer.window.closed) {
+            dialogData ? dialogImgViewer.setDialogData(dialogData).open(title, windowFeatures) : dialogImgViewer.open(title, windowFeatures);
+
+        } else {
+            dialogImgViewer.window.focus();
+            const divImgViewer = dialogImgViewer.window.document.querySelector("#" + dialogCellID);
+            ztoolkit.UI.appendElement(elementDiv, divImgViewer);
+            //divImgViewer!.innerHTML = dialogData.content;
+        };
+    } else {
+        dialogData ? dialogImgViewer.setDialogData(dialogData).open(title, windowFeatures) : dialogImgViewer.open(title, windowFeatures);
+    }
+}
+
+function getImgsElementProps(itemID?: number) {
     let items: Zotero.Item | Zotero.Item[];
     if (itemID) {
         items = Zotero.Items.get(itemID);
@@ -25,81 +87,43 @@ function makeContent(itemID?: number) {
     if (!Array.isArray(items)) {
         items = [items];
     }
-    const contentArr: string[] = [];
+    const elementProps: any[] = [];
     items.filter((item: Zotero.Item) => {
         const attachmentIDs = item.getAttachments();
-        attachmentIDs.filter((attachmentID: number) => {
+        attachmentIDs.filter(async (attachmentID: number) => {
             const attachment = Zotero.Items.get(attachmentID);
             if (!attachment.isAttachment()) return;
             if (!attachment.attachmentContentType.includes("image")) return;
-            const src = attachment.getFilePath();
-            if (!src) return;
-            const imgHtml = makeImgHtml(src, attachment.key);
-            contentArr.push(imgHtml);
+            const srcPath = attachment.getFilePath();
+            if (!srcPath) return;
+
+            const srcBase64 = await readImage(srcPath);
+            const width = srcBase64!.width > 800 ? 800 : srcBase64!.width;
+            const height = srcBase64!.height / srcBase64!.width * width;
+            const elementProp = makeElementProps({
+                tag: "img",
+                namespace: "html",
+                id: "showImg-" + attachment.key,
+                attributes: {
+                    src: srcBase64?.base64,
+                    style: `width: ${width}; ${height};`
+
+                },
+            });
+
+            elementProps.push(elementProp);
         });
     });
-    return contentArr.join('');
+    return elementProps;
 }
 
-function makeImgHtml(src: string, attachmentKey: string) {
 
-    const imgHtml = `<img src="` + src + `" id="showImg-` + attachmentKey + `" />`;
-    return imgHtml;
-    //`<img src="${src}" id="showImg-${attachmentKey}" />`;
-}
-
-function makeDialogImgViewer() {
-    const dialogCellID = "dialogImgViewer-container";
-    //如果本插件对话框存在，则视为dialogHelperFont，无需重复创建。之后再设置数据
-    if (!addon.data.globalObjs?.dialogImgViewer) {
-        const dialogImgViewer = new ztoolkit.Dialog(1, 1)
-            .addCell(0, 0,
-                {
-                    tag: "div",
-                    namespace: "html",
-                    id: dialogCellID,
-                    attributes: {
-                        style: "width: 400; height: 430;",
-                        //数据绑定的数据来源于dialogData的哪个键值
-                        "data-bind": "content",
-                        //元素某个property
-                        "data-prop": "innerHTML",
-                    },
-                }
-            );
-        //将对话框挂载到全局对象 dialog 上
-        addon.data.globalObjs = {
-            dialogImgViewer: dialogImgViewer,
-        };
-    }
-}
-
-function showDialog(dialogData: any) {
-    /* const openArgs = {
-        title: `${config.addonRef}`,
-    }; */
-    const dialogCellID = "dialogImgViewer-container";
-    const dialogImgViewer = addon.data.globalObjs?.dialogImgViewer;
-    if (dialogImgViewer.window) {
-        if (dialogImgViewer.window.closed) {
-            dialogImgViewer.setDialogData(dialogData).open(`${config.addonRef}`);
-
-        } else {
-            dialogImgViewer.window.focus();
-            const divImgViewer = dialogImgViewer.window.document.querySelector("#" + dialogCellID);
-            divImgViewer!.innerHTML = dialogData.content;
-        };
-    } else {
-        dialogImgViewer.setDialogData(dialogData).open(`${config.addonRef}`);
-    }
-}
-
-function makeDialogData(content: string) {
+/* function makeDialogData(content: string) {
     const dialogData = {
         "content": content
     };
     return dialogData;
-}
+} */
 
 
 
