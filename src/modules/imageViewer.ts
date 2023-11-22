@@ -3,6 +3,7 @@ import { config } from "../../package.json";
 import { resolution } from "../utils/imageDimension";
 import { ReadPNG, base64ToBytes, readImage } from "../utils/prefs";
 import { makeElementProps } from "./toolbarButton";
+import { prepareReader } from "./prepareReader";
 
 
 
@@ -146,7 +147,7 @@ async function findImage(item: Zotero.Item, srcImgBase64Arr?: {
     }
     if (!(item.isAttachment())) {
         for (const attachmentID of item.getAttachments()) {
-            const attachment = await Zotero.Items.getAsync(attachmentID);
+            const attachment = Zotero.Items.get(attachmentID);
             //递归
             await findImage(attachment, srcImgBase64Arr);
         }
@@ -175,6 +176,10 @@ async function getImageAnnotations(item: Zotero.Item) {
     const imageAnnotations = annotations.filter(e => e.annotationType == 'image');
     for (const imageAnnotation of imageAnnotations) {
         if (!await Zotero.Annotations.hasCacheImage(imageAnnotation)) {
+            if (imageAnnotation.parentID) {
+                const tabID = Zotero_Tabs.getTabIDByItemID(imageAnnotation.parentID);
+                tabID ? Zotero_Tabs.select(tabID) : await Zotero.Reader.open(imageAnnotation.parentID);
+            }
             try {
                 await Zotero.PDFRenderer.renderAttachmentAnnotations(imageAnnotation.parentID);
             }
