@@ -5,6 +5,7 @@ import { createZToolkit } from "./utils/ztoolkit";
 import { fullTextTranslate } from "./modules/fullTextTranslate";
 import { serviceInit } from "./modules/serviceManage";
 import { registerNotifier } from "./modules/notify";
+import { zoteroMenubarButton } from "./modules/toolbarButton";
 
 
 async function onStartup() {
@@ -45,6 +46,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   });
   fullTextTranslate.rightClickMenuItem();
   await serviceInit();
+  zoteroMenubarButton();
 
   await Zotero.Promise.delay(1000);
   popupWin.changeLine({

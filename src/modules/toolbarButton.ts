@@ -628,7 +628,7 @@ const makeMenupopup = (idPostfix: string) => {
 };
 
 
-const makeMenuitem = (option: { label: string, func: (...args: string[]) => void, args: string[]; }, menupopup: any,) => {
+const makeMenuitem = (option: { label: string, func: (...args: any[]) => any | void, args: any[]; }, menupopup: any,) => {
     const makeMenuitem = ztoolkit.UI.appendElement({
         tag: "menuitem",
         namespace: "xul",
@@ -636,10 +636,10 @@ const makeMenuitem = (option: { label: string, func: (...args: string[]) => void
             label: getString(option.label),
         }
     }, menupopup);
-    makeMenuitem.addEventListener("command", () => {
+    /* makeMenuitem.addEventListener("command", () => {
         option.func(...option.args);
-    });
-    /* const func = option.func;
+    }); */
+    const func = option.func;
     if (judgeAsync(func)) {
         makeMenuitem.addEventListener("command", async () => {
             await func(...option.args);
@@ -648,7 +648,7 @@ const makeMenuitem = (option: { label: string, func: (...args: string[]) => void
         makeMenuitem.addEventListener("command", () => {
             option.func(...option.args);
         });
-    } */
+    }
 };
 
 

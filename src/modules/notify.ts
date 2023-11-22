@@ -47,22 +47,22 @@ async function onNotify(
         "ids::", ids,
         "extraData::", JSON.stringify(extraData, null, 4)
     );
-    if (
+    /* if (
         event == "select" &&
         type == "tab" &&
         extraData[ids[0]].type == "reader"
     ) {
 
         zoteroMenubarButton();
-    }
+    } */
     if (event == "modify" && type == "item") {
         if (typeof ids[0] == "number" && ids[0] == addon.data.noteMaker?.note?.id) {
             addon.data.noteMaker?.updateContent();
         }
     }
-    if (event == "refresh" && type == "itemtree") {
+    /* if (event == "refresh" && type == "itemtree") {
         zoteroMenubarButton();
-    }
+    } */
 
 }
 
