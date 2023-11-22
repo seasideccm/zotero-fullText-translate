@@ -1,8 +1,10 @@
 import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { config } from "../../package.json";
 import { resolution } from "../utils/imageDimension";
-import { ReadPNG, base64ToBytes, readImage } from "../utils/prefs";
-import { makeElementProps } from "./toolbarButton";
+import { readImage } from "../utils/prefs";
+import { makeTagElementProps } from "./toolbarButton";
+import Viewer from 'viewerjs';
+
 
 
 
@@ -19,13 +21,34 @@ async function viewImg() {
     const maxWidth = 800;
     const childs = await getImgsElementProps(maxWidth);
     if (!childs) return;
-    const container = makeContainerElementProps(childs, maxWidth) as TagElementProps;
+    const imgUlLisTagProps = imgUlLisProps(childs);
+    const container = makeContainerElementProps([imgUlLisTagProps], maxWidth);
     makeDialogImgViewer(container);
     //showDialog(container, childs);
 }
 
+function imgUlLisProps(imgsElementProps: TagElementProps[]) {
+    const lisProps = [];
+    for (const imgTagProps of imgsElementProps) {
+        const liProps = makeTagElementProps({
+            tag: "li",
+            namespace: "html",
+            children: [imgTagProps]
+        });
+        lisProps.push(liProps);
+    }
+    const ulProps = makeTagElementProps({
+        tag: "ul",
+        namespace: "html",
+        id: "images",
+        children: lisProps,
+    });
+    return ulProps;
+}
+
+
 function makeContainerElementProps(childs: TagElementProps[], maxWidth: number) {
-    return makeElementProps(
+    return makeTagElementProps(
         {
             tag: "div",
             namespace: "html",
@@ -91,6 +114,15 @@ function showDialog(container: TagElementProps, childs: TagElementProps[], dialo
         dialogImgViewer.setDialogData(dialogData);
     }
     dialogImgViewer.window.focus();
+    const cssPath = 'viewerjs/dist/viewer.css';
+    dialogImgViewer.window.document.head.appendChild(ztoolkit.UI.createElement(dialogImgViewer.window.document, "link", {
+        attributes: {
+            type: "text/css",
+            rel: "stylesheet",
+            href: cssPath,
+        },
+    }));
+    viewer(dialogImgViewer.window.document);
 }
 
 async function getImgsElementProps(maxWidth?: number, itemIDs?: number | number[]) {
@@ -128,7 +160,6 @@ function getItems(itemID?: number | number[]) {
     return items;
 
 }
-
 
 async function findImage(item: Zotero.Item, srcImgBase64Arr?: {
     key: string;
@@ -168,7 +199,6 @@ async function findImage(item: Zotero.Item, srcImgBase64Arr?: {
     }
     return srcImgBase64Arr;
 }
-
 
 async function getImageAnnotations(item: Zotero.Item) {
     const annotations = item.getAnnotations();
@@ -233,7 +263,7 @@ function makeImgTags(srcImgBase64Arr: {
 }[]) {
     const elementProps: TagElementProps[] = [];
     srcImgBase64Arr.filter(obj => {
-        const elementProp = makeElementProps({
+        const elementProp = makeTagElementProps({
             tag: "img",
             namespace: "html",
             id: "showImg-" + obj.key,
@@ -242,7 +272,7 @@ function makeImgTags(srcImgBase64Arr: {
                 style: `width:${obj.srcWidthHeight.width}; height:${obj.srcWidthHeight.height};`
             },
         });
-        elementProps.push(elementProp as TagElementProps);
+        elementProps.push(elementProp);
     });
     return elementProps;
 }
@@ -265,6 +295,27 @@ function modifyWidthHeight(imgWidthHeight: {
             height: height,
         };
     };
+}
+
+
+function viewer(document: Document) {
+    // You should import the CSS file.
+    // import 'viewerjs/dist/viewer.css';
+
+
+    // View an image.
+    /* const viewer = new Viewer(document.getElementById('image')!, {
+      inline: true,
+      viewed() {
+        viewer.zoomTo(1);
+      },
+    }); */
+    // Then, show the image by clicking it, or call `viewer.show()`.
+
+    // View a list of images.
+    // Note: All images within the container will be found by calling `element.querySelectorAll('img')`.
+    const gallery = new Viewer(document.getElementById('images')!);
+    // Then, show one image by click it, or call `gallery.show()`.
 }
 
 

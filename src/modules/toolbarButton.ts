@@ -48,12 +48,13 @@ const buttonBackground =
 
 
 export async function zoteroMenubarButton() {
+    if (document.querySelector("#" + config.addonRef + "_imgTableTool")) { return; }
     const parent = document.querySelector("#toolbar-menubar")!;
     ztoolkit.UI.appendElement(
-        makeElementProps({ tag: "toolbarspring" }) as TagElementProps, parent
+        makeTagElementProps({ tag: "toolbarspring" }), parent
     );
     ztoolkit.UI.appendElement(
-        makeElementProps({ tag: "toolbarseparator" }) as TagElementProps, parent
+        makeTagElementProps({ tag: "toolbarseparator" }), parent
     );
     const menupopupID = "_menupopupImgTableTool2";
     const imgTableSingleObjMenuitemArr = [
@@ -135,7 +136,7 @@ export async function zoteroMenubarButton() {
         insertImgMenuitemArr,
         viewImgMenuArr
     ];
-    const toolbaritemProps = makeElementProps({
+    const toolbaritemProps = makeTagElementProps({
         tag: "toolbaritem",
         id: config.addonRef + "_toolbaritem",
         attributes: {
@@ -143,7 +144,7 @@ export async function zoteroMenubarButton() {
         },
 
     });
-    const menubarProps = makeElementProps({
+    const menubarProps = makeTagElementProps({
         tag: "menubar",
         id: config.addonRef + "_topTools",
         //classList: ["tool-group", "annotation-tools"],
@@ -161,7 +162,7 @@ export async function zoteroMenubarButton() {
         type: "menu",
         classList: ["toolbarbutton-menu-dropmarker"],
     };
-    const buttonProps: TagElementProps = makeElementProps({
+    const buttonProps = makeTagElementProps({
         enableElementDOMLog: false,
         ignoreIfExists: true,
         namespace: "html",
@@ -190,13 +191,13 @@ export async function zoteroMenubarButton() {
             },
         ],
         children: [dropmarker]
-    }) as TagElementProps;
+    });
     const toolbaritem = ztoolkit.UI.appendElement(
-        toolbaritemProps as TagElementProps,
+        toolbaritemProps,
         parent
     );
     const topTool = ztoolkit.UI.appendElement(
-        menubarProps as TagElementProps,
+        menubarProps,
         toolbaritem
     );
     const button = ztoolkit.UI.appendElement(
@@ -233,44 +234,12 @@ export async function zoteroMenubarButton() {
         topTool
     ) as HTMLButtonElement;
     ztoolkit.UI.appendElement(
-        makeElementProps({ tag: "toolbarseparator" }) as TagElementProps, parent
+        makeTagElementProps({ tag: "toolbarseparator" }), parent
     );
 }
 
 
-export function makeElementProps(option: {
-    tag?: string;
-    id?: string;
-    namespace?: "xul" | "html" | "svg";
-    classList?: Array<string>;
-    styles?: Partial<CSSStyleDeclaration>;
-    properties?: {
-        [key: string]: unknown;
-    };
-    directAttributes?: {
-        [key: string]: string | boolean | number | null | undefined;
-    };
-    attributes?: {
-        [key: string]: string | boolean | number | null | undefined;
-    };
-    listeners?: Array<{
-        type: string;
-        listener: EventListenerOrEventListenerObject | ((e: Event) => void) | null | undefined;
-        options?: boolean | AddEventListenerOptions;
-    }>;
-    children?: Array<TagElementProps>;
-    ignoreIfExists?: boolean;
-    skipIfExists?: boolean;
-    removeIfExists?: boolean;
-    checkExistenceParent?: HTMLElement;
-    customCheck?: (doc: Document, options: ElementProps) => boolean;
-    subElementOptions?: Array<TagElementProps>;
-    //默认false
-    enableElementRecord?: boolean;
-    //默认false
-    enableElementJSONLog?: boolean;
-    enableElementDOMLog?: boolean;
-}) {
+export function makeTagElementProps(option: TagElementProps): TagElementProps {
     const preDefinedObj = {
         enableElementDOMLog: false,
         ignoreIfExists: true,
@@ -279,6 +248,52 @@ export function makeElementProps(option: {
     const tempObj = Object.assign(preDefinedObj, option);
     return tempObj;
 }
+
+export function ssmakeElementProps(option: ElementProps): ElementProps {
+    const preDefinedObj = {
+        enableElementDOMLog: false,
+        ignoreIfExists: true,
+        namespace: "xul",
+    };
+    const tempObj = Object.assign(preDefinedObj, option);
+    return tempObj;
+}
+
+/* {
+    {
+        tag: string;
+        id?: string;
+        namespace?: "xul" | "html" | "svg";
+        classList?: Array<string>;
+        styles?: Partial<CSSStyleDeclaration>;
+        properties?: {
+            [key: string]: unknown;
+        };
+        directAttributes?: {
+            [key: string]: string | boolean | number | null | undefined;
+        };
+        attributes?: {
+            [key: string]: string | boolean | number | null | undefined;
+        };
+        listeners?: Array<{
+            type: string;
+            listener: EventListenerOrEventListenerObject | ((e: Event) => void) | null | undefined;
+            options?: boolean | AddEventListenerOptions;
+        }>;
+        children?: Array<TagElementProps>;
+        ignoreIfExists?: boolean;
+        skipIfExists?: boolean;
+        removeIfExists?: boolean;
+        checkExistenceParent?: HTMLElement;
+        customCheck?: (doc: Document, options: ElementProps) => boolean;
+        subElementOptions?: Array<TagElementProps>;
+        //默认false
+        enableElementRecord?: boolean;
+        //默认false
+        enableElementJSONLog?: boolean;
+        enableElementDOMLog?: boolean;
+    }
+} */
 
 export async function readerToolbarButton() {
     //按钮定位在哪里
