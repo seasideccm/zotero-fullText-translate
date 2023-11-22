@@ -20,8 +20,8 @@ async function viewImg() {
     const childs = await getImgsElementProps(maxWidth);
     if (!childs) return;
     const container = makeContainerElementProps(childs, maxWidth) as TagElementProps;
-    await makeDialogImgViewer(container);
-    showDialog(undefined, childs);
+    makeDialogImgViewer(container);
+    //showDialog(container, childs);
 }
 
 function makeContainerElementProps(childs: TagElementProps[], maxWidth: number) {
@@ -37,17 +37,26 @@ function makeContainerElementProps(childs: TagElementProps[], maxWidth: number) 
         });
 }
 
-async function makeDialogImgViewer(container: TagElementProps) {
+function makeDialogImgViewer(container: TagElementProps) {
     if (!addon.data.globalObjs?.dialogImgViewer) {
         const dialogImgViewer = new ztoolkit.Dialog(1, 1)
             .addCell(0, 0,
                 container
             );
-        addon.data.globalObjs.dialogImgViewer = dialogImgViewer;
+        addon.data.globalObjs = { dialogImgViewer: dialogImgViewer };
+    } else {
+        const title = `${config.addonRef}`;
+        const windowFeatures = {
+            centerscreen: true,
+            resizable: true,
+            fitContent: true,
+            noDialogMode: true,
+        };
+        addon.data.globalObjs?.dialogImgViewer.open(title, windowFeatures);
     }
 }
 
-function showDialog(container?: TagElementProps, childs?: TagElementProps[], dialogData?: any,) {
+function showDialog(container: TagElementProps, childs: TagElementProps[], dialogData?: any,) {
     const title = `${config.addonRef}`;
     const windowFeatures = {
         centerscreen: true,
@@ -55,12 +64,23 @@ function showDialog(container?: TagElementProps, childs?: TagElementProps[], dia
         fitContent: true,
         noDialogMode: true,
     };
-
     const dialogCellID = "dialogImgViewer-container";
     const dialogImgViewer = addon.data.globalObjs?.dialogImgViewer;
-    const divImgViewer = dialogImgViewer.window.document.querySelector("#" + dialogCellID);
-    if (container) {
-        ztoolkit.UI.replaceElement(container, divImgViewer);
+    if (!dialogImgViewer.window) {
+        dialogImgViewer.addCell(0, 0,
+            container
+        );
+        dialogImgViewer.open(title, windowFeatures);
+    }
+    if (dialogImgViewer.window && dialogImgViewer.window.closed) {
+        dialogImgViewer.open(title, windowFeatures);
+    }
+    let divImgViewer;
+    //关闭对话窗后内容被清空
+    if (!(divImgViewer = dialogImgViewer.window.document.querySelector("#" + dialogCellID))) {
+        const body = dialogImgViewer.window.document.querySelector("body");
+        ztoolkit.UI.appendElement(container, body);
+        divImgViewer = dialogImgViewer.window.document.querySelector("#" + dialogCellID);
     }
     if (childs) {
         for (const child of childs) {
@@ -70,51 +90,44 @@ function showDialog(container?: TagElementProps, childs?: TagElementProps[], dia
     if (dialogData) {
         dialogImgViewer.setDialogData(dialogData);
     }
-
-    if (!dialogImgViewer.window?.closed) {
-        dialogImgViewer.window.focus();
-    } else {
-        dialogImgViewer.open(title, windowFeatures);
-    };
-
+    dialogImgViewer.window.focus();
 }
 
-async function getImgsElementProps(maxWidth?: number, itemIDs?: number) {
-    const srcImgBase64ArrTotal: {
-        key: string;
-        src: string;
-        srcWidthHeight: {
-            width: number;
-            height: number;
-        };
-    }[] = [];
-    let items: Zotero.Item | Zotero.Item[];
-    if (itemIDs) {
-        items = await Zotero.Items.getAsync(itemIDs);
-    } else {
-        items = Zotero.getActiveZoteroPane().getSelectedItems();
-        if (!items.length && Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.type === 'reader') {
-            itemIDs = Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data.itemID;
-            if (!itemIDs) return;
-            items = await Zotero.Items.getAsync(itemIDs);
-        }
-    }
-    if (!Array.isArray(items)) {
-        items = [items];
-    }
+async function getImgsElementProps(maxWidth?: number, itemIDs?: number | number[]) {
+    const srcImgBase64ArrTotal: imageProps[] = [];
+    const items = getItems(itemIDs);
+    if (!items) return;
     for (const item of items) {
         await findImage(item, srcImgBase64ArrTotal, maxWidth);
-        /* const srcImgBase64Arr = await findImage(item);
-        if (srcImgBase64Arr.length) {
-            srcImgBase64ArrTotal.push(...srcImgBase64Arr);
-        } */
     }
     if (srcImgBase64ArrTotal.length) {
         return makeImgTags(srcImgBase64ArrTotal);
     }
 }
 
+function getItems(itemID?: number | number[]) {
+    let items: Zotero.Item[];
+    if (itemID) {
+        if (typeof itemID == "number") {
+            items = [Zotero.Items.get(itemID)];
+        } else {
+            items = [];
+            for (const id of itemID) {
+                items.push(Zotero.Items.get(id));
+            }
 
+        }
+    } else {
+        items = Zotero.getActiveZoteroPane().getSelectedItems();
+        if (!items.length && Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.type === 'reader') {
+            itemID = Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data.itemID;
+            if (!itemID) return;
+            items = [Zotero.Items.get(itemID as number)];
+        }
+    }
+    return items;
+
+}
 
 
 async function findImage(item: Zotero.Item, srcImgBase64Arr?: {

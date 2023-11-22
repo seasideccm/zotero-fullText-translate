@@ -27,6 +27,15 @@ declare class Localization { }
 
 declare module "pdfjs-dist/build/pdf.worker.entry";
 
+declare type imageProps = {
+  key: string;
+  src: string;
+  srcWidthHeight: {
+    width: number;
+    height: number;
+  };
+};
+
 declare type Box = {
   left: number;
   right: number;

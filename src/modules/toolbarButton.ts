@@ -162,7 +162,6 @@ export async function zoteroMenubarButton() {
         classList: ["toolbarbutton-menu-dropmarker"],
     };
     const buttonProps: TagElementProps = makeElementProps({
-        enableElementJSONLog: false,
         enableElementDOMLog: false,
         ignoreIfExists: true,
         namespace: "html",
@@ -266,13 +265,13 @@ export function makeElementProps(option: {
     checkExistenceParent?: HTMLElement;
     customCheck?: (doc: Document, options: ElementProps) => boolean;
     subElementOptions?: Array<TagElementProps>;
+    //默认false
     enableElementRecord?: boolean;
+    //默认false
     enableElementJSONLog?: boolean;
     enableElementDOMLog?: boolean;
 }) {
     const preDefinedObj = {
-        enableElementRecord: true,
-        enableElementJSONLog: false,
         enableElementDOMLog: false,
         ignoreIfExists: true,
         namespace: "xul",
@@ -622,7 +621,10 @@ const makeMenuitem = (option: { label: string, func: (...args: string[]) => void
             label: getString(option.label),
         }
     }, menupopup);
-    const func = option.func;
+    makeMenuitem.addEventListener("command", () => {
+        option.func(...option.args);
+    });
+    /* const func = option.func;
     if (judgeAsync(func)) {
         makeMenuitem.addEventListener("command", async () => {
             await func(...option.args);
@@ -631,7 +633,7 @@ const makeMenuitem = (option: { label: string, func: (...args: string[]) => void
         makeMenuitem.addEventListener("command", () => {
             option.func(...option.args);
         });
-    }
+    } */
 };
 
 
