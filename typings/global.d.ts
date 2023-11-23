@@ -9,6 +9,13 @@ declare const _globalThis: {
   addon: typeof addon;
 };
 
+
+
+declare module "*.css" {
+  const css: string;
+  export default css;
+}
+
 declare type ZToolkit = ReturnType<
   typeof import("../src/utils/ztoolkit").createZToolkit
 >;

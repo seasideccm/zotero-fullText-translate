@@ -7,7 +7,9 @@
   onload="Zotero.__addonInstance__.hooks.onPrefsEvent('load', {window})"
 >
   <label>
-    <html:h2 data-l10n-id="pref-title"></html:h2>
+    <html:div style="text-align: center">
+      <html:h2 data-l10n-id="pref-title"></html:h2>
+    </html:div>
   </label>
   <label>
     <html:h3 data-l10n-id="pref-descript"></html:h3>
@@ -273,7 +275,41 @@
 
 <groupbox>
   <label>
-    <html:h3 data-l10n-id="pref-help"></html:h3>
+    <html:h3 data-l10n-id="pref-imageViewer"></html:h3>
+  </label>
+  <caption data-l10n-id="pref-thumbnailSize" />
+  <radiogroup
+    id="__addonRef__-thumbnailSize"
+    preference="extensions.zotero.__addonRef__.thumbnailSize"
+  >
+    <hbox>
+      <radio
+        data-l10n-id="pref-thumbnailSizeOrigin"
+        value="origin"
+        selected="false"
+      />
+      <radio
+        data-l10n-id="pref-thumbnailSizeSmall"
+        value="small"
+        selected="true"
+      />
+      <radio
+        data-l10n-id="pref-thumbnailMedium"
+        value="medium"
+        selected="false"
+      />
+      <radio
+        data-l10n-id="pref-thumbnailLarge"
+        value="large"
+        selected="false"
+      />
+    </hbox>
+  </radiogroup>
+</groupbox>
+
+<groupbox>
+  <label>
+    <html:h3 data-l10n-id="pref-about"></html:h3>
   </label>
   <label>
     <html:h4

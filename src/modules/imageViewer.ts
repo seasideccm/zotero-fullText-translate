@@ -1,12 +1,11 @@
 import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { config } from "../../package.json";
 import { resolution } from "../utils/imageDimension";
-import { readImage } from "../utils/prefs";
+import { getPref, readImage } from "../utils/prefs";
 import { makeTagElementProps } from "./toolbarButton";
 import Viewer from 'viewerjs';
-
-
-
+//import viewerjsStyle from 'viewerjs/dist/viewer.css';
+//import 'viewerjs/dist/viewer.css';
 
 export const viewImgMenuArr = [
     {
@@ -16,93 +15,14 @@ export const viewImgMenuArr = [
     },
 ];
 
-
 async function viewImg() {
     const maxWidth = 800;
     const srcImgBase64Arr = await getImgsBase64(maxWidth);
     if (!srcImgBase64Arr) return;
     const hasNewContent = makeDialogElementProps(srcImgBase64Arr, maxWidth);
-    showDialog(hasNewContent);
-
+    await showDialog(hasNewContent);
 }
 
-/* async function makeContainerElementProps(childs: TagElementProps[], maxWidth: number) {
-    const title = `${config.addonRef}`;
-    const windowFeatures = {
-        centerscreen: true,
-        resizable: true,
-        fitContent: true,
-        noDialogMode: true,
-        left: 50,
-        top: 20,
-    };
-
-    const imgList = imgListProps(childs);
-
-    //let container = dialogImgViewer.elementProps.children[0].children[0].children;
-
-    const ulProps = makeTagElementProps({
-        tag: "ul",
-        namespace: "html",
-        id: "images",
-        children: imgList,
-    });
-    const container = makeTagElementProps(
-        {
-            tag: "div",
-            namespace: "html",
-            id: "dialogImgViewer-container",
-            attributes: {
-                style: `width: ${maxWidth}; height: ${maxWidth * 3 / 4};`,
-            },
-            children: [ulProps],
-        });
-    const dialogOnce = new ztoolkit.Dialog(1, 1).addCell(0, 0,
-        container
-    )
-        .open(title, windowFeatures);
-    //等待对话窗数据加载完成，对话框关键机制，
-    await dialogOnce.dialogData.loadLock?.promise;
-    const reduceFactor = 0.95;
-    const outerHeight = dialogOnce.window.outerHeight;
-    const outerWidth = dialogOnce.window.outerWidth;
-    let finalHeight = 0;
-    let finalWidth = 0;
-      if (outerHeight > window.screen.height && !(outerWidth > window.screen.width)) {
-          finalHeight = window.screen.height * reduceFactor;
-          finalWidth = outerWidth * window.screen.height / outerHeight * reduceFactor;
-      }
-      if (outerWidth > window.screen.width && !(outerHeight > window.screen.height)) {
-          finalWidth = window.screen.width * reduceFactor;
-          finalHeight = outerHeight * window.screen.width / outerWidth * reduceFactor;
-      }
-    if (outerHeight > window.screen.height || outerWidth > window.screen.width) {
-
-        if (outerWidth / window.screen.width > outerHeight / window.screen.height) {
-            finalWidth = window.screen.width * reduceFactor;
-            finalHeight = outerHeight * window.screen.width / outerWidth * reduceFactor;
-        } else {
-            finalHeight = window.screen.height * reduceFactor;
-            finalWidth = outerWidth * window.screen.height / outerHeight * reduceFactor;
-        }
-    }
-    if (finalHeight != 0 || finalWidth != 0) {
-        dialogOnce.window.resizeTo(finalWidth, finalHeight);
-    }
-
-
-    await dialogOnce.dialogData?.unloadLock?.promise;
-    dialogOnce = undefined;
-      else {
-         for (const li of imgList) {
-             const idImg = li.children![0].id;
-             const idsImg = container[0].children[0].children.map((e: TagElementProps) => e.children![0].id);
-             if (!idsImg.includes(idImg)) {
-                 container[0].children[0].children.push(li);
-             }
-         }
-     }
-} */
 function makeDialogElementProps(srcImgBase64Arr: imageProps[], maxWidth: number) {
     let hasNewContent = false;
     let dialogImgViewer;
@@ -111,13 +31,17 @@ function makeDialogElementProps(srcImgBase64Arr: imageProps[], maxWidth: number)
         addon.data.globalObjs = { dialogImgViewer: dialogImgViewer };
     }
     let container = dialogImgViewer.elementProps.children[0].children[0].children;
-    const childs = makeImgTags(srcImgBase64Arr);
+    const resize = getPref('thumbnailSize') as string;
+    const childs = makeImgTags(srcImgBase64Arr, resize);
     const imgList = imgListProps(childs);
     const ulProps = makeTagElementProps({
-        tag: "ul",
+        tag: "div",
         namespace: "html",
         id: "images",
         children: imgList,
+        attributes: {
+            style: `display: flex; flex-flow: row wrap;`,
+        }
     });
     if (!container.length) {
         container = makeTagElementProps(
@@ -126,6 +50,10 @@ function makeDialogElementProps(srcImgBase64Arr: imageProps[], maxWidth: number)
                 namespace: "html",
                 id: "dialogImgViewer-container",
                 children: [ulProps],
+                attributes: {
+                    style: `display: flex; flex-wrap: wrap;`,
+
+                }
             });
         dialogImgViewer.addCell(0, 0,
             container
@@ -133,7 +61,6 @@ function makeDialogElementProps(srcImgBase64Arr: imageProps[], maxWidth: number)
     } else {
         const lis = container[0].children[0].children;
         const imgIds = lis.map((li: TagElementProps) => li.children![0].id);
-        //.replace("showImg-", '')
         for (const imgLi of imgList) {
             const imgId = imgLi.children![0].id;
             if (!imgIds.includes(imgId)) {
@@ -141,7 +68,6 @@ function makeDialogElementProps(srcImgBase64Arr: imageProps[], maxWidth: number)
                 hasNewContent = true;
             }
         }
-
     }
     return hasNewContent;
 }
@@ -156,6 +82,39 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
         }
     };
     const dialogImgViewer = addon.data.globalObjs?.dialogImgViewer;
+    dialogData = {
+        loadCallback: () => {
+            windowFitSize(dialogImgViewer.window);
+            loadCss(dialogImgViewer.window.document);
+            const images = dialogImgViewer.window.document.getElementById('images')!;
+            images.addEventListener('hidden', function () {
+                dialogImgViewer.window.sizeToContent();
+                windowFitSize(dialogImgViewer.window);
+                //console.log(this.viewer === viewer);
+                // > true
+            });
+            images.addEventListener('view', function () {
+                dialogImgViewer.window.maximize();
+                //console.log(this.viewer === viewer);
+                // > true
+            });
+            const gallery = new Viewer(
+                images,
+                /* {
+                    //inline: true,
+                    ready() {
+                        //最大化窗口
+                        dialogImgViewer.window.moveTo(0, 0);
+                        dialogImgViewer.window.resizeTo(dialogImgViewer.window.screen.availWidth, dialogImgViewer.window.screen.availHeight);
+                        //全屏
+                        //dialogImgViewer.window.document.documentElement.requestFullscreen();
+                    },
+
+                } */
+            );
+
+        }
+    };
     if (dialogData) {
         dialogImgViewer.setDialogData(dialogData);
     }
@@ -165,14 +124,28 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
         open(args);
     };
     const focus = () => dialogImgViewer.window.focus();
-
     dialogImgViewer.window ? (dialogImgViewer.window.closed ? open(args) : (hasNewContent ? closeOpen(args) : focus())) : open(args);
-    //等待对话窗数据加载完成，对话框关键机制，
-    const something = await dialogImgViewer.dialogData.loadLock?.promise;
-    const test = something;
-    windowFitSize(dialogImgViewer.window);
+}
+
+function loadCss(document: Document) {
+    /* document.head.appendChild(ztoolkit.UI.createElement(document, "style", {
+        properties: {
+            innerHTML: viewerjsStyle,
+        },
+    })); 
+   
+      const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`*/
+
+    document.head.appendChild(ztoolkit.UI.createElement(document, "link", {
+        attributes: {
+            rel: "stylesheet",
+            href: `chrome://${config.addonRef}/content/viewer.css`,
+            type: "text/css",
+        }
+    }));
 
 }
+
 function windowFitSize(dialogWin: Window) {
     const reduceFactor = 0.95;
     const outerHeight = dialogWin.outerHeight;
@@ -180,20 +153,11 @@ function windowFitSize(dialogWin: Window) {
     let finalHeight = outerHeight;
     let finalWidth = outerWidth;
     if (outerHeight > window.screen.height) {
-        finalWidth = window.screen.width * reduceFactor;
-    }
-    if (outerHeight > window.screen.height || outerWidth > window.screen.width) {
         finalHeight = window.screen.height * reduceFactor;
     }
-    /*  if (outerHeight > window.screen.height || outerWidth > window.screen.width) {
-         if (outerWidth / window.screen.width > outerHeight / window.screen.height) {
-             finalWidth = window.screen.width * reduceFactor;
-             finalHeight = outerHeight * window.screen.width / outerWidth * reduceFactor;
-         } else {
-             finalHeight = window.screen.height * reduceFactor;
-             finalWidth = outerWidth * window.screen.height / outerHeight * reduceFactor;
-         }
-     } */
+    if (outerWidth > window.screen.width) {
+        finalWidth = window.screen.width * reduceFactor;
+    }
     if (finalHeight != outerHeight || finalWidth != outerWidth) {
         dialogWin.resizeTo(finalWidth, finalHeight);
     }
@@ -307,7 +271,6 @@ async function getImageAnnotations(item: Zotero.Item) {
         }
     }
     return imageAnnotations;
-
 }
 
 async function srcBase64Annotation(imageAnnotation: Zotero.Item, maxWidth: number) {
@@ -340,8 +303,6 @@ async function srcBase64ImageFile(attachment: Zotero.Item, maxWidth: number) {
         src: srcBase64.base64,
         srcWidthHeight: srcWidthHeight,
     };
-
-
 }
 
 function makeImgTags(srcImgBase64Arr: {
@@ -351,21 +312,55 @@ function makeImgTags(srcImgBase64Arr: {
         width: number;
         height: number;
     };
-}[]) {
+}[], resize: "origin" | "small" | "medium" | "large" | string = "medium") {
     const elementProps: TagElementProps[] = [];
+    const makeSizeStyle = (widthHeight: {
+        width: number;
+        height: number;
+    }) => {
+        return `width:${widthHeight.width}; height:${widthHeight.height};`;
+    };
     srcImgBase64Arr.filter(obj => {
+        let sizeStyle: string;
+        switch (resize) {
+            case "origin": sizeStyle = `width:${obj.srcWidthHeight.width}; height:${obj.srcWidthHeight.height};`;
+                break;
+            case "small": sizeStyle = makeSizeStyle(resizeFixRatio(obj.srcWidthHeight, 100));
+                break;
+            case "medium": sizeStyle = makeSizeStyle(resizeFixRatio(obj.srcWidthHeight, 300));
+                break;
+            case "large": sizeStyle = makeSizeStyle(resizeFixRatio(obj.srcWidthHeight, 600));
+        }
+
         const elementProp = makeTagElementProps({
             tag: "img",
             namespace: "html",
             id: "showImg-" + obj.key,
             attributes: {
                 src: obj.src,
-                style: `width:${obj.srcWidthHeight.width}; height:${obj.srcWidthHeight.height};`
+                style: sizeStyle,
             },
         });
         elementProps.push(elementProp);
     });
     return elementProps;
+}
+
+function resizeFixRatio(obj: { width: number; height: number; }, value: number, resizeBy?: "width" | "height") {
+    if (!resizeBy) {
+        resizeBy == "width";
+    }
+    if (resizeBy == "width") {
+        return {
+            width: value,
+            height: (value / obj.width) * obj.height
+        };
+    } else {
+        return {
+            height: value,
+            width: (value / obj.height) * obj.width
+        };
+    }
 }
 
 function modifyWidthHeight(imgWidthHeight: {

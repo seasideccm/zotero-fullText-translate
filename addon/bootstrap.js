@@ -31,9 +31,14 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
    * and all child variables assigned to it is globally accessible.
    * See `src/index.ts` for details.
    */
+  const window=Zotero.getMainWindow()
   const ctx = {
     rootURI,
-    document: Zotero.getMainWindow().document,
+    document: window.document,
+    CustomEvent:window.CustomEvent,
+    Event:window.Event,
+    URL:window.URL
+
   };
   ctx._globalThis = ctx;
 
