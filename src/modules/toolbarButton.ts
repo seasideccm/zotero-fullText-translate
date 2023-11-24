@@ -598,7 +598,7 @@ function showDialog(dialogData: any) {
 }
 
 
-const makeClickButton = (idPostfix: string, menuitemGroupArr: any[][], thisButton: HTMLButtonElement) => {
+export const makeClickButton = (idPostfix: string, menuitemGroupArr: any[][], thisButton: HTMLButtonElement) => {
     const menupopup: any = makeMenupopup(idPostfix);
     menuitemGroupArr.filter((menuitemGroup: any[], i: number) => {
         menuitemGroup.map((e: any) => makeMenuitem(e, menupopup));
@@ -609,14 +609,14 @@ const makeClickButton = (idPostfix: string, menuitemGroupArr: any[][], thisButto
     });
     menupopup.openPopup(thisButton, 'after_start', 0, 0, false, false);
 };
-const menuseparator = (menupopup: any) => {
+export const menuseparator = (menupopup: any) => {
     ztoolkit.UI.appendElement({
         tag: "menuseparator",
         namespace: "xul",
     }, menupopup);
 };
 
-const makeMenupopup = (idPostfix: string) => {
+export const makeMenupopup = (idPostfix: string) => {
     const menupopup = ztoolkit.UI.appendElement({
         tag: "menupopup",
         id: config.addonRef + idPostfix,
@@ -628,7 +628,7 @@ const makeMenupopup = (idPostfix: string) => {
 };
 
 
-const makeMenuitem = (option: { label: string, func: (...args: any[]) => any | void, args: any[]; }, menupopup: any,) => {
+export const makeMenuitem = (option: { label: string, func: (...args: any[]) => any | void, args: any[]; }, menupopup: any,) => {
     const makeMenuitem = ztoolkit.UI.appendElement({
         tag: "menuitem",
         namespace: "xul",

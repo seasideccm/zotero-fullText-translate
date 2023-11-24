@@ -45,6 +45,7 @@ info-customField=自定义标题
 info-selectLastNote = 选择最后修改的笔记
 info-insertImg = 表格插入图片
 info-noItemSelectedNoReaderOpened = 既无选择的条目也无打开的阅读器
+info-copyImage = 复制图片
 info-viewImg = 查看图片
 dialog-label = 翻山蚁
 menuitem-getPdfContent = pdf转笔记

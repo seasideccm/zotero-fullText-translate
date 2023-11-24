@@ -2,7 +2,7 @@ import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { config } from "../../package.json";
 import { resolution } from "../utils/imageDimension";
 import { getPref, readImage } from "../utils/prefs";
-import { makeTagElementProps } from "./toolbarButton";
+import { makeMenuitem, makeMenupopup, makeTagElementProps, menuseparator } from "./toolbarButton";
 import Viewer from 'viewerjs';
 //import viewerjsStyle from 'viewerjs/dist/viewer.css';
 //import 'viewerjs/dist/viewer.css';
@@ -98,6 +98,31 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                 //console.log(this.viewer === viewer);
                 // > true
             });
+            images.addEventListener(
+                'contextmenu', function (event: Event) {
+                    event.preventDefault(); // 阻止默认菜单  
+                    const idPostfix = "imageViewerContextMeun";
+                    const copyImageArr = {
+                        label: "info-copyImage",
+                        func: copyImage,
+                        args: []
+                    };
+                    function copyImage() { }
+                    const menuitemGroupArr = [[copyImageArr]];
+                    const menupopup: any = makeMenupopup(idPostfix);
+                    menuitemGroupArr.filter((menuitemGroup: any[], i: number) => {
+                        menuitemGroup.map((e: any) => makeMenuitem(e, menupopup));
+                        //首个菜单组之后，每组均添加分割条，最后一组之后不添加
+                        if (i < menuitemGroupArr.length - 1) {
+                            menuseparator(menupopup);
+                        }
+                    });
+                    menupopup.openPopup(images, 'after_pointer', 0, 0, false, false);
+
+                    ztoolkit.log('右键点击事件触发了');
+
+                });
+
             const gallery = new Viewer(
                 images,
                 /* {
@@ -312,7 +337,7 @@ function makeImgTags(srcImgBase64Arr: {
         width: number;
         height: number;
     };
-}[], resize: "origin" | "small" | "medium" | "large" | string = "medium") {
+}[], resize: "origin" | "small" | "medium" | "large" | string = "small") {
     const elementProps: TagElementProps[] = [];
     const makeSizeStyle = (widthHeight: {
         width: number;
@@ -321,7 +346,7 @@ function makeImgTags(srcImgBase64Arr: {
         return `width:${widthHeight.width}; height:${widthHeight.height};`;
     };
     srcImgBase64Arr.filter(obj => {
-        let sizeStyle: string;
+        let sizeStyle: string = '';
         switch (resize) {
             case "origin": sizeStyle = `width:${obj.srcWidthHeight.width}; height:${obj.srcWidthHeight.height};`;
                 break;
@@ -340,6 +365,7 @@ function makeImgTags(srcImgBase64Arr: {
                 src: obj.src,
                 style: sizeStyle,
             },
+
         });
         elementProps.push(elementProp);
     });
@@ -353,12 +379,12 @@ function resizeFixRatio(obj: { width: number; height: number; }, value: number, 
     if (resizeBy == "width") {
         return {
             width: value,
-            height: (value / obj.width) * obj.height
+            height: Math.round((value / obj.width) * obj.height)
         };
     } else {
         return {
             height: value,
-            width: (value / obj.height) * obj.width
+            width: Math.round((value / obj.height) * obj.width)
         };
     }
 }
