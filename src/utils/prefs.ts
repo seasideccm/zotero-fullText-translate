@@ -195,8 +195,15 @@ export async function readImage(path: string) {
     height: imgWidthHeight?.height as number,
     base64: base64 as string,
     fileType: fileType,
+    fileName: fileName
   };
 
+}
+
+export function enableMasonry() {
+  if (!Zotero.Prefs.get("layout.css.grid-template-masonry-value.enabled", true)) {
+    Zotero.Prefs.set("layout.css.grid-template-masonry-value.enabled", true, true);
+  }
 }
 export function base64ToBytes(imageDataURL: string): {
   u8arr: Uint8Array; mime: string;

@@ -9,13 +9,6 @@ declare const _globalThis: {
   addon: typeof addon;
 };
 
-
-
-declare module "*.css" {
-  const css: string;
-  export default css;
-}
-
 declare type ZToolkit = ReturnType<
   typeof import("../src/utils/ztoolkit").createZToolkit
 >;
@@ -37,6 +30,7 @@ declare module "pdfjs-dist/build/pdf.worker.entry";
 declare type imageProps = {
   key: string;
   src: string;
+  alt: string;
   srcWidthHeight: {
     width: number;
     height: number;
@@ -177,3 +171,10 @@ declare type DocItem = {
   content: DocCell[];
   status?: "error" | "success";
 };
+
+
+/* declare module "*.css" {
+  const css: string;
+  export default css;
+}
+ */

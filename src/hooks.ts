@@ -6,6 +6,7 @@ import { fullTextTranslate } from "./modules/fullTextTranslate";
 import { serviceInit } from "./modules/serviceManage";
 import { registerNotifier } from "./modules/notify";
 import { zoteroMenubarButton } from "./modules/toolbarButton";
+import { enableMasonry } from "./utils/prefs";
 
 
 async function onStartup() {
@@ -27,6 +28,7 @@ async function onStartup() {
 async function onMainWindowLoad(win: Window): Promise<void> {
   // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
+  enableMasonry();
   const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
     closeOnClick: true,
     closeTime: -1,
@@ -47,7 +49,6 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   fullTextTranslate.rightClickMenuItem();
   await serviceInit();
   zoteroMenubarButton();
-
   await Zotero.Promise.delay(1000);
   popupWin.changeLine({
     progress: 100,

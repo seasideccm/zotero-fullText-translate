@@ -1,3 +1,43 @@
+
+const textDirect=`images:hidden ,restoreDialog ; view, maximizeDialog;contextmenu, openMeun. images2:hidden,restoreDialog;view, maximizeDialog ; contextmenu, openMeun. `
+function makeArgs(textDirect){
+	const reg=/\. */
+	const argsByElement=textDirect.split(reg).filter(e=>e)
+	const argsByElementArr=[]
+	argsByElement.filter(elemantAndParas=>{
+		const elementArr=[]
+		const reg=/\: */
+		const elemantAndParasArr=elemantAndParas.split(reg).filter(e=>e)
+		//console.log("elemantAndParasArr:",elemantAndParasArr)
+		elementArr.push(elemantAndParasArr[0])
+		const regArgs = /\; */			
+		const parasArr=elemantAndParasArr[1].split(regArgs).filter(e=>e)
+		const elementParasArr=[]
+		parasArr.filter(paras=>{
+			const reg=/, */
+			const paraArr=paras.split(reg).filter(e=>e).map(e=>e.trim())
+			elementParasArr.push(paraArr)
+			
+			//console.log(paraArr[0],'--',typeof paraArr[0],paraArr[0].includes(' '))
+		})
+		elementArr.push(elementParasArr)
+		argsByElementArr.push(elementArr)
+		
+		})
+		console.log(argsByElementArr)
+	}
+makeArgs(textDirect)
+
+
+
+
+
+
+
+
+
+
+
 console.log( Math.PI / 180)
 
 

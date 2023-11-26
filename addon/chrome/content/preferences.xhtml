@@ -273,10 +273,10 @@
   <separator class="groove" />
 </vbox>
 
+<label>
+  <html:h3 data-l10n-id="pref-imageViewer"></html:h3>
+</label>
 <groupbox>
-  <label>
-    <html:h3 data-l10n-id="pref-imageViewer"></html:h3>
-  </label>
   <caption data-l10n-id="pref-thumbnailSize" />
   <radiogroup
     id="__addonRef__-thumbnailSize"
@@ -305,6 +305,32 @@
       />
     </hbox>
   </radiogroup>
+  <caption data-l10n-id="pref-windowSizeOnViewImage" />
+  <radiogroup
+    id="__addonRef__-screenSizeViewer"
+    preference="extensions.zotero.__addonRef__.windowSizeOnViewImage"
+  >
+    <hbox>
+      <radio data-l10n-id="pref-maxScreen" value="max" selected="false" />
+      <radio data-l10n-id="pref-fullScreen" value="full" selected="true" />
+      <radio data-l10n-id="pref-originScreen" value="origin" selected="false" />
+    </hbox>
+  </radiogroup>
+  <hbox width="100px">
+    <caption data-l10n-id="pref-backgroundColorDialogImgViewer" />
+    <html:input
+      type="color"
+      id="__addonRef__-backgroundColorViewer"
+      preference="extensions.zotero.__addonRef__.backgroundColorDialogImgViewer"
+      width="20px"
+      value="#b90f0f"
+    >
+    </html:input>
+    <button
+      data-l10n-id="pref-restoreDefultColor"
+      oncommand="document.getElementsByTagName"
+    ></button>
+  </hbox>
 </groupbox>
 
 <groupbox>
