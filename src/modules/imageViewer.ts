@@ -114,7 +114,7 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
         windowFeatures: {
             centerscreen: true,
             resizable: true,
-            fitContent: true,
+            //fitContent: true,
             noDialogMode: true,
         }
     };
@@ -134,8 +134,9 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
     }
 
     dialogData = {
-        loadCallback: () => {
+        loadCallback: async () => {
             const doc = dialogImgViewer.window.document;
+
             const images = doc.getElementById('images')!;
             insertStyle(dialogImgViewer.window.document);
             loadCss(dialogImgViewer.window.document);
@@ -166,6 +167,7 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                 ]);
 
             new Viewer(images);
+            await windowFitSize(dialogImgViewer.window);
         }
     };
     if (dialogData) {
@@ -177,10 +179,9 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
         return open(args);
     };
     const focus = () => dialogImgViewer.window.focus();
-    let dialogOpen;
-    let n = 0;
-    dialogImgViewer.window ? (dialogImgViewer.window.closed ? dialogOpen = open(args) : (hasNewContent ? dialogOpen = closeOpen(args) : focus())) : dialogOpen = open(args);
-    if (dialogOpen) {
+
+    dialogImgViewer.window ? (dialogImgViewer.window.closed ? open(args) : (hasNewContent ? closeOpen(args) : focus())) : open(args);
+    /* if (dialogOpen) {
         while (dialogOpen.window.document?.readyState != "complete" && n++ < 50) {
             Zotero.Promise.delay(100);
         }
@@ -191,7 +192,7 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
         }
         windowFitSize(dialogImgViewer.window);
     }
-
+ */
 
 }
 
@@ -215,25 +216,25 @@ function loadCss(document: Document) {
     }));
 }
 
-function windowFitSize(dialogWin: Window) {
-    const contentHeight = dialogWin.document.documentElement.scrollHeight;
-    const contentWidth = dialogWin.document.documentElement.scrollWidth;
-    //const reduceFactor = 1;
-    //const outerHeight = dialogWin.outerHeight;
-    //const outerWidth = dialogWin.outerWidth;
-    //let finalHeight = contentHeight;
-    //let finalWidth = contentWidth;
+async function windowFitSize(dialogWin: Window) {
+    let n = 0;
+    while (dialogWin.window.document?.readyState != "complete" && n++ < 50) {
+        await Zotero.Promise.delay(100);
+    }
+    let contentHeight, contentWidth;
+    while ((contentHeight = dialogWin.document.documentElement.scrollHeight) == 0) {
+        await Zotero.Promise.delay(100);
+    }
+    while ((contentWidth = dialogWin.document.documentElement.scrollWidth) == 0) {
+        await Zotero.Promise.delay(100);
+    }
+
     if (contentHeight + 37 > window.screen.height || contentWidth + 14 > window.screen.width) {
         (dialogWin as any).maximize();
     } else {
         dialogWin.resizeTo(contentWidth + 14, contentHeight + 37);
     }
-    /* if (contentWidth > window.screen.width) {
-        finalWidth = window.screen.width * reduceFactor;
-    }
-    if (finalHeight != outerHeight || finalWidth != outerWidth) {
-        
-    } */
+
 }
 
 function imgListProps(imgsElementProps: TagElementProps[]) {
