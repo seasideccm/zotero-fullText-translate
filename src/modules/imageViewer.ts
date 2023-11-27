@@ -6,6 +6,7 @@ import { makeMenuitem, makeMenupopup, makeTagElementProps, menuseparator } from 
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
 import { batchAddEventListener, createContextMenu, menuPropsGroupsArr } from "./userInerface";
+import { prepareReader } from "./prepareReader";
 //import { imageViewerContextMeun } from "./userInerface";
 //import viewerjsStyle from 'viewerjs/dist/viewer.css';
 //import 'viewerjs/dist/viewer.css';
@@ -54,7 +55,7 @@ function makeDialogElementProps(srcImgBase64Arr: imageProps[]) {
     // justify-content: space-between;grid-template-rows: masonry;align-content: start; space-evenly space-between space-around normal start - 对齐容器的起始边框。end - 对齐容器的结束边框。center - 容器内部居中。stretch 
     if (!container.length) {
         const columns = imgsProps.length >= columnsByScreen ? columnsByScreen : imgsProps.length;
-        const style2 = `grid-template-columns: repeat(${columns},1fr); min-width: calc(100px * ${columns});`;
+        const style2 = `grid-template-columns: repeat(${columns},1fr); min-width: calc(200px * ${columns});`;
         const imagesProps = makeTagElementProps({
             tag: "div",
             namespace: "html",
@@ -71,10 +72,10 @@ function makeDialogElementProps(srcImgBase64Arr: imageProps[]) {
                 namespace: "html",
                 id: "dialogImgViewer-container",
                 children: [imagesProps],
-                /* attributes: {
-                    style: `min-height: 600px;`,
+                attributes: {
+                    style: `min-height: 20vw;`,
 
-                } */
+                }
                 //display: flex; flex-wrap: wrap; 
             });
         dialogImgViewer.addCell(0, 0,
@@ -136,7 +137,6 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
         loadCallback: () => {
             const doc = dialogImgViewer.window.document;
             const images = doc.getElementById('images')!;
-            windowFitSize(dialogImgViewer.window);
             insertStyle(dialogImgViewer.window.document);
             loadCss(dialogImgViewer.window.document);
             function openMeun(event: MouseEvent) {
@@ -171,13 +171,28 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
     if (dialogData) {
         dialogImgViewer.setDialogData(dialogData);
     }
-    const open = (obj: any) => dialogImgViewer.open(obj.title, obj.windowFeatures);
+    const open = (obj: any) => { return dialogImgViewer.open(obj.title, obj.windowFeatures); };
     const closeOpen = (obj: any) => {
         dialogImgViewer.window.close();
-        open(args);
+        return open(args);
     };
     const focus = () => dialogImgViewer.window.focus();
-    dialogImgViewer.window ? (dialogImgViewer.window.closed ? open(args) : (hasNewContent ? closeOpen(args) : focus())) : open(args);
+    let dialogOpen;
+    let n = 0;
+    dialogImgViewer.window ? (dialogImgViewer.window.closed ? dialogOpen = open(args) : (hasNewContent ? dialogOpen = closeOpen(args) : focus())) : dialogOpen = open(args);
+    if (dialogOpen) {
+        while (dialogOpen.window.document?.readyState != "complete" && n++ < 50) {
+            Zotero.Promise.delay(100);
+        }
+        windowFitSize(dialogOpen.window);
+    } else {
+        while (dialogImgViewer.window.document?.readyState != "complete" && n++ < 50) {
+            Zotero.Promise.delay(100);
+        }
+        windowFitSize(dialogImgViewer.window);
+    }
+
+
 }
 
 function insertStyle(document: Document, style?: string) {
@@ -323,9 +338,16 @@ async function getImageAnnotations(item: Zotero.Item) {
     for (const imageAnnotation of imageAnnotations) {
         if (!await Zotero.Annotations.hasCacheImage(imageAnnotation)) {
             if (imageAnnotation.parentID) {
-                const tabID = Zotero_Tabs.getTabIDByItemID(imageAnnotation.parentID);
-                tabID ? Zotero_Tabs.select(tabID) : await Zotero.Reader.open(imageAnnotation.parentID);
+                let tabID;
+                if (!(tabID = Zotero_Tabs.getTabIDByItemID(imageAnnotation.parentID))) {
+                    await prepareReader("pagesLoaded");
+                    while (!(tabID = Zotero_Tabs.getTabIDByItemID(imageAnnotation.parentID))) {
+                        Zotero.Promise.delay(100);
+                    }
+                }
+                Zotero_Tabs.select(tabID);
             }
+
             try {
                 await Zotero.PDFRenderer.renderAttachmentAnnotations(imageAnnotation.parentID);
             }
