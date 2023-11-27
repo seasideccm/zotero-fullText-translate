@@ -5,24 +5,17 @@ import { config } from "../../package.json";
 
 declare type MenuProps = [label: string, func: (...args: any[]) => any | void, args?: any[]];
 
-function copyImage() {
+function copyImage(e: Event) {
 
-    const dialogImgViewer = addon.data.globalObjs?.dialogImgViewer;
+    /* const dialogImgViewer = addon.data.globalObjs?.dialogImgViewer;
     const doc = dialogImgViewer.window.document as Document;
-    const images = doc.querySelectorAll("img[id^='showImg-'");
-    if (!images) return;
+    const images = doc.querySelectorAll("img[id^='showImg-'"); */
+    const img = (e.target as HTMLImageElement).src;
+    if (!img) return;
     const clip = new ztoolkit.Clipboard();
 
-    /* for (const img of images) {
-        const imgData = (img as HTMLImageElement).src;
-        clip.addImage(imgData);
-    } */
-    /* const img0 = (images[0] as HTMLImageElement).src;
-    clip.addImage(img0); */
-    /* const img1 =(images[1] as HTMLImageElement).src
-    clip.addImage(img1); */
-    const img2 = (images[2] as HTMLImageElement).src;
-    clip.addImage(img2);
+    //const img = (images[2] as HTMLImageElement).src;
+    clip.addImage(img);
     clip.copy();
 }
 function saveImage() { }
@@ -78,10 +71,10 @@ export function creatPropsMeun(menuProps: [label: string, func: (...args: any[])
     };
 };
 
-export function createContextMenu(menuitemGroupArr: any[][], idPostfix: string) {
+export function createContextMenu(menuitemGroupArr: any[][], idPostfix: string, event: MouseEvent) {
     const menupopup = makeMenupopup(idPostfix);
     menuitemGroupArr.filter((menuitemGroup: any[]) => {
-        menuitemGroup.map((e: any) => makeMenuitem(e, menupopup));
+        menuitemGroup.map((e: any) => makeMenuitem(e, menupopup, event));
         if (menuitemGroupArr.indexOf(menuitemGroup) !== menuitemGroupArr.length - 1) {
             menuseparator(menupopup);
         }
@@ -131,7 +124,7 @@ export function makeMenupopup(idPostfix: string) {
 
 };
 
-export function makeMenuitem(option: { label: string, func: (...args: any[]) => any | void, args: any[]; }, menupopup: any,) {
+export function makeMenuitem(option: { label: string, func: (...args: any[]) => any | void, args: any[]; }, menupopup: any, event: MouseEvent) {
     const menuitem = ztoolkit.UI.appendElement({
         tag: "menuitem",
         namespace: "xul",
@@ -141,11 +134,13 @@ export function makeMenuitem(option: { label: string, func: (...args: any[]) => 
     }, menupopup);
     const func = option.func;
     if (judgeAsync(func)) {
-        menuitem.addEventListener("command", async () => {
+        menuitem.addEventListener("command", async (e) => {
+            option.args.push(event);
             await func(...option.args);
         });
     } else {
-        menuitem.addEventListener("command", () => {
+        menuitem.addEventListener("command", (e) => {
+            option.args.push(event);
             option.func(...option.args);
         });
     }

@@ -52,7 +52,7 @@ function makeDialogElementProps(srcImgBase64Arr: imageProps[]) {
     `;
     //grid-auto-flow: dense;grid-auto-rows: minmax(50px, auto); justify-items: center;    align-items: center;    justify-content: center;    align-content: center;
     //min-height: 200px; max-height:${maxHeight};max-Width: ${maxWidth}; 
-    // justify-content: space-between;grid-template-rows: masonry;align-content: start; space-evenly space-between space-around normal start - 对齐容器的起始边框。end - 对齐容器的结束边框。center - 容器内部居中。stretch 
+    // justify-content: space-between;grid-template-rows: masonry;align-content: start; space-evenly 
     if (!container.length) {
         const columns = imgsProps.length >= columnsByScreen ? columnsByScreen : imgsProps.length;
         const style2 = `grid-template-columns: repeat(${columns},1fr); min-width: calc(200px * ${columns});`;
@@ -143,15 +143,16 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
             function openMeun(event: MouseEvent) {
                 const idPostfix = "imageViewerContextMeun";
                 const menuId = config.addonRef + '-' + idPostfix;
-                let menupopup;
-                //必须挂载在节点上
-                if (!(menupopup = document.getElementById(menuId) as XUL.MenuPopup)) {
-                    menupopup = createContextMenu(menuPropsGroupsArr, "imageViewerContextMeun");
+                //let menupopup;
+
+                /* if (!(menupopup = document.getElementById(menuId) as XUL.MenuPopup)) {
+                    menupopup = createContextMenu(menuPropsGroupsArr, "imageViewerContextMeun", event);
                     document.querySelector("#browser")!.appendChild(menupopup);
-                }
+                } */
+                const menupopup = createContextMenu(menuPropsGroupsArr, "imageViewerContextMeun", event);
+                document.querySelector("#browser")!.appendChild(menupopup);
                 menupopup.openPopupAtScreen(event.clientX + images.screenX, event.clientY + images.screenY, true);
-                //无效 images.parentNode.parentNode.parentNode.parentNode.appendChild(menupopup);
-                //无效 doc.body.childNodes[0].appendChild(menupopup);
+
 
             }
 
@@ -161,10 +162,20 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                         [
                             ['hidden', restoreDialog],
                             ['view', maxOrFullDialog],
-                            ['contextmenu', openMeun],
+                            //['contextmenu', openMeun],
                         ],
                     ],
                 ]);
+
+            /* (images as HTMLElement).oncontextmenu=e=>{
+                e.target.clasLlist.
+            } */
+            (images as HTMLElement).addEventListener('contextmenu', e => {
+                const tagName = (e.target as any).tagName;
+                if (tagName === 'IMG') {
+                    openMeun(e);
+                }
+            });
 
             new Viewer(images);
             await windowFitSize(dialogImgViewer.window);
@@ -310,7 +321,6 @@ async function findImage(item: Zotero.Item, srcImgBase64Arr?: {
     if (!(item.isAttachment())) {
         for (const attachmentID of item.getAttachments()) {
             const attachment = Zotero.Items.get(attachmentID);
-            //递归
             await findImage(attachment, srcImgBase64Arr);
         }
     }
@@ -446,10 +456,7 @@ function makeImgTags(srcImgBase64Arr: {
             attributes: {
                 src: obj.src,
                 alt: obj.alt,
-                //style: sizeStyle,
-                //尝试瀑布流布局
-                //style: `width: 100%;
-                //display: block;`,
+
             },
 
         });
@@ -497,7 +504,7 @@ function modifyWidthHeight(imgWidthHeight: {
 
 
 /* function openContextMenu(event: MouseEvent) {
-    event.preventDefault(); // 阻止默认菜单
+    event.preventDefault();
     event.stopPropagation();
     const idPostfix = "imageViewerContextMeun";
     const copyImageProps = {
@@ -541,7 +548,7 @@ function modifyWidthHeight(imgWidthHeight: {
     });
     //menupopup.openPopup(images, 'before_end', 0, 0, true, false);
     menupopup.openPopupAtScreen(event.clientX + images.screenX, event.clientY + images.screenY, true);
-    ztoolkit.log('右键点击事件触发了');
+
 
 } */
 
@@ -556,18 +563,7 @@ function modifyWidthHeight(imgWidthHeight: {
     };
     return dialogData;
 } */
-/*
-              {
-                 //inline: true,
-                 ready() {
-                     //最大化窗口
-                     dialogImgViewer.window.moveTo(0, 0);
-                     dialogImgViewer.window.resizeTo(dialogImgViewer.window.screen.availWidth, dialogImgViewer.window.screen.availHeight);
-                     //全屏
-                     //dialogImgViewer.window.document.documentElement.requestFullscreen();
-                 },
-             }
-             */
+
 
 
 
@@ -595,9 +591,9 @@ function modifyWidthHeight(imgWidthHeight: {
         id: dialogCellID,
         attributes: {
             style: "width: 400; height: 430;",
-            //数据绑定的数据来源于dialogData的哪个键值
+            //??��??????????????��????????????dialogData?????????��?????
             "data-bind": "content",
-            //元素某个property
+            //????????????property
             "data-prop": "innerHTML",
         },
         children:[],
