@@ -5,8 +5,9 @@ import { getPref, readImage } from "../utils/prefs";
 import { makeMenuitem, makeMenupopup, makeTagElementProps, menuseparator } from "./toolbarButton";
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
-import { batchAddEventListener, createContextMenu, menuPropsGroupsArr } from "./userInerface";
+import { batchAddEventListener, contextMenu, } from './userInerface';
 import { prepareReader } from "./prepareReader";
+import { getString } from "../utils/locale";
 //import { imageViewerContextMeun } from "./userInerface";
 //import viewerjsStyle from 'viewerjs/dist/viewer.css';
 //import 'viewerjs/dist/viewer.css';
@@ -143,15 +144,49 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
             function openMeun(event: MouseEvent) {
                 const idPostfix = "imageViewerContextMeun";
                 const menuId = config.addonRef + '-' + idPostfix;
+                const menuPropsGroupsArr = [
+                    [
+                        ["info-copyImage"],
+                        ["info-saveImage"],
+                        ["info-editImage"],
+                        ["info-convertImage"],
+                        ["info-ocrImage"]
+                    ],
+                    [
+                        ["info-shareImage"],
+                        ["info-sendToPPT"],
+                        ["info-printImage"]
+                    ],
+                ];
+                const imgCtxObj = new contextMenu({
+                    menuPropsGroupsArr,
+                    idPostfix
+                });
                 //let menupopup;
 
                 /* if (!(menupopup = document.getElementById(menuId) as XUL.MenuPopup)) {
                     menupopup = createContextMenu(menuPropsGroupsArr, "imageViewerContextMeun", event);
                     document.querySelector("#browser")!.appendChild(menupopup);
                 } */
-                const menupopup = createContextMenu(menuPropsGroupsArr, "imageViewerContextMeun", event);
-                document.querySelector("#browser")!.appendChild(menupopup);
-                menupopup.openPopupAtScreen(event.clientX + images.screenX, event.clientY + images.screenY, true);
+                //const menupopup = createContextMenu(menuPropsGroupsArr, "imageViewerContextMeun", event);
+                imgCtxObj.contextMenu.addEventListener('click', e => {
+                    const tagName = (e.target as any).tagName.toLowerCase();
+                    if (tagName === 'menuitem') {
+                        handleMenuItem(e);
+                    }
+                });
+                function handleMenuItem(e: Event) {
+                    if (!e || !((e.target as any).label)) return;
+                    switch ((e.target as any).label) {
+                        case `${getString("info-copyImage")}`: imgCtxObj.copyImage(e);
+                    }
+
+
+                }
+
+
+                document.querySelector("#browser")!.appendChild(imgCtxObj.contextMenu);
+                imgCtxObj.contextMenu.openPopupAtScreen(event.clientX + images.screenX, event.clientY + images.screenY, true);
 
 
             }
