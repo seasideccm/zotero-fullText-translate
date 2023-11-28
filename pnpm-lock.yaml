@@ -29,6 +29,9 @@ dependencies:
   hastscript:
     specifier: ^8.0.0
     version: 8.0.0
+  print-js:
+    specifier: ^1.6.0
+    version: 1.6.0
   rehype-parse:
     specifier: ^8.0.5
     version: 8.0.5
@@ -4633,6 +4636,10 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
     dev: true
+
+  /print-js@1.6.0:
+    resolution: {integrity: sha512-BfnOIzSKbqGRtO4o0rnj/K3681BSd2QUrsIZy/+WdCIugjIswjmx3lDEZpXB2ruGf9d4b3YNINri81+J0FsBWg==}
+    dev: false
 
   /process-nextick-args@2.0.1:
     resolution: {integrity: sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==}

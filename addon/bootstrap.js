@@ -37,7 +37,8 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
     document: window.document,
     CustomEvent:window.CustomEvent,
     Event:window.Event,
-    URL:window.URL
+    URL:window.URL,
+    window:window,
 
   };
   ctx._globalThis = ctx;

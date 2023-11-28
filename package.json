@@ -49,6 +49,7 @@
     "hast-util-to-mdast": "^8.4.1",
     "hast-util-to-text": "^4.0.0",
     "hastscript": "^8.0.0",
+    "print-js": "^1.6.0",
     "rehype-parse": "^8.0.5",
     "rehype-remark": "^9.1.2",
     "rehype-stringify": "^9.0.4",

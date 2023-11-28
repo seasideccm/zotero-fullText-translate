@@ -3,6 +3,7 @@ import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
 import { onSaveImageAs } from "../utils/prefs";
+import printJS from 'print-js';
 
 
 declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
@@ -48,6 +49,26 @@ export class contextMenu {
     ocrImage() { }
     shareImage() { }
     sendToPPT() { }
+    printImage(targetElementEvent: Event) {
+        /*  if (!document.body) {
+             const body = ztoolkit.UI.createElement(document,
+                 "body",
+                 "html"
+             );
+             document.append(body);
+         } */
+        const winPrint = ztoolkit.getGlobal("window");
+        const window = winPrint.open("about:blank", "_blank", "chrome,height=300,width=400,left=300,top=100");
+        if (!window) return;
+        window.addEventListener("DOMContentLoaded", () => {
+            const src = (targetElementEvent.target as HTMLImageElement).src;
+            printJS.apply(window, [src, 'image']);
+        });
+
+
+
+
+    }
     /* printImage(targetElementEvent: Event) {
         //打印功能未能实现
         const zoteroPrint = async (printWindow: any) => {
@@ -113,8 +134,8 @@ export class contextMenu {
                 break;
             case `${getString("info-sendToPPT")}`: this.sendToPPT();
                 break;
-            /* case `${getString("info-printImage")}`: this.printImage(targetElementEvent);
-                break; */
+            case `${getString("info-printImage")}`: this.printImage(targetElementEvent);
+                break;
         }
 
 

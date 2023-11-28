@@ -155,7 +155,7 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                     [
                         ["info-shareImage"],
                         ["info-sendToPPT"],
-                        //["info-printImage"]
+                        ["info-printImage"]
                     ],
                 ];
                 const imgCtxObj = new contextMenu({
