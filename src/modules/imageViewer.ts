@@ -155,7 +155,7 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                     [
                         ["info-shareImage"],
                         ["info-sendToPPT"],
-                        ["info-printImage"]
+                        //["info-printImage"]
                     ],
                 ];
                 const imgCtxObj = new contextMenu({
@@ -172,17 +172,32 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                 imgCtxObj.contextMenu.addEventListener('click', e => {
                     const tagName = (e.target as any).tagName.toLowerCase();
                     if (tagName === 'menuitem') {
-                        handleMenuItem(e);
+                        imgCtxObj.handleMenuItem(event, e);
                     }
                 });
-                function handleMenuItem(e: Event) {
-                    if (!e || !((e.target as any).label)) return;
-                    switch ((e.target as any).label) {
-                        case `${getString("info-copyImage")}`: imgCtxObj.copyImage(e);
+                /* function handleMenuItem(targetElementEvent: Event, menuPopupEvent: Event) {
+                    if (!menuPopupEvent || !((menuPopupEvent.target as any).label)) return;
+                    switch ((menuPopupEvent.target as any).label) {
+                        case `${getString("info-copyImage")}`: imgCtxObj.copyImage(targetElementEvent);
+                            break;
+                        case `${getString("info-saveImage")}`: imgCtxObj.saveImage();
+                            break;
+                        case `${getString("info-editImage")}`: imgCtxObj.editImage();
+                            break;
+                        case `${getString("info-convertImage")}`: imgCtxObj.convertImage();
+                            break;
+                        case `${getString("info-ocrImage")}`: imgCtxObj.ocrImage();
+                            break;
+                        case `${getString("info-shareImage")}`: imgCtxObj.shareImage();
+                            break;
+                        case `${getString("info-sendToPPT")}`: imgCtxObj.sendToPPT();
+                            break;
+                        case `${getString("info-printImage")}`: imgCtxObj.printImage();
+                            break;
                     }
 
 
-                }
+                } */
 
 
                 document.querySelector("#browser")!.appendChild(imgCtxObj.contextMenu);

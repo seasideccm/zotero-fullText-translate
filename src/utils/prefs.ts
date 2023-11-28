@@ -205,9 +205,12 @@ export function enableMasonry() {
     Zotero.Prefs.set("layout.css.grid-template-masonry-value.enabled", true, true);
   }
 }
-export function base64ToBytes(imageDataURL: string): {
-  u8arr: Uint8Array; mime: string;
-} | undefined {
+export function base64ToBytes(imageDataURL: string)
+  : {
+    u8arr:
+    Uint8Array;
+    mime: string;
+  } | undefined {
   const parts = imageDataURL.split(',');
   if (!parts[0].includes('base64')) return;
   const mime = parts[0].match(/:(.*?);/)![1];
@@ -247,6 +250,36 @@ export async function saveImage(dataURL: string, outputPath: string) {
     mime: mime
   };
 }
+
+
+export const onSaveImageAs = async (dataURL: string, window?: Window) => {
+
+  try {
+    const FilePicker = ztoolkit.getGlobal("require")("zotero/modules/filePicker").default;
+    const fp = new FilePicker();
+    fp.init(window || ztoolkit.getGlobal("window"), Zotero.getString('pdfReader.saveImageAs'), fp.modeSave);
+    fp.appendFilter("PNG", "*.png");
+    fp.defaultString = Zotero.getString('fileTypes.image').toLowerCase() + '.png';
+    const rv = await fp.show();
+    if (rv === fp.returnOK || rv === fp.returnReplace) {
+      const outputPath = fp.file;
+      const parts = dataURL.split(',');
+      if (parts[0].includes('base64')) {
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        await OS.File.writeAtomic(outputPath, u8arr);
+      }
+    }
+  }
+  catch (e) {
+    ztoolkit.log(e);
+    throw e;
+  }
+};
 
 /**
  * 

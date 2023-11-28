@@ -2,6 +2,7 @@
 import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
+import { onSaveImageAs } from "../utils/prefs";
 
 
 declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
@@ -22,21 +23,6 @@ declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, 
         ["info-printImage", printImage, []]
     ],
 ]; */
-const menuPropsGroupsArr = [
-    [
-        ["info-copyImage"],
-        ["info-saveImage"],
-        ["info-editImage"],
-        ["info-convertImage"],
-        ["info-ocrImage"]
-    ],
-    [
-        ["info-shareImage"],
-        ["info-sendToPPT"],
-        ["info-printImage"]
-    ],
-];
-
 
 export class contextMenu {
     contextMenu: Element;
@@ -44,23 +30,95 @@ export class contextMenu {
         this.contextMenu = this.createContextMenu(option.menuPropsGroupsArr, option.idPostfix);
     }
 
-    copyImage(e: Event) {
-        //const dialogImgViewer = addon.data.globalObjs?.dialogImgViewer;
-        //const doc = dialogImgViewer.window.document as Document;
-        //const images = doc.querySelectorAll("img[id^='showImg-'"); 
-        const img = (e.target as HTMLImageElement).src;
+    copyImage(targetElementEvent: Event) {
+        const img = (targetElementEvent.target as HTMLImageElement).src;
         if (!img) return;
         const clip = new ztoolkit.Clipboard();
+        //仅支持添加一张图
         clip.addImage(img);
         clip.copy();
     }
-    saveImage() { }
+    saveImage(targetElementEvent: Event) {
+        const img = (targetElementEvent.target as HTMLImageElement).src;
+        onSaveImageAs(img);
+
+    }
     editImage() { }
     convertImage() { }
     ocrImage() { }
     shareImage() { }
     sendToPPT() { }
-    printImage() { }
+    /* printImage(targetElementEvent: Event) {
+        //打印功能未能实现
+        const zoteroPrint = async (printWindow: any) => {
+            const win = Zotero.getMainWindow();
+            if (win) {
+                //对话框没有PrintUtils
+                const { PrintUtils } = win;
+                const settings = PrintUtils.getPrintSettings("", false);
+                const doPrint = await PrintUtils.handleSystemPrintDialog(
+                    printWindow.browsingContext.topChromeWindow, false, settings
+                );
+                if (doPrint) {
+                    //此处有问题
+                    printWindow.browsingContext.print(settings);
+                    const win = Services.wm.getMostRecentWindow("navigator:browser");
+                    if (win?.document?.getElementById('statuspanel')) {
+                        win.close();
+                    }
+                }
+            }
+        };
+        const winPrint = ztoolkit.getGlobal("window");
+        const printWindow = winPrint.open("about:blank", "_blank", "chrome,height=300,width=400,left=300,top=100");
+        if (!printWindow) return;
+        printWindow.addEventListener("DOMContentLoaded", async function onWindowLoad(ev) {
+            const img = (targetElementEvent.target as HTMLImageElement).src;
+            const imgElment = ztoolkit.UI.createElement(printWindow.document, "img", {
+                namespace: "html",
+                id: "printImg",
+                attributes: {
+                    src: img,
+                    alt: "printImg",
+                },
+            });
+
+            printWindow.document.body.appendChild(imgElment);
+
+            let n = 0;
+            while (printWindow.document.readyState != "complete" && n++ < 1000) {
+                //setTimeout(() => { }, 50);
+                await Zotero.Promise.delay(100);
+            }
+            const test = printWindow.document.readyState;
+            zoteroPrint(printWindow);
+        });
+    } */
+
+
+    handleMenuItem(targetElementEvent: Event, menuPopupEvent: Event) {
+        if (!menuPopupEvent || !((menuPopupEvent.target as any).label)) return;
+        switch ((menuPopupEvent.target as any).label) {
+            case `${getString("info-copyImage")}`: this.copyImage(targetElementEvent);
+                break;
+            case `${getString("info-saveImage")}`: this.saveImage(targetElementEvent);
+                break;
+            case `${getString("info-editImage")}`: this.editImage();
+                break;
+            case `${getString("info-convertImage")}`: this.convertImage();
+                break;
+            case `${getString("info-ocrImage")}`: this.ocrImage();
+                break;
+            case `${getString("info-shareImage")}`: this.shareImage();
+                break;
+            case `${getString("info-sendToPPT")}`: this.sendToPPT();
+                break;
+            /* case `${getString("info-printImage")}`: this.printImage(targetElementEvent);
+                break; */
+        }
+
+
+    }
 
     batchAddEventListener(args: [element: Element, [eventName: string, callBack: any][]][]) {
         for (const arg of args) {
@@ -87,8 +145,8 @@ export class contextMenu {
 
 
     createContextMenu(menuPropsGroups: MenuProps[][], idPostfix: string, event?: MouseEvent) {
-        //event的传递在打开菜单时进行
-        //菜单项的事件监听可以通过事件委托进行
+        //event的传递在打开菜单时进�?
+        //菜单项的事件监听�?以通过事件委托进�??
         const menupopup = this.makeMenupopup(idPostfix);
         menuPropsGroups.filter((menuPropsGroup: MenuProps[]) =>
             menuPropsGroup.filter((menuProps: MenuProps) => {
@@ -110,8 +168,8 @@ export class contextMenu {
 
     /**
      * @remark
-     * 传入的参数会覆盖默认参数：
-     *  ignoreIfExists: true,不创建不替换，返回存在的元素。
+     * 传入的参数会覆盖默�?�参数：
+     *  ignoreIfExists: true,不创建不替换，返回存在的元素�?
         namespace: "xul",
         enableElementRecord: true,
         enableElementJSONLog: false,
@@ -218,8 +276,8 @@ export function shareImage() { }
 export function sendToPPT() { }
 export function printImage() { }
 export const menuPropsGroupsArr = creatPropsMeunGroups(
-    //event的传递在打开菜单时进行
-    //菜单项的事件监听可以通过事件委托进行
+    //event的传递在打开菜单时进�?
+    //菜单项的事件监听�?以通过事件委托进�??
     [
         [
             ["info-copyImage", copyImage, []],
@@ -265,8 +323,8 @@ export function createContextMenu(menuitemGroupArr: any[][], idPostfix: string, 
 
 /**
  * @remark
- * 传入的参数会覆盖默认参数：
- *  ignoreIfExists: true,不创建不替换，返回存在的元素。
+ * 传入的参数会覆盖默�?�参数：
+ *  ignoreIfExists: true,不创建不替换，返回存在的元素�?
     namespace: "xul",
     enableElementRecord: true,
     enableElementJSONLog: false,
@@ -377,7 +435,7 @@ export function judgeAsync(fun: any) {
     appendItems(popup, itemGroups);
     let rect = this._iframe.getBoundingClientRect();
     rect = this._window.windowUtils.toScreenRectInCSSUnits(rect.x + x, rect.y + y, 0, 0);
-    setTimeout(() => popup.openPopupAtScreen(rect.x, rect.y, true));
+   setTimeout (() => popup.openPopupAtScreen(rect.x, rect.y, true));
 } */
 
 
