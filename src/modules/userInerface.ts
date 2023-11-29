@@ -3,7 +3,7 @@ import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
 import { onSaveImageAs } from "../utils/prefs";
-//import printJS from 'print-js';
+
 
 
 declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
@@ -92,8 +92,16 @@ export class contextMenu {
         if (!printWindow) return;
         await args._initPromise.promise;
         args.browser?.contentWindow.postMessage({ type: "print", html }, "*");
+        Zotero.Prefs.resetBranch([], "print");
+        Zotero.Prefs.set("print.print_footercenter", "", true);
+        Zotero.Prefs.set("print.print_footerleft", "", true);
+        Zotero.Prefs.set("print.print_footerright", "", true);
+        Zotero.Prefs.set("print.print_headercenter", "", true);
+        Zotero.Prefs.set("print.print_headerleft", "", true);
+        Zotero.Prefs.set("print.print_headerright", "", true);
         printWindow.print();
-        const test = "printWindow.document.readyState;";
+        printWindow.close();
+
 
 
         /* printWindow.addEventListener("DOMContentLoaded", async function onWindowLoad(ev) {

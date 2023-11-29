@@ -11,6 +11,9 @@ dependencies:
   decimal.js:
     specifier: ^10.4.3
     version: 10.4.3
+  dragula:
+    specifier: ^3.7.3
+    version: 3.7.3
   fabric:
     specifier: 6.0.0-beta15
     version: 6.0.0-beta15
@@ -29,9 +32,6 @@ dependencies:
   hastscript:
     specifier: ^8.0.0
     version: 8.0.0
-  print-js:
-    specifier: ^1.6.0
-    version: 1.6.0
   rehype-parse:
     specifier: ^8.0.5
     version: 8.0.5
@@ -73,6 +73,9 @@ dependencies:
     version: 2.3.10
 
 devDependencies:
+  '@types/dragula':
+    specifier: ^3.7.4
+    version: 3.7.4
   '@types/node':
     specifier: ^20.9.4
     version: 20.9.4
@@ -733,6 +736,10 @@ packages:
       '@types/ms': 0.7.34
     dev: false
 
+  /@types/dragula@3.7.4:
+    resolution: {integrity: sha512-cjg5MNq8CnXyJTScWM2t9fc0FC77rrBxYBs6/R3FiwW9NOTdHPB2nJq52I0tfxiBnhFb451S2j5ok4wW7sKmvA==}
+    dev: true
+
   /@types/extend@3.0.4:
     resolution: {integrity: sha512-ArMouDUTJEz1SQRpFsT2rIw7DeqICFv5aaVzLSIYMYQSLcwcGOfT3VyglQs/p7K3F7fT4zxr0NWxYZIdifD6dA==}
     dev: false
@@ -1147,6 +1154,10 @@ packages:
     requiresBuild: true
     dev: false
     optional: true
+
+  /atoa@1.0.0:
+    resolution: {integrity: sha512-VVE1H6cc4ai+ZXo/CRWoJiHXrA1qfA31DPnx6D20+kSI547hQN5Greh51LQ1baMRMfxO5K5M4ImMtZbZt2DODQ==}
+    dev: false
 
   /available-typed-arrays@1.0.5:
     resolution: {integrity: sha512-DMD0KiN46eipeziST1LPP/STfDU0sufISXmjSgvVsoU2tqxctQeASejWcfNtxYKqETM1UxQ8sp2OrSBWpHY6sw==}
@@ -1578,6 +1589,13 @@ packages:
     requiresBuild: true
     optional: true
 
+  /contra@1.9.4:
+    resolution: {integrity: sha512-N9ArHAqwR/lhPq4OdIAwH4e1btn6EIZMAz4TazjnzCiVECcWUPTma+dRAM38ERImEJBh8NiCCpjoQruSZ+agYg==}
+    dependencies:
+      atoa: 1.0.0
+      ticky: 1.0.1
+    dev: false
+
   /core-js@3.33.3:
     resolution: {integrity: sha512-lo0kOocUlLKmm6kv/FswQL8zbkH7mVsLJ/FULClOhv8WRVmKLVcs6XPNQAzstfeJTCHMyButEwG+z1kHxHoDZw==}
     requiresBuild: true
@@ -1625,6 +1643,12 @@ packages:
       which: 2.0.2
     dev: true
 
+  /crossvent@1.5.5:
+    resolution: {integrity: sha512-MY4xhBYEnVi+pmTpHCOCsCLYczc0PVtGdPBz6NXNXxikLaUZo4HdAeUb1UqAo3t3yXAloSelTmfxJ+/oUqkW5w==}
+    dependencies:
+      custom-event: 1.0.1
+    dev: false
+
   /crypto-random-string@4.0.0:
     resolution: {integrity: sha512-x8dy3RnvYdlUcPOjkEHqozhiwzKNSq7GcPuXFbnyMOCHxX8V3OgIg/pYuabl2sbUPfIJaeAQB7PMOK8DFIdoRA==}
     engines: {node: '>=12'}
@@ -1655,6 +1679,10 @@ packages:
 
   /csstype@3.1.2:
     resolution: {integrity: sha512-I7K1Uu0MBPzaFKg4nI5Q7Vs2t+3gWWW648spaF+Rg7pI9ds18Ugn+lvg4SHczUdKlHI5LWBXyqfS8+DufyBsgQ==}
+
+  /custom-event@1.0.1:
+    resolution: {integrity: sha512-GAj5FOq0Hd+RsCGVJxZuKaIDXDf3h6GQoNEjFgbLLI/trgtavwUbSnZ5pVfg27DVCaWjIohryS0JFwIJyT2cMg==}
+    dev: false
 
   /d@1.0.1:
     resolution: {integrity: sha512-m62ShEObQ39CfralilEQRjH6oAMtNCV1xJyEx5LpRYUVN+EviphDgUc/F3hnYbADmkiNs67Y+3ylmlG7Lnu+FA==}
@@ -1868,6 +1896,13 @@ packages:
     dependencies:
       is-obj: 2.0.0
     dev: true
+
+  /dragula@3.7.3:
+    resolution: {integrity: sha512-/rRg4zRhcpf81TyDhaHLtXt6sEywdfpv1cRUMeFFy7DuypH2U0WUL0GTdyAQvXegviT4PJK4KuMmOaIDpICseQ==}
+    dependencies:
+      contra: 1.9.4
+      crossvent: 1.5.5
+    dev: false
 
   /eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
@@ -4637,10 +4672,6 @@ packages:
     hasBin: true
     dev: true
 
-  /print-js@1.6.0:
-    resolution: {integrity: sha512-BfnOIzSKbqGRtO4o0rnj/K3681BSd2QUrsIZy/+WdCIugjIswjmx3lDEZpXB2ruGf9d4b3YNINri81+J0FsBWg==}
-    dev: false
-
   /process-nextick-args@2.0.1:
     resolution: {integrity: sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==}
 
@@ -5410,6 +5441,10 @@ packages:
   /text-table@0.2.0:
     resolution: {integrity: sha512-N+8UisAXDGk8PFXP4HAzVR9nbfmVJ3zYLAWiTIoqC5v5isinhr+r5uaO8+7r3BMfuNIufIsA7RdpVgacC2cSpw==}
     dev: true
+
+  /ticky@1.0.1:
+    resolution: {integrity: sha512-RX35iq/D+lrsqhcPWIazM9ELkjOe30MSeoBHQHSsRwd1YuhJO5ui1K1/R0r7N3mFvbLBs33idw+eR6j+w6i/DA==}
+    dev: false
 
   /titleize@3.0.0:
     resolution: {integrity: sha512-KxVu8EYHDPBdUYdKZdKtU2aj2XfEx9AfjXxE/Aj0vT06w2icA09Vus1rh6eSu1y01akYg6BjIK/hxyLJINoMLQ==}

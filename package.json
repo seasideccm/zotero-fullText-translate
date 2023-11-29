@@ -43,13 +43,13 @@
   "dependencies": {
     "cropperjs": "2.0.0-beta.4",
     "decimal.js": "^10.4.3",
+    "dragula": "^3.7.3",
     "fabric": "6.0.0-beta15",
     "franc-min": "^6.1.0",
     "hast-util-to-html": "^9.0.0",
     "hast-util-to-mdast": "^8.4.1",
     "hast-util-to-text": "^4.0.0",
     "hastscript": "^8.0.0",
-    "print-js": "^1.6.0",
     "rehype-parse": "^8.0.5",
     "rehype-remark": "^9.1.2",
     "rehype-stringify": "^9.0.4",
@@ -65,6 +65,7 @@
     "zotero-plugin-toolkit": "^2.3.10"
   },
   "devDependencies": {
+    "@types/dragula": "^3.7.4",
     "@types/node": "^20.9.4",
     "@typescript-eslint/eslint-plugin": "^6.12.0",
     "@typescript-eslint/parser": "^6.12.0",

@@ -39,6 +39,7 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
     Event:window.Event,
     URL:window.URL,
     window:window,
+    global:window,
 
   };
   ctx._globalThis = ctx;
