@@ -9,6 +9,15 @@ declare const _globalThis: {
   addon: typeof addon;
 };
 
+
+declare interface Window {
+  openDialog(
+    url?: string | URL,
+    target?: string,
+    features?: string,
+    ...args: any
+  ): Window;
+}
 declare type ZToolkit = ReturnType<
   typeof import("../src/utils/ztoolkit").createZToolkit
 >;

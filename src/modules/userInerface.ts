@@ -3,7 +3,7 @@ import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
 import { onSaveImageAs } from "../utils/prefs";
-import printJS from 'print-js';
+//import printJS from 'print-js';
 
 
 declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
@@ -49,51 +49,54 @@ export class contextMenu {
     ocrImage() { }
     shareImage() { }
     sendToPPT() { }
-    printImage(targetElementEvent: Event) {
-        /*  if (!document.body) {
-             const body = ztoolkit.UI.createElement(document,
-                 "body",
-                 "html"
-             );
-             document.append(body);
-         } */
-        const winPrint = ztoolkit.getGlobal("window");
-        const window = winPrint.open("about:blank", "_blank", "chrome,height=300,width=400,left=300,top=100");
-        if (!window) return;
-        window.addEventListener("DOMContentLoaded", () => {
-            const src = (targetElementEvent.target as HTMLImageElement).src;
-            printJS.apply(window, [src, 'image']);
+    async printImage(targetElementEvent: Event) {
+        const img = (targetElementEvent.target as HTMLImageElement).src;
+        const imgProps = this.makeTagElementProps({
+            tag: "img",
+            namespace: "html",
+            attributes: {
+                src: img,
+                alt: "printImg",
+                style: `width:100%`
+
+            },
         });
+        const style =
+            `display: "flex";
+            justifyContent: "center";
+            width: "100vw"`;
 
-
-
-
-    }
-    /* printImage(targetElementEvent: Event) {
-        //打印功能未能实现
-        const zoteroPrint = async (printWindow: any) => {
-            const win = Zotero.getMainWindow();
-            if (win) {
-                //对话框没有PrintUtils
-                const { PrintUtils } = win;
-                const settings = PrintUtils.getPrintSettings("", false);
-                const doPrint = await PrintUtils.handleSystemPrintDialog(
-                    printWindow.browsingContext.topChromeWindow, false, settings
-                );
-                if (doPrint) {
-                    //此处有问题
-                    printWindow.browsingContext.print(settings);
-                    const win = Services.wm.getMostRecentWindow("navigator:browser");
-                    if (win?.document?.getElementById('statuspanel')) {
-                        win.close();
-                    }
-                }
-            }
+        const imgElment = ztoolkit.UI.createElement(document, "div", {
+            namespace: "html",
+            id: "printImg",
+            attributes: {
+                style: style,
+            },
+            children: [imgProps]
+        });
+        const body = ztoolkit.UI.createElement(document, "body");
+        body.appendChild(imgElment);
+        const html = body.innerHTML;
+        const args = {
+            _initPromise: Zotero.Promise.defer(),
+            browser: undefined as any,
+            //url: `about:blank`,
+            url: `chrome://${config.addonRef}/content/printTemplate.xhtml`,
         };
-        const winPrint = ztoolkit.getGlobal("window");
-        const printWindow = winPrint.open("about:blank", "_blank", "chrome,height=300,width=400,left=300,top=100");
+        const printWindow = window.openDialog(
+            `chrome://${config.addonRef}/content/printWrapper.xhtml`,
+            `${config.addonRef}-printWrapper`,
+            `chrome,centerscreen,resizable,status,width=900,height=650,dialog=no`,
+            args,
+        )!;
         if (!printWindow) return;
-        printWindow.addEventListener("DOMContentLoaded", async function onWindowLoad(ev) {
+        await args._initPromise.promise;
+        args.browser?.contentWindow.postMessage({ type: "print", html }, "*");
+        printWindow.print();
+        const test = "printWindow.document.readyState;";
+
+
+        /* printWindow.addEventListener("DOMContentLoaded", async function onWindowLoad(ev) {
             const img = (targetElementEvent.target as HTMLImageElement).src;
             const imgElment = ztoolkit.UI.createElement(printWindow.document, "img", {
                 namespace: "html",
@@ -103,18 +106,19 @@ export class contextMenu {
                     alt: "printImg",
                 },
             });
-
             printWindow.document.body.appendChild(imgElment);
+
 
             let n = 0;
             while (printWindow.document.readyState != "complete" && n++ < 1000) {
-                //setTimeout(() => { }, 50);
                 await Zotero.Promise.delay(100);
             }
-            const test = printWindow.document.readyState;
-            zoteroPrint(printWindow);
-        });
-    } */
+        }); */
+
+
+
+
+    }
 
 
     handleMenuItem(targetElementEvent: Event, menuPopupEvent: Event) {
