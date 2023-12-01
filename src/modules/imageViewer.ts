@@ -74,8 +74,50 @@ async function makeDialogElementProps() {
         }
         const imgsProps = makeImgTags(imageInfoArr);
         imgContainerDivs.push(...imgsProps);
+        const collectionId = ZoteroPane.collectionsView.selectedTreeRow.ref.id;
+        if (collectionId) {
+            const imgContainerDivsExclude = imgContainerDivs
+                .filter((imgContainerDiv: TagElementProps) => {
+                    const attachmentKey = imgContainerDiv.children![0].id?.replace("showImg-", '') as string;
+                    const attachment = Zotero.Items.getByLibraryAndKey(Zotero.Libraries.userLibraryID, attachmentKey);
+                    if (!attachment) return false;
+                    const parentCollections = getParentCollection(attachment as Zotero.Item);
+                    if (parentCollections && parentCollections.length) {
+                        return !parentCollections.includes(collectionId);
+                    }
+                });
+            const keepDivs = [...subSet(imgContainerDivsExclude, imgContainerDivs)];
+            imgContainerDivs.length = 0;
+            imgContainerDivs.push(...keepDivs);
+        }
     }
     return hasNewContent;
+}
+
+function subSet(arr1: any[], arr2: any[]) {
+    const set1 = new Set(arr1);
+    const set2 = new Set(arr2);
+    const subset = [];
+    for (const item of set1) {
+        if (!set2.has(item)) {
+            subset.push(item);
+        }
+    }
+    return subset;
+};
+
+function getParentCollection(item: Zotero.Item) {
+    if (!item.parentItem) return;
+    if ((item.parentItem as Zotero.Item).isRegularItem()) {
+        return item.parentItem.getCollections();
+    } else {
+        item = item.parentItem;
+        getParentCollection(item);
+    }
+    /* if (attachment.itemType == "annotation") {                
+    }
+    if (attachment.itemType == "attachment") {                
+    } */
 }
 
 async function showDialog(hasNewContent: boolean, dialogData?: any,) {
@@ -319,12 +361,11 @@ async function getImageInfo(item: Zotero.Item) {
     const itemType = item.itemType as string;
     switch (itemType) {
         case "annotation":
-            if (item.annotationType != "image") break;
-            await renderAnnotationImage(item)
-                ;
+            if (item.annotationType != "image") { break; };
+            await renderAnnotationImage(item);
             return await srcBase64Annotation(item, item.parentItem?.getField("title") as string);
         case "attachment":
-            if (!item.attachmentContentType.includes("image")) break;
+            if (!item.attachmentContentType.includes("image")) { break; };
             return await srcBase64ImageFile(item);
     }
 }
@@ -410,8 +451,9 @@ async function renderAnnotationImage(imageAnnotation: Zotero.Item) {
                         hiddenBrowser.sandbox = "allow-same-origin allow-forms allow-scripts";
                     }
                     const body = document.createElement("body");
-                    ztoolkit.UI.replaceElement({ tag: "body", namespace: "html" }, document.body);
-                    //document.body = body;
+                    //ztoolkit.UI.replaceElement({ tag: "body", namespace: "html" }, document.body);
+                    document.body.remove();
+                    document.appendChild(body);
                     document.body.appendChild(hiddenBrowser);
                     return hiddenBrowser;
                 },
