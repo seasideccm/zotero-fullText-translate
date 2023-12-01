@@ -6,10 +6,9 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   let tabID;
   let n = 0;
   while (!Zotero_Tabs.selectedID && n++ < 50) {
-    Zotero.Promise.delay(50);
+    await Zotero.Promise.delay(50);
   }
   //参数itemID未传递
-
   //如果页面不是 pdf reader，则打开选中的 pdf 或条目下的首个 pdf
   let itemID;
   if (!tabID && Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.type === 'reader') {
@@ -93,7 +92,7 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   }
   //Zotero_Tabs.select(tabID as string);
   while (!(reader = Zotero.Reader.getByTabID(tabID as string)) && n < 200) {
-    Zotero.Promise.delay(time);
+    await Zotero.Promise.delay(time);
     if (!reader && ++n % 20 == 0) {
       const sec = (n * time / 1000).toFixed(2);
       ztoolkit.log(`prepare reader... ${sec} seconds past.`);
@@ -169,7 +168,20 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
     }
   };
   function getLatestReader() {
-    return Zotero_Tabs._tabs
+
+    const tabs = Zotero_Tabs._tabs
+      .map((x: any) => {
+        if ((x.type == 'reader' || x.type == 'reader-unloaded')
+          && Zotero.Items.exists(x.data.itemID)) {
+          return x;
+        }
+      })
+      .filter(e => e);
+    if (!tabs.length) return;
+    if (tabs.length == 1) return tabs[0].data.itemID;
+    return tabs.sort((a, b) => a.timeUnselected - b.timeUnselected)
+      .slice(-1)[0].data.itemID;
+    /* return Zotero_Tabs._tabs
       .map((x: any) => {
         if ((x.type == 'reader' || x.type == 'reader-unloaded')
           && Zotero.Items.exists(x.data.itemID)) {
@@ -178,7 +190,7 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
       })
       .filter(e => e)
       .sort((a, b) => a.timeUnselected - b.timeUnselected)
-      .slice(-1)[0].data.itemID;
+      .slice(-1)[0].data.itemID; */
   }
   function getLatestTab(onlyReaderTab?: boolean) {
     let condition: any;

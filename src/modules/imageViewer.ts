@@ -34,6 +34,7 @@ async function makeDialogElementProps() {
         dialogImgViewer = new ztoolkit.Dialog(1, 1);
         addon.data.globalObjs = { dialogImgViewer: dialogImgViewer };
     }
+
     const container = (dialogImgViewer as any).elementProps.children[0].children[0].children;
     if (!container.length) {
         const imageInfoArr = [];
@@ -162,12 +163,8 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
             new Viewer(images);
             await windowFitSize(dialogImgViewer.window);
             const containers = Array.from(doc.getElementsByClassName('containerImg'));
-            const foo = dragula.apply(dialogImgViewer.window, [containers]);
-            /* const foo = (doc: Document) => {
-                const document = doc;
-                
-                return foo;
-            }; */
+            Zotero.dragDoc = doc;
+            const foo = dragula(containers);
             const test = foo;
         }
     };
@@ -396,19 +393,44 @@ async function renderAnnotationImage(imageAnnotation: Zotero.Item) {
         if (imageAnnotation.parentID) {
             let tabID;
             if (!(tabID = Zotero_Tabs.getTabIDByItemID(imageAnnotation.parentID))) {
+                await Zotero.Reader.open(imageAnnotation.parentID);
                 await prepareReader("pagesLoaded");
                 while (!(tabID = Zotero_Tabs.getTabIDByItemID(imageAnnotation.parentID))) {
-                    Zotero.Promise.delay(100);
+                    await Zotero.Promise.delay(100);
                 }
             }
             Zotero_Tabs.select(tabID);
         }
-        try {
-            await Zotero.PDFRenderer.renderAttachmentAnnotations(imageAnnotation.parentID);
+        if (!Zotero.Browser) {
+            Zotero.Browser = {
+                createHiddenBrowser: function () {
+                    const hiddenBrowser = document.createElement("iframe");
+                    hiddenBrowser.style.display = "none";
+                    if (document.domain == document.location.hostname) {
+                        hiddenBrowser.sandbox = "allow-same-origin allow-forms allow-scripts";
+                    }
+                    const body = document.createElement("body");
+                    ztoolkit.UI.replaceElement({ tag: "body", namespace: "html" }, document.body);
+                    //document.body = body;
+                    document.body.appendChild(hiddenBrowser);
+                    return hiddenBrowser;
+                },
+                deleteHiddenBrowser: function (hiddenBrowser: HTMLIFrameElement) {
+                    document.body.removeChild(hiddenBrowser);
+                }
+            };
         }
-        catch (e) {
-            Zotero.debug(e);
-            throw e;
+        if (!await Zotero.Annotations.hasCacheImage(imageAnnotation)) {
+            try {
+
+                await Zotero.PDFRenderer.renderAttachmentAnnotations(imageAnnotation.parentID);
+                Zotero_Tabs.close(Zotero_Tabs.selectedID);
+
+            }
+            catch (e) {
+                Zotero.debug(e);
+                throw e;
+            }
         }
     }
 }

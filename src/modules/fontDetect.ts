@@ -512,7 +512,7 @@ export async function getFontInfo(thisPdfFonts?: any) {
             }
         }
         if (find) break;
-        Zotero.Promise.delay(10);
+        await Zotero.Promise.delay(10);
     }
     const document1 = (await prepareReader("pagesLoaded"))("documentPDFView");
     const ctx = getCtx(idRenderFinished, document1);

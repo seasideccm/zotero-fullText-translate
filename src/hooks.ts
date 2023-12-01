@@ -28,6 +28,7 @@ async function onStartup() {
 async function onMainWindowLoad(win: Window): Promise<void> {
   // Create ztoolkit for every window
   addon.data.ztoolkit = createZToolkit();
+  Zotero.dragDoc = document;
   enableMasonry();
   const popupWin = new ztoolkit.ProgressWindow(config.addonName, {
     closeOnClick: true,
