@@ -111,3 +111,5 @@ info-ocrImage = 图片识别
 info-shareImage = 分享图片
 info-sendToPPT = 发送图片至 PPT
 info-printImage = 打印图片
+info-collection = 分类
+info-selectedItemsNoImage = 所选项目无图片

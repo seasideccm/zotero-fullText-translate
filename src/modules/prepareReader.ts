@@ -46,7 +46,7 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
     itemID=Zotero_Tabs._getTab(tabID).tab.data.itemID
     await Zotero.Reader.open(itemID);
   } */
-  if (!tabID) return getObj;
+  //if (!tabID) return getObj;
 
 
 
@@ -117,9 +117,9 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
     return getObj;
   }
   const internalReader = reader._internalReader;
-  const PDFView = internalReader._primaryView;
-  const pdfPages = PDFView._pdfPages;
-  await PDFView.initializedPromise;
+  const primaryView = internalReader._primaryView;
+  const pdfPages = primaryView._pdfPages;
+  await primaryView.initializedPromise;
   if (result == "initializedPDFView") {
     return getObj;
   }
@@ -144,17 +144,15 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
   if (result == "pagesLoaded") {
     return getObj;
   } else {
-    return getObj;
+    return (e: string) => { };
   }
-
-  function getObj(obj: "reader" | "internalReader" | "PDFView"
+  function getObj(obj: "reader" | "internalReader" | "primaryView"
     | "PDFViewerApplication" | "pdfViewer" | "pages" | "pdfPages"
     | "pdfDocument" | "pdfItemID" | "document" | "documentPDFView") {
-    if (!reader) return;
     switch (obj) {
       case "reader": return reader;
       case "internalReader": return internalReader;
-      case "PDFView": return PDFView;
+      case "primaryView": return primaryView;
       case "pdfViewer": return pdfViewer;
       case "pages": return pages;
       case "pdfPages": return pdfPages;
@@ -162,7 +160,7 @@ export async function prepareReader(result: "beforReaderInit" | "waitForReader" 
       case "PDFViewerApplication": return PDFViewerApplication;
       case "pdfItemID": return reader._item.id;
       case "document": return document;
-      case "documentPDFView": return PDFView._iframeWindow.document;
+      case "documentPDFView": return primaryView._iframeWindow.document;
       default:
         return reader;
     }

@@ -115,3 +115,5 @@ info-ocrImage = ocr Image
 info-shareImage = share Image
 info-sendToPPT = send To PPT
 info-printImage = print Image
+info-collection = collection
+info-selectedItemsNoImage= No Image In Items Selected 

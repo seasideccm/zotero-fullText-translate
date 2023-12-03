@@ -50,33 +50,7 @@ export class contextMenu {
     shareImage() { }
     sendToPPT() { }
     async printImage(targetElementEvent: Event) {
-        const img = (targetElementEvent.target as HTMLImageElement).src;
-        const imgProps = this.makeTagElementProps({
-            tag: "img",
-            namespace: "html",
-            attributes: {
-                src: img,
-                alt: "printImg",
-                style: `width:100%`
-
-            },
-        });
-        const style =
-            `display: "flex";
-            justifyContent: "center";
-            width: "100vw"`;
-
-        const imgElment = ztoolkit.UI.createElement(document, "div", {
-            namespace: "html",
-            id: "printImg",
-            attributes: {
-                style: style,
-            },
-            children: [imgProps]
-        });
-        const body = ztoolkit.UI.createElement(document, "body");
-        body.appendChild(imgElment);
-        const html = body.innerHTML;
+        const html = this.getHtml(targetElementEvent.target as HTMLImageElement);
         const args = {
             _initPromise: Zotero.Promise.defer(),
             browser: undefined as any,
@@ -89,18 +63,11 @@ export class contextMenu {
             `chrome,centerscreen,resizable,status,width=900,height=650,dialog=no`,
             args,
         )!;
-        if (!printWindow) return;
+        //if (!printWindow) return;
         await args._initPromise.promise;
         args.browser?.contentWindow.postMessage({ type: "print", html }, "*");
-        Zotero.Prefs.resetBranch([], "print");
-        Zotero.Prefs.set("print.print_footercenter", "", true);
-        Zotero.Prefs.set("print.print_footerleft", "", true);
-        Zotero.Prefs.set("print.print_footerright", "", true);
-        Zotero.Prefs.set("print.print_headercenter", "", true);
-        Zotero.Prefs.set("print.print_headerleft", "", true);
-        Zotero.Prefs.set("print.print_headerright", "", true);
         printWindow.print();
-        printWindow.close();
+        //printWindow.close();
 
 
 
@@ -126,6 +93,42 @@ export class contextMenu {
 
 
 
+    }
+    getHtml(htmlImageElement: HTMLImageElement) {
+        const img = (htmlImageElement as HTMLImageElement).src;
+        const imgProps = this.makeTagElementProps({
+            tag: "img",
+            namespace: "html",
+            attributes: {
+                src: img,
+                alt: "printImg",
+                style: `width:100%`
+
+            },
+        });
+        const style =
+            `display: "flex";
+            justifyContent: "center";
+            width: "100vw"`;
+
+        const imgElment = ztoolkit.UI.createElement(document, "div", {
+            namespace: "html",
+            id: "printImg",
+            attributes: {
+                style: style,
+            },
+            children: [imgProps]
+        });
+        const body = ztoolkit.UI.createElement(document, "body");
+        body.appendChild(imgElment);
+        Zotero.Prefs.resetBranch([], "print");
+        Zotero.Prefs.set("print.print_footercenter", "", true);
+        Zotero.Prefs.set("print.print_footerleft", "", true);
+        Zotero.Prefs.set("print.print_footerright", "", true);
+        Zotero.Prefs.set("print.print_headercenter", "", true);
+        Zotero.Prefs.set("print.print_headerleft", "", true);
+        Zotero.Prefs.set("print.print_headerright", "", true);
+        return body.innerHTML;
     }
 
 

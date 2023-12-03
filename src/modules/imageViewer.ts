@@ -8,6 +8,8 @@ import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
 import { batchAddEventListener, contextMenu, } from './userInerface';
 import { prepareReader } from "./prepareReader";
 import dragula from 'dragula';
+import { getString } from "../utils/locale";
+import { fullTextTranslate } from "./fullTextTranslate";
 
 export const viewImgMenuArr = [
     {
@@ -19,6 +21,10 @@ export const viewImgMenuArr = [
 
 async function viewImg() {
     const hasNewContent = await makeDialogElementProps();
+    if (typeof hasNewContent == "undefined") {
+        addon.data.globalObjs?.dialogImgViewer?.dialogImgViewer?.window?.focus();
+        return;
+    }
     await showDialog(hasNewContent);
 };
 
@@ -28,15 +34,28 @@ async function makeDialogElementProps() {
     for (const item of items) {
         imageItems.push(...(await findImageItems(item)));
     }
+    if (!imageItems.length) {
+        fullTextTranslate.showInfo(getString("info-selectedItemsNoImage"), 3000);
+        return;
+    }
     let hasNewContent = false;
     let dialogImgViewer: DialogHelper;
     if (!(dialogImgViewer = addon.data.globalObjs?.dialogImgViewer)) {
         dialogImgViewer = new ztoolkit.Dialog(1, 1);
         addon.data.globalObjs = { dialogImgViewer: dialogImgViewer };
     }
+    const currentCollection = ZoteroPane.collectionsView.selectedTreeRow.ref;
+    let container = (dialogImgViewer as any).elementProps.children[0].children[0].children[0];
+    let creatCollectionGallery = false;
+    if (!container) {
+        creatCollectionGallery = true;
+    } else {
+        creatCollectionGallery = !container.children?.some((imgContainerDiv: TagElementProps) => imgContainerDiv.id == `images-collection-${currentCollection.id}`);
+        creatCollectionGallery ? hasNewContent = true : hasNewContent = false;
+    }
 
-    const container = (dialogImgViewer as any).elementProps.children[0].children[0].children;
-    if (!container.length) {
+    if (creatCollectionGallery) {
+        await renderPDFs(imageItems);
         const imageInfoArr = [];
         for (const imgItem of imageItems) {
             const imageInfo = await getImageInfo(imgItem);
@@ -44,83 +63,69 @@ async function makeDialogElementProps() {
             imageInfoArr.push(imageInfo);
         }
         const imgsProps = makeImgTags(imageInfoArr);
-        //容器之上套一层DIV，否则页面过高，对话框有两层vbox
-        const container = makeTagElementProps({
-            tag: "div",
-            namespace: "html",
-            id: "firstDiv",
-            children: [{
+        if (!container) {
+            //容器之上套一层DIV，否则页面过高，对话框有两层vbox
+            const container = makeTagElementProps({
                 tag: "div",
                 namespace: "html",
-                id: "images",
-                children: imgsProps,
-            }]
-        });
-        dialogImgViewer.addCell(0, 0,
-            container
+                id: "firstDiv",
+                children: []
+            });
+            dialogImgViewer.addCell(0, 0,
+                container
+            );
+        }
+        const collectionName =
+        {
+            tag: "div",
+            namespace: "html",
+            //currentCollection.name含有空格时导致 id 无效
+            id: `collection-${currentCollection.id}`,
+            properties: {
+                innerText: `${getString("info-collection")}-${currentCollection.name}`
+            },
+            attributes: {
+                style: `font-size: 2rem;`
+            }
+        };
+
+        const imagesContainer = makeTagElementProps(
+            {
+                tag: "div",
+                namespace: "html",
+                id: `images-collection-${currentCollection.id}`,
+                children: [collectionName, ...imgsProps],
+            }
         );
+        container = (dialogImgViewer as any).elementProps.children[0].children[0].children[0];
+        //container.children.push(collectionName, imagesContainer);
+        container.children.push(imagesContainer);
+
     } else {
-        const imgContainerDivs = container[0].children[0].children;
-        const imgIds = imgContainerDivs.map((imgContainerDiv: TagElementProps) => imgContainerDiv.children![0].id);
+        const imgContainerDivs = container.children.find((imgContainerDiv: TagElementProps) => imgContainerDiv.id == `images-collection-${currentCollection.id}`).children;
+        const imgIds = imgContainerDivs.map((imgContainerDiv: TagElementProps) => imgContainerDiv.children ? imgContainerDiv.children[0].id : false).filter((e: any) => e);
         const imgIdsString = imgIds.join("");
-        const imageInfoArr = [];
+        const newImgItems = [];
         for (const imgItem of imageItems) {
             if (!imgIdsString.includes(imgItem.key)) {
-                const imageInfo = await getImageInfo(imgItem);
-                if (!imageInfo) continue;
-                imageInfoArr.push(imageInfo);
+                newImgItems.push(imgItem);
                 hasNewContent = true;
             }
         }
+        renderPDFs(newImgItems);
+        const imageInfoArr = [];
+        for (const imgItem of newImgItems) {
+            const imageInfo = await getImageInfo(imgItem);
+            if (!imageInfo) continue;
+            imageInfoArr.push(imageInfo);
+        }
         const imgsProps = makeImgTags(imageInfoArr);
         imgContainerDivs.push(...imgsProps);
-        const collectionId = ZoteroPane.collectionsView.selectedTreeRow.ref.id;
-        if (collectionId) {
-            const imgContainerDivsExclude = imgContainerDivs
-                .filter((imgContainerDiv: TagElementProps) => {
-                    const attachmentKey = imgContainerDiv.children![0].id?.replace("showImg-", '') as string;
-                    const attachment = Zotero.Items.getByLibraryAndKey(Zotero.Libraries.userLibraryID, attachmentKey);
-                    if (!attachment) return false;
-                    const parentCollections = getParentCollection(attachment as Zotero.Item);
-                    if (parentCollections && parentCollections.length) {
-                        return !parentCollections.includes(collectionId);
-                    }
-                });
-            const keepDivs = [...subSet(imgContainerDivsExclude, imgContainerDivs)];
-            imgContainerDivs.length = 0;
-            imgContainerDivs.push(...keepDivs);
-        }
     }
     return hasNewContent;
 }
 
-function subSet(arr1: any[], arr2: any[]) {
-    const set1 = new Set(arr1);
-    const set2 = new Set(arr2);
-    const subset = [];
-    for (const item of set1) {
-        if (!set2.has(item)) {
-            subset.push(item);
-        }
-    }
-    return subset;
-};
-
-function getParentCollection(item: Zotero.Item) {
-    if (!item.parentItem) return;
-    if ((item.parentItem as Zotero.Item).isRegularItem()) {
-        return item.parentItem.getCollections();
-    } else {
-        item = item.parentItem;
-        getParentCollection(item);
-    }
-    /* if (attachment.itemType == "annotation") {                
-    }
-    if (attachment.itemType == "attachment") {                
-    } */
-}
-
-async function showDialog(hasNewContent: boolean, dialogData?: any,) {
+async function showDialog(hasNewContent: boolean | undefined, dialogData?: any,) {
     const args = {
         title: `${config.addonRef}`,
         windowFeatures: {
@@ -147,62 +152,36 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
 
     dialogData = {
         loadCallback: async () => {
+            //[id^="images"]
             const doc = dialogImgViewer.window.document as Document;
-            const images = doc.getElementById('images')!;
+            const firstDiv = doc.getElementById('firstDiv')!;
+            const imagesArr = doc.querySelectorAll('[id^="images"]');
             const cssfilesURL = [
                 `chrome://${config.addonRef}/content/viewer.css`,
                 `chrome://${config.addonRef}/content/dragula.css`,
             ];
             insertStyle(dialogImgViewer.window.document);
             loadCss(dialogImgViewer.window.document, cssfilesURL);
-            function openMeun(event: MouseEvent) {
-                const idPostfix = "imageViewerContextMeun";
-                const menuPropsGroupsArr = [
-                    [
-                        ["info-copyImage"],
-                        ["info-saveImage"],
-                        ["info-editImage"],
-                        ["info-convertImage"],
-                        ["info-ocrImage"]
-                    ],
-                    [
-                        ["info-shareImage"],
-                        ["info-sendToPPT"],
-                        ["info-printImage"]
-                    ],
-                ];
-                const imgCtxObj = new contextMenu({
-                    menuPropsGroupsArr,
-                    idPostfix
-                });
-                imgCtxObj.contextMenu.addEventListener('click', e => {
-                    const tagName = (e.target as any).tagName.toLowerCase();
-                    if (tagName === 'menuitem') {
-                        imgCtxObj.handleMenuItem(event, e);
-                    }
-                });
 
-                document.querySelector("#browser")!.appendChild(imgCtxObj.contextMenu);
-                imgCtxObj.contextMenu.openPopupAtScreen(event.clientX + images.screenX, event.clientY + images.screenY, true);
-
-
-            }
-            batchAddEventListener(
-                [
-                    [images,
-                        [
-                            ['hidden', restoreDialog],
-                            ['view', maxOrFullDialog],
-                        ],
-                    ],
-                ]);
-            (images as HTMLElement).addEventListener('contextmenu', e => {
+            //事件委托
+            (firstDiv as HTMLElement).addEventListener('contextmenu', e => {
                 const tagName = (e.target as any).tagName;
                 if (tagName === 'IMG') {
-                    openMeun(e);
+                    openMeun(e, firstDiv);
                 }
             });
-            new Viewer(images);
+            for (const images of imagesArr) {
+                new Viewer(images as HTMLElement);
+                batchAddEventListener(
+                    [
+                        [images,
+                            [
+                                ['hidden', restoreDialog],
+                                ['view', maxOrFullDialog],
+                            ],
+                        ],
+                    ]);
+            }
             await windowFitSize(dialogImgViewer.window);
             const containers = Array.from(doc.getElementsByClassName('containerImg'));
             Zotero.dragDoc = doc;
@@ -220,6 +199,95 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
     };
     const focus = () => dialogImgViewer.window.focus();
     dialogImgViewer.window ? (dialogImgViewer.window.closed ? open(args) : (hasNewContent ? closeOpen(args) : focus())) : open(args);
+}
+
+async function renderPDFs(newImgItems: any[]) {
+    const imageAnnotations = newImgItems.filter((item: any) => item.itemType == "annotation");
+    const imageAnnotationByPdf = imageAnnotations.reduce((catalog: any, item: any) => {
+        catalog[item.parentID] ? catalog[item.parentID].push(item) : catalog[item.parentID] = [item];
+        return catalog;
+    }, {});
+    for (const imageAnnotations of Object.values(imageAnnotationByPdf)) {
+        await renderAnnotationImage(imageAnnotations as Zotero.Item[]);
+    }
+}
+
+async function renderAnnotationImage(imageAnnotations: Zotero.Item[]) {
+
+    //针对一篇pdf
+    let tabId, reader;
+    for (const imageAnnotation of imageAnnotations) {
+        if (await Zotero.Annotations.hasCacheImage(imageAnnotation)) continue;
+        if (!imageAnnotation.parentID) continue;
+        tabId = Zotero_Tabs.getTabIDByItemID(imageAnnotation.parentID);
+        if (tabId) {
+            Zotero_Tabs.select(tabId);
+        } else {
+            await Zotero.Reader.open(imageAnnotation.parentID);
+            tabId = Zotero_Tabs.getTabIDByItemID(imageAnnotation.parentID);
+        }
+        if (!reader) {
+            reader = (await prepareReader("pagesLoaded"))("reader");
+        }
+        if (await Zotero.Annotations.hasCacheImage(imageAnnotation)) continue;
+        const position = JSON.parse(imageAnnotation.annotationPosition);
+        const pageIndex = position.pageIndex;
+        await reader.navigate({ pageIndex: pageIndex });
+        let n = 0;
+        while (!(await Zotero.Annotations.hasCacheImage(imageAnnotation)) && n++ < 20) {
+            await Zotero.Promise.delay(100);
+        }
+        if (await Zotero.Annotations.hasCacheImage(imageAnnotation)) continue;
+        Zotero_Tabs.close(tabId);
+        await Zotero.Reader.open(imageAnnotation.parentID);
+        //const primaryView = (await prepareReader("pagesLoaded"))("primaryView");
+        //primaryView._iframeWindow.PDFViewerApplication.pdfViewer.currentPageNumber = pageIndex + 1;
+        reader = (await prepareReader("pagesLoaded"))("reader");
+        await reader.navigate({ pageIndex: pageIndex });
+        tabId = Zotero_Tabs.getTabIDByItemID(imageAnnotation.parentID);
+        n = 0;
+        while (!(await Zotero.Annotations.hasCacheImage(imageAnnotation)) && n++ < 20) {
+            await Zotero.Promise.delay(100);
+        }
+
+    }
+    if (tabId) {
+        Zotero_Tabs.close(tabId);
+    }
+}
+
+
+
+function openMeun(event: MouseEvent, element: HTMLElement) {
+    const idPostfix = "imageViewerContextMeun";
+    const menuPropsGroupsArr = [
+        [
+            ["info-copyImage"],
+            ["info-saveImage"],
+            ["info-editImage"],
+            ["info-convertImage"],
+            ["info-ocrImage"]
+        ],
+        [
+            ["info-shareImage"],
+            ["info-sendToPPT"],
+            ["info-printImage"]
+        ],
+    ];
+    const imgCtxObj = new contextMenu({
+        menuPropsGroupsArr,
+        idPostfix
+    });
+    imgCtxObj.contextMenu.addEventListener('click', e => {
+        const tagName = (e.target as any).tagName.toLowerCase();
+        if (tagName === 'menuitem') {
+            imgCtxObj.handleMenuItem(event, e);
+        }
+    });
+    document.querySelector("#browser")!.appendChild(imgCtxObj.contextMenu);
+    imgCtxObj.contextMenu.openPopupAtScreen(event.clientX + element.screenX, event.clientY + element.screenY, true);
+
+    return imgCtxObj;
 }
 
 function makeImgTags(srcImgBase64Arr: {
@@ -284,30 +352,37 @@ function makeImagesDivStyle() {
     const maxColumnsMobileH = 5;
     const maxColumnsMobileV = 3;
     window.screen.width > 768 ? maxColumns = maxColumnsPC : (window.screen.width > window.screen.height ? maxColumns = maxColumnsMobileH : maxColumns = maxColumnsMobileV);
-    const container = addon.data.globalObjs?.dialogImgViewer.elementProps.children[0].children[0].children;
-    const imgContainerDivs = container[0].children[0].children;
+    /* const container = addon.data.globalObjs?.dialogImgViewer.elementProps.children[0].children[0].children[0];
+    const imgContainerDivs = container.children[0].children;
     if (sizeStyle != 0) {
         columnsByScreen = Math.floor(window.screen.width / sizeStyle);
         columnsByScreen > maxColumns ? columnsByScreen = maxColumns : (columnsByScreen == 0 ? columnsByScreen = 1 : () => { });
 
     } else {
         columnsByScreen = maxColumns;
-    }
-    const columns = imgContainerDivs.length >= columnsByScreen ? columnsByScreen : imgContainerDivs.length;
+    } */
+    const columns = maxColumns;
+    //const columns = imgContainerDivs.length >= columnsByScreen ? columnsByScreen : imgContainerDivs.length;
     const containerImagesDivStyle = `
-    #images{
+    [id^="images"]{
         display: grid;    
         grid-gap: 1vw;    
         grid-template-rows: masonry;
         max-width: 100vw;
         background-color: ${backgroundColor};
-        max-height: 100vh;
-        min-height: 25vh;
-        ${getStyle2String(columns, sizeStyle)}
+        max-height: ${window.screen.availHeight - 100};
+        min-height: 200px;
+        overflow: hidden;
+        ${getStyle2String(columns, sizeStyle)};
+    }
+    [id^="collection-"]{
+        grid-column-start: span ${columns};
+        place-self: center center;
+        background-color: #FFFFFF;
     }
     `;
+    //防止溢出 min-width: 0;     overflow: hidden;
     return containerImagesDivStyle;
-
     function getStyle2String(columns: number, sizeStyle: number) {
         return `grid-template-columns: repeat(${columns},1fr); min-width: calc(${sizeStyle}px * ${columns});`;
 
@@ -362,7 +437,6 @@ async function getImageInfo(item: Zotero.Item) {
     switch (itemType) {
         case "annotation":
             if (item.annotationType != "image") { break; };
-            await renderAnnotationImage(item);
             return await srcBase64Annotation(item, item.parentItem?.getField("title") as string);
         case "attachment":
             if (!item.attachmentContentType.includes("image")) { break; };
@@ -429,53 +503,7 @@ async function getImageAnnotations(item: Zotero.Item) {
     return imageAnnotations;
 }
 
-async function renderAnnotationImage(imageAnnotation: Zotero.Item) {
-    if (!await Zotero.Annotations.hasCacheImage(imageAnnotation)) {
-        if (imageAnnotation.parentID) {
-            let tabID;
-            if (!(tabID = Zotero_Tabs.getTabIDByItemID(imageAnnotation.parentID))) {
-                await Zotero.Reader.open(imageAnnotation.parentID);
-                await prepareReader("pagesLoaded");
-                while (!(tabID = Zotero_Tabs.getTabIDByItemID(imageAnnotation.parentID))) {
-                    await Zotero.Promise.delay(100);
-                }
-            }
-            Zotero_Tabs.select(tabID);
-        }
-        if (!Zotero.Browser) {
-            Zotero.Browser = {
-                createHiddenBrowser: function () {
-                    const hiddenBrowser = document.createElement("iframe");
-                    hiddenBrowser.style.display = "none";
-                    if (document.domain == document.location.hostname) {
-                        hiddenBrowser.sandbox = "allow-same-origin allow-forms allow-scripts";
-                    }
-                    const body = document.createElement("body");
-                    //ztoolkit.UI.replaceElement({ tag: "body", namespace: "html" }, document.body);
-                    document.body.remove();
-                    document.appendChild(body);
-                    document.body.appendChild(hiddenBrowser);
-                    return hiddenBrowser;
-                },
-                deleteHiddenBrowser: function (hiddenBrowser: HTMLIFrameElement) {
-                    document.body.removeChild(hiddenBrowser);
-                }
-            };
-        }
-        if (!await Zotero.Annotations.hasCacheImage(imageAnnotation)) {
-            try {
 
-                await Zotero.PDFRenderer.renderAttachmentAnnotations(imageAnnotation.parentID);
-                Zotero_Tabs.close(Zotero_Tabs.selectedID);
-
-            }
-            catch (e) {
-                Zotero.debug(e);
-                throw e;
-            }
-        }
-    }
-}
 
 async function srcBase64Annotation(imageAnnotation: Zotero.Item, title: string) {
     const jsonAnnotation = await Zotero.Annotations.toJSON(imageAnnotation);
@@ -567,3 +595,130 @@ const makeSizeStyle = (widthHeight: {
     return `width:${widthHeight.width}; height:${widthHeight.height};`;
 };
 
+//const keepDivs = [...subSet(imgContainerDivs, imgContainerDivsExclude)];
+function subSet(arr1: any[], arr2: any[]) {
+    const set1 = new Set(arr1);
+    const set2 = new Set(arr2);
+    const subset = [];
+    for (const item of set1) {
+        if (!set2.has(item)) {
+            subset.push(item);
+        }
+    }
+    return subset;
+};
+
+function getParentCollection(item: Zotero.Item) {
+    if (!item.parentItem) return;
+    if ((item.parentItem as Zotero.Item).isRegularItem()) {
+        return item.parentItem.getCollections();
+    } else {
+        item = item.parentItem;
+        getParentCollection(item);
+    }
+    /* if (attachment.itemType == "annotation") {                
+    }
+    if (attachment.itemType == "attachment") {                
+    } */
+}
+//primaryView.navigate(location)
+
+/* _render(pageIndexes) {
+    for (let page of this._pages) {
+        if (!pageIndexes || pageIndexes.includes(page.pageIndex)) {
+            page.render();
+        }
+    }
+} */
+/* function addBrowser() {
+    if (!Zotero.Browser) {
+        Zotero.Browser = {
+            createHiddenBrowser: function (win, options = {}) {
+                if (!win) {
+                    win = Services.wm.getMostRecentWindow("navigator:browser");
+                    if (!win) {
+                        win = Services.ww.activeWindow;
+                    }
+                    // Use the hidden DOM window on macOS with the main window closed
+                    if (!win) {
+                        const appShellService = Components.classes["@mozilla.org/appshell/appShellService;1"]
+                            .getService(Components.interfaces.nsIAppShellService);
+                        win = appShellService.hiddenDOMWindow;
+                    }
+                    if (!win) {
+                        throw new Error("Parent window not available for hidden browser");
+                    }
+                }
+
+                // Create a hidden browser
+                const hiddenBrowser = win.document.createElement("browser");
+                hiddenBrowser.setAttribute('type', 'content');
+                hiddenBrowser.setAttribute('disableglobalhistory', 'true');
+                win.document.documentElement.appendChild(hiddenBrowser);
+                //docShell缺失
+                // Disable some features
+                hiddenBrowser.docShell.allowAuth = false;
+                hiddenBrowser.docShell.allowDNSPrefetch = false;
+                hiddenBrowser.docShell.allowImages = false;
+                hiddenBrowser.docShell.allowJavascript = options.allowJavaScript !== false;
+                hiddenBrowser.docShell.allowMetaRedirects = false;
+                hiddenBrowser.docShell.allowPlugins = false;
+                Zotero.debug("Created hidden browser");
+                return hiddenBrowser;
+            },
+
+            deleteHiddenBrowser: function (myBrowsers) {
+                if (!(myBrowsers instanceof Array)) myBrowsers = [myBrowsers];
+                for (let i = 0; i < myBrowsers.length; i++) {
+                    let myBrowser = myBrowsers[i];
+                    myBrowser.stop();
+                    myBrowser.destroy();
+                    myBrowser.parentNode.removeChild(myBrowser);
+                    myBrowser = null;
+                    Zotero.debug("Deleted hidden browser");
+                }
+            }
+        };
+    }
+} */
+
+/* 
+const { HiddenBrowser } = ChromeUtils.import("chrome://zotero/content/HiddenBrowser.jsm");
+let browser = await HiddenBrowser.create(url, {
+                    requireSuccessfulStatus: true,
+                    docShell: { allowImages: true },
+                    cookieSandbox,
+                });
+
+if (!Zotero.Browser) {
+            Zotero.Browser = {
+                createHiddenBrowser: function () {
+                    const hiddenBrowser = document.createElement("iframe");
+                    hiddenBrowser.style.display = "none";
+                    if (document.domain == document.location.hostname) {
+                        hiddenBrowser.sandbox = "allow-same-origin allow-forms allow-scripts";
+                    }
+                    const body = document.createElement("body");
+                    //ztoolkit.UI.replaceElement({ tag: "body", namespace: "html" }, document.body);
+                    document.body.remove();
+                    document.appendChild(body);
+                    document.body.appendChild(hiddenBrowser);
+                    return hiddenBrowser;
+                },
+                deleteHiddenBrowser: function (hiddenBrowser: HTMLIFrameElement) {
+                    document.body.removeChild(hiddenBrowser);
+                }
+            };
+        } */
+/* if (!await Zotero.Annotations.hasCacheImage(imageAnnotation)) {
+    try {
+
+        await Zotero.PDFRenderer.renderAttachmentAnnotations(imageAnnotation.parentID);
+        Zotero_Tabs.close(Zotero_Tabs.selectedID);
+
+    }
+    catch (e) {
+        Zotero.debug(e);
+        throw e;
+    }
+} */
