@@ -170,6 +170,14 @@ async function showDialog(hasNewContent: boolean | undefined, dialogData?: any,)
                     openMeun(e, firstDiv);
                 }
             });
+            /* const observe = new MutationObserver(mutationCallback);
+            function mutationCallback (element:Element){
+                if(!element.childElementCount){
+                    const elementFill=ztoolkit.UI.createElement(doc,"span",{})
+                    element.appendChild(elementFill)
+                }
+
+            } */
             for (const images of imagesArr) {
                 new Viewer(images as HTMLElement);
                 batchAddEventListener(
@@ -182,11 +190,10 @@ async function showDialog(hasNewContent: boolean | undefined, dialogData?: any,)
                         ],
                     ]);
             }
-            await windowFitSize(dialogImgViewer.window);
             const containers = Array.from(doc.getElementsByClassName('containerImg'));
             Zotero.dragDoc = doc;
             const foo = dragula(containers);
-            const test = foo;
+            await windowFitSize(dialogImgViewer.window);
         }
     };
     if (dialogData) {
@@ -325,18 +332,6 @@ function makeImgTags(srcImgBase64Arr: {
 }
 
 function insertStyle(document: Document, style: string = '') {
-    //containerImg{object-fit: contain;}
-    const styleImg = `img{ display: block; width: 100%;}`;
-    style = style + makeImagesDivStyle() + styleImg;
-    if (!style.length) return;
-    document.head.appendChild(ztoolkit.UI.createElement(document, "style", {
-        properties: {
-            innerHTML: style,
-        },
-    }));
-}
-
-function makeImagesDivStyle() {
     const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
     const thumbnailSize = getPref('thumbnailSize') as string || "small";
     let sizeStyle: number = 0;
@@ -347,11 +342,36 @@ function makeImagesDivStyle() {
             break;
         case "large": sizeStyle = 600;
     }
-    let columnsByScreen, maxColumns;
+    //containerImg{object-fit: contain;} border-color:${backgroundColor};          border: 3vw solid ${backgroundColor};          background-color:${backgroundColor};          padding:1vw;
+    const styleImgDiv =
+        `div[id^="container-"]{
+            padding:10px;
+        background-color:${backgroundColor};
+    }`;
+    const styleImg =
+        `img{
+         display: block;
+         width: 100%;
+         max-height: ${2 * sizeStyle}; 
+         object-fit: contain;
+        }`;
+    style = style + makeImagesDivStyle(sizeStyle) + styleImg + styleImgDiv;
+    if (!style.length) return;
+    document.head.appendChild(ztoolkit.UI.createElement(document, "style", {
+        properties: {
+            innerHTML: style,
+        },
+    }));
+}
+
+function makeImagesDivStyle(sizeStyle: number) {
+    const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
+    let maxColumns;
     const maxColumnsPC = 10;
     const maxColumnsMobileH = 5;
     const maxColumnsMobileV = 3;
     window.screen.width > 768 ? maxColumns = maxColumnsPC : (window.screen.width > window.screen.height ? maxColumns = maxColumnsMobileH : maxColumns = maxColumnsMobileV);
+    maxColumns * sizeStyle > window.screen.width ? maxColumns = Math.floor(window.screen.width / sizeStyle) : () => { };
     /* const container = addon.data.globalObjs?.dialogImgViewer.elementProps.children[0].children[0].children[0];
     const imgContainerDivs = container.children[0].children;
     if (sizeStyle != 0) {
@@ -362,17 +382,14 @@ function makeImagesDivStyle() {
         columnsByScreen = maxColumns;
     } */
     const columns = maxColumns;
-    //const columns = imgContainerDivs.length >= columnsByScreen ? columnsByScreen : imgContainerDivs.length;
+    //const columns = imgContainerDivs.length >= columnsByScreen ? columnsByScreen : imgContainerDivs.length; grid-gap: 1vw; background-color: ${backgroundColor};         overflow: auto;
     const containerImagesDivStyle = `
     [id^="images"]{
-        display: grid;    
-        grid-gap: 1vw;    
+        display: grid;
         grid-template-rows: masonry;
         max-width: 100vw;
-        background-color: ${backgroundColor};
         max-height: ${window.screen.availHeight - 100};
         min-height: 200px;
-        overflow: hidden;
         ${getStyle2String(columns, sizeStyle)};
     }
     [id^="collection-"]{
