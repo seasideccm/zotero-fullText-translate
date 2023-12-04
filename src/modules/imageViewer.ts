@@ -162,14 +162,32 @@ async function showDialog(hasNewContent: boolean | undefined, dialogData?: any,)
             ];
             insertStyle(dialogImgViewer.window.document);
             loadCss(dialogImgViewer.window.document, cssfilesURL);
+            const menuPropsGroupsArr = [
+                [
+                    ["info-copyImage"],
+                    ["info-saveImage"],
+                    ["info-editImage"],
+                    ["info-convertImage"],
+                    ["info-ocrImage"]
+                ],
+                [
+                    ["info-shareImage"],
+                    ["info-sendToPPT"],
+                    ["info-printImage"]
+                ],
+            ];
+            const idPostfix = "imageViewerContextMeun";
+            const imgCtxObj = creatContextMenu(menuPropsGroupsArr, idPostfix)
+                //事件委托
+                (firstDiv as HTMLElement).addEventListener('contextmenu', e => {
+                    const tagName = (e.target as any).tagName;
+                    if (tagName === 'IMG') {
+                        openContextMeun(e, firstDiv);
+                    }
+                });
 
-            //事件委托
-            (firstDiv as HTMLElement).addEventListener('contextmenu', e => {
-                const tagName = (e.target as any).tagName;
-                if (tagName === 'IMG') {
-                    openMeun(e, firstDiv);
-                }
-            });
+
+
             /* const observe = new MutationObserver(mutationCallback);
             function mutationCallback (element:Element){
                 if(!element.childElementCount){
@@ -263,36 +281,32 @@ async function renderAnnotationImage(imageAnnotations: Zotero.Item[]) {
     }
 }
 
-
-
-function openMeun(event: MouseEvent, element: HTMLElement) {
-    const idPostfix = "imageViewerContextMeun";
-    const menuPropsGroupsArr = [
-        [
-            ["info-copyImage"],
-            ["info-saveImage"],
-            ["info-editImage"],
-            ["info-convertImage"],
-            ["info-ocrImage"]
-        ],
-        [
-            ["info-shareImage"],
-            ["info-sendToPPT"],
-            ["info-printImage"]
-        ],
-    ];
-    const imgCtxObj = new contextMenu({
+function creatContextMenu(menuPropsGroupsArr: string[][][], idPostfix: string) {
+    let contextMenuObj = document.querySelector(`[id$="${idPostfix}"]`) as contextMenu | null;
+    if (contextMenuObj) return contextMenuObj;
+    contextMenuObj = new contextMenu({
         menuPropsGroupsArr,
         idPostfix
     });
-    imgCtxObj.contextMenu.addEventListener('click', e => {
+    contextMenuObj.contextMenu.addEventListener('click', () => {
+        contextMenuObj?.contextMenu.value;
+
+    });
+    document.querySelector("#browser")!.appendChild(contextMenuObj.contextMenu);
+    return contextMenuObj;
+}
+
+function openContextMeun(contextMenuObj: contextMenu, event: MouseEvent, element: HTMLElement) {
+    contextMenuObj.contextMenu.openPopupAtScreen(event.clientX + element.screenX, event.clientY + element.screenY, true);
+
+    contextMenuObj.contextMenu.addEventListener('click', (e: Event) => {
         const tagName = (e.target as any).tagName.toLowerCase();
         if (tagName === 'menuitem') {
-            imgCtxObj.handleMenuItem(event, e);
+            contextMenuObj.handleMenuItem(event, e);
         }
     });
     document.querySelector("#browser")!.appendChild(imgCtxObj.contextMenu);
-    imgCtxObj.contextMenu.openPopupAtScreen(event.clientX + element.screenX, event.clientY + element.screenY, true);
+
 
     return imgCtxObj;
 }
@@ -342,11 +356,11 @@ function insertStyle(document: Document, style: string = '') {
             break;
         case "large": sizeStyle = 600;
     }
-    //containerImg{object-fit: contain;} border-color:${backgroundColor};          border: 3vw solid ${backgroundColor};          background-color:${backgroundColor};          padding:1vw;
+    //containerImg{object-fit: contain;} border-color:${backgroundColor};          border: 3vw solid ${backgroundColor};          background-color:${backgroundColor};          padding:1vw;            min-height:20px;
     const styleImgDiv =
         `div[id^="container-"]{
             padding:10px;
-        background-color:${backgroundColor};
+            background-color:${backgroundColor};
     }`;
     const styleImg =
         `img{

@@ -26,7 +26,7 @@ declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, 
 ]; */
 
 export class contextMenu {
-    contextMenu: Element;
+    contextMenu: XUL.MenuPopup;
     constructor(option: any) {
         this.contextMenu = this.createContextMenu(option.menuPropsGroupsArr, option.idPostfix);
     }
