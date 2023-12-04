@@ -21,10 +21,6 @@ export const viewImgMenuArr = [
 
 async function viewImg() {
     const hasNewContent = await makeDialogElementProps();
-    if (typeof hasNewContent == "undefined") {
-        addon.data.globalObjs?.dialogImgViewer?.dialogImgViewer?.window?.focus();
-        return;
-    }
     await showDialog(hasNewContent);
 };
 
@@ -34,11 +30,12 @@ async function makeDialogElementProps() {
     for (const item of items) {
         imageItems.push(...(await findImageItems(item)));
     }
+    let hasNewContent = false;
     if (!imageItems.length) {
         fullTextTranslate.showInfo(getString("info-selectedItemsNoImage"), 3000);
-        return;
+        return hasNewContent;
     }
-    let hasNewContent = false;
+
     let dialogImgViewer: DialogHelper;
     if (!(dialogImgViewer = addon.data.globalObjs?.dialogImgViewer)) {
         dialogImgViewer = new ztoolkit.Dialog(1, 1);
@@ -51,10 +48,9 @@ async function makeDialogElementProps() {
         creatCollectionGallery = true;
     } else {
         creatCollectionGallery = !container.children?.some((imgContainerDiv: TagElementProps) => imgContainerDiv.id == `images-collection-${currentCollection.id}`);
-        creatCollectionGallery ? hasNewContent = true : hasNewContent = false;
     }
-
     if (creatCollectionGallery) {
+        hasNewContent = true;
         await renderPDFs(imageItems);
         const imageInfoArr = [];
         for (const imgItem of imageItems) {
@@ -125,7 +121,7 @@ async function makeDialogElementProps() {
     return hasNewContent;
 }
 
-async function showDialog(hasNewContent: boolean | undefined, dialogData?: any,) {
+async function showDialog(hasNewContent: boolean, dialogData?: any,) {
     const args = {
         title: `${config.addonRef}`,
         windowFeatures: {
@@ -177,14 +173,30 @@ async function showDialog(hasNewContent: boolean | undefined, dialogData?: any,)
                 ],
             ];
             const idPostfix = "imageViewerContextMeun";
-            const imgCtxObj = creatContextMenu(menuPropsGroupsArr, idPostfix)
-                //事件委托
-                (firstDiv as HTMLElement).addEventListener('contextmenu', e => {
-                    const tagName = (e.target as any).tagName;
-                    if (tagName === 'IMG') {
-                        openContextMeun(e, firstDiv);
-                    }
-                });
+            const imgCtxObj = new contextMenu({
+                menuPropsGroupsArr,
+                idPostfix
+            });
+            /* 失败
+            const test1 = firstDiv.parentElement! as XUL.Element;
+            ztoolkit.UI.appendElement({
+                tag: "button",
+                namespace: "xul",
+                attributes: {
+                    lable: "Press Me",
+                    context: imgCtxObj.contextMenu.id
+                },
+
+            },
+                test1); */
+            //(firstDiv.parentElement as XUL.Element).setAttribute("context", imgCtxObj.contextMenu.id);
+            //事件委托
+            /* (firstDiv as HTMLElement).addEventListener('contextmenu', e => {
+                const tagName = (e.target as any).tagName;
+                if (tagName === 'IMG') {
+                    openContextMeun(e, firstDiv);
+                }
+            }); */
 
 
 
@@ -225,6 +237,19 @@ async function showDialog(hasNewContent: boolean | undefined, dialogData?: any,)
     const focus = () => dialogImgViewer.window.focus();
     dialogImgViewer.window ? (dialogImgViewer.window.closed ? open(args) : (hasNewContent ? closeOpen(args) : focus())) : open(args);
 }
+
+
+/* function openContextMeun(contextMenuObj: contextMenu, event: MouseEvent, element: HTMLElement) {
+    contextMenuObj.contextMenu.openPopupAtScreen(event.clientX + element.screenX, event.clientY + element.screenY, true);
+
+    contextMenuObj.contextMenu.addEventListener('click', (e: Event) => {
+        const tagName = (e.target as any).tagName.toLowerCase();
+        if (tagName === 'menuitem') {
+            contextMenuObj.handleMenuItem(event, e);
+        }
+    });
+    document.querySelector("#browser")!.appendChild(imgCtxObj.contextMenu);
+} */
 
 async function renderPDFs(newImgItems: any[]) {
     const imageAnnotations = newImgItems.filter((item: any) => item.itemType == "annotation");
@@ -281,35 +306,7 @@ async function renderAnnotationImage(imageAnnotations: Zotero.Item[]) {
     }
 }
 
-function creatContextMenu(menuPropsGroupsArr: string[][][], idPostfix: string) {
-    let contextMenuObj = document.querySelector(`[id$="${idPostfix}"]`) as contextMenu | null;
-    if (contextMenuObj) return contextMenuObj;
-    contextMenuObj = new contextMenu({
-        menuPropsGroupsArr,
-        idPostfix
-    });
-    contextMenuObj.contextMenu.addEventListener('click', () => {
-        contextMenuObj?.contextMenu.value;
 
-    });
-    document.querySelector("#browser")!.appendChild(contextMenuObj.contextMenu);
-    return contextMenuObj;
-}
-
-function openContextMeun(contextMenuObj: contextMenu, event: MouseEvent, element: HTMLElement) {
-    contextMenuObj.contextMenu.openPopupAtScreen(event.clientX + element.screenX, event.clientY + element.screenY, true);
-
-    contextMenuObj.contextMenu.addEventListener('click', (e: Event) => {
-        const tagName = (e.target as any).tagName.toLowerCase();
-        if (tagName === 'menuitem') {
-            contextMenuObj.handleMenuItem(event, e);
-        }
-    });
-    document.querySelector("#browser")!.appendChild(imgCtxObj.contextMenu);
-
-
-    return imgCtxObj;
-}
 
 function makeImgTags(srcImgBase64Arr: {
     key: string;
@@ -368,6 +365,7 @@ function insertStyle(document: Document, style: string = '') {
          width: 100%;
          max-height: ${2 * sizeStyle}; 
          object-fit: contain;
+         border-color: #FFFFFF;
         }`;
     style = style + makeImagesDivStyle(sizeStyle) + styleImg + styleImgDiv;
     if (!style.length) return;
@@ -405,6 +403,7 @@ function makeImagesDivStyle(sizeStyle: number) {
         max-height: ${window.screen.availHeight - 100};
         min-height: 200px;
         ${getStyle2String(columns, sizeStyle)};
+        overflow: auto;
     }
     [id^="collection-"]{
         grid-column-start: span ${columns};

@@ -181,9 +181,8 @@ export class contextMenu {
 
 
     createContextMenu(menuPropsGroups: MenuProps[][], idPostfix: string, event?: MouseEvent) {
-        //event的传递在打开菜单时进�?
-        //菜单项的事件监听�?以通过事件委托进�??
         const menupopup = this.makeMenupopup(idPostfix);
+        if (menupopup.childElementCount) return menupopup;
         menuPropsGroups.filter((menuPropsGroup: MenuProps[]) =>
             menuPropsGroup.filter((menuProps: MenuProps) => {
                 this.makeMenuitem(this.creatPropsMeun(menuProps), menupopup, event);
@@ -234,7 +233,8 @@ export class contextMenu {
             id: config.addonRef + '-' + idPostfix,
             children: children,
         }); */
-
+        const menupopupOld = document.querySelector(`[id$="${idPostfix}"]`) as XUL.MenuPopup | null;
+        if (menupopupOld) return menupopupOld;
         return ztoolkit.UI.appendElement({
             tag: "menupopup",
             id: config.addonRef + '-' + idPostfix,
