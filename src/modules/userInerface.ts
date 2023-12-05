@@ -9,32 +9,11 @@ import { onSaveImageAs } from "../utils/prefs";
 declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
 
 
-
-/* const menuPropsGroupsArrWithFunction = [
-    [
-        ["info-copyImage", copyImage, []],
-        ["info-saveImage", saveImage, []],
-        ["info-editImage", editImage, []],
-        ["info-convertImage", convertImage, []],
-        ["info-ocrImage", ocrImage, []]
-    ],
-    [
-        ["info-shareImage", shareImage, []],
-        ["info-sendToPPT", sendToPPT, []],
-        ["info-printImage", printImage, []]
-    ],
-]; */
-
 export class contextMenu {
     contextMenu: XUL.MenuPopup;
     constructor(option: any) {
         this.contextMenu = this.createContextMenu(option.menuPropsGroupsArr, option.idPostfix);
     }
-
-
-
-
-
 
     copyImage(target: Element) {
         const img = (target as HTMLImageElement).src;
@@ -101,7 +80,7 @@ export class contextMenu {
     }
     getHtml(htmlImageElement: HTMLImageElement) {
         const img = (htmlImageElement as HTMLImageElement).src;
-        const imgProps = this.makeTagElementProps({
+        const imgProps = makeTagElementProps({
             tag: "img",
             namespace: "html",
             attributes: {
@@ -221,25 +200,7 @@ export class contextMenu {
         return menupopup;
     } */
 
-    /**
-     * @remark
-     * 传入的参数会覆盖默�?�参数：
-     *  ignoreIfExists: true,不创建不替换，返回存在的元素�?
-        namespace: "xul",
-        enableElementRecord: true,
-        enableElementJSONLog: false,
-        nableElementDOMLog: false,
-     * @param option 
-     * @returns 
-     */
-    makeTagElementProps(option: TagElementProps): TagElementProps {
-        const preDefinedObj = {
-            enableElementDOMLog: false,
-            ignoreIfExists: true,
-            namespace: "xul",
-        };
-        return Object.assign(preDefinedObj, option);
-    }
+
 
     menuseparator(menupopup: any) {
         ztoolkit.UI.appendElement({
@@ -332,6 +293,127 @@ export class contextMenu {
         return fun instanceof AsyncFunction;
     };
 }
+
+/**
+     * @remark
+     * 传入的参数会覆盖默�?�参数：
+     *  ignoreIfExists: true,不创建不替换，返回存在的元素�?
+        namespace: "xul",
+        enableElementRecord: true,
+        enableElementJSONLog: false,
+        nableElementDOMLog: false,
+     * @param option 
+     * @returns 
+     */
+function makeTagElementProps(option: TagElementProps): TagElementProps {
+    const preDefinedObj = {
+        enableElementDOMLog: false,
+        ignoreIfExists: true,
+        namespace: "xul",
+    };
+    return Object.assign(preDefinedObj, option);
+}
+
+export class toolbar {
+    toolBox: XUL.ToolBox;
+    toolBar: XUL.ToolBar;
+    iconsize: string;
+    idPostfixToolbox: string;
+    toolboxClassList: string[];
+    idPostfixToolbar: string;
+    toolbarClassList: string[];
+    toolBarButtonClassList: string[];
+    container: Element;
+
+    constructor(option: any) {
+        this.container = option.doc.querySelector(`#${option.containerId}`);
+        this.idPostfixToolbox = option.idPostfixToolbox;
+        this.toolboxClassList = option.toolboxClassList || ["toolbox-top"];
+        this.toolBox = this.makeToolBox();
+        this.idPostfixToolbar = option.idPostfixToolbar;
+        this.toolbarClassList = option.toolbarClassList || ["toolbar", "toolbar-primary"];
+        this.toolBox = this.makeToolBox();
+        this.toolBar = this.makeToolBar(this.toolBox);
+        this.iconsize = option.iconsize || "small";
+        this.toolBarButtonClassList = option.toolBarButtonClassList || ["zotero-tb-button"];
+    }
+    createToobar(idPostfixHbox: string, buttonParasArr: any[]) {
+        const container = this.makeHbox(idPostfixHbox);
+        buttonParasArr.filter((buttonParas) => {
+            this.makeToolBarButton(container, buttonParas);
+        });
+    }
+
+    makeToolBarButton(container: Element, idPostfixToolBarButton: string, tooltiptext: string, oncommand?: string) {
+        const toolBarButtonProps = makeTagElementProps({
+            tag: "toolbarbutton",
+            id: config.addonRef + '-' + idPostfixToolBarButton,
+            namespace: "xul",
+            classList: this.toolBarButtonClassList,
+            attributes: {
+                tabindex: "-1",
+                tooltiptext: getString(tooltiptext),
+                oncommand: oncommand || undefined,
+            },
+        });
+        return ztoolkit.UI.appendElement(toolBarButtonProps, container) as XUL.ToolBarButton;
+    }
+
+    makeToolBar(container: Element) {
+        const toolbarProps = makeTagElementProps({
+            tag: "toolbar",
+            id: config.addonRef + '-' + this.idPostfixToolbar,
+            namespace: "xul",
+            classList: this.toolbarClassList,
+            attributes: {
+                tabindex: "-1",
+            },
+        });
+        return ztoolkit.UI.appendElement(toolbarProps, container) as XUL.ToolBox;
+    }
+
+    makeHbox(idPostfixHbox: string) {
+        const hboxProps = makeTagElementProps({
+            tag: "hbox",
+            id: config.addonRef + '-' + idPostfixHbox,
+            namespace: "xul",
+            attributes: {
+                align: "center",
+                flex: 1,
+            },
+        });
+        const hboxToolButton = ztoolkit.UI.appendElement(hboxProps, this.toolBar);
+        hboxToolButton.addEventListener("command", e => {
+            const tagName = (e.target as any).tagName.toLowerCase();
+            if (tagName === 'toolbarbutton') {
+                // anchorNode 为操作的目标元素
+                this.handleToolButton(e.target!);
+            }
+        });
+        return;
+    }
+
+
+    makeToolBox() {
+        const toolboxProps = makeTagElementProps({
+            tag: "toolbox",
+            id: config.addonRef + '-' + this.idPostfixToolbox,
+            namespace: "xul",
+            classList: this.toolboxClassList,
+            attributes: {
+                mode: "icons",
+                defaultmode: "icons",
+            },
+        });
+        return ztoolkit.UI.appendElement(toolboxProps, this.container) as XUL.ToolBox;
+    }
+    handleToolButton(target: EventTarget) {
+        () => { };
+    }
+}
+
+
+
 export function batchAddEventListener(args: [element: Element, [eventName: string, callBack: any][]][]) {
     for (const arg of args) {
         for (const paras of arg[1]) {
@@ -520,5 +602,24 @@ export function judgeAsync(fun: any) {
    setTimeout (() => popup.openPopupAtScreen(rect.x, rect.y, true));
 } */
 
+
+
+
+
+
+/* const menuPropsGroupsArrWithFunction = [
+    [
+        ["info-copyImage", copyImage, []],
+        ["info-saveImage", saveImage, []],
+        ["info-editImage", editImage, []],
+        ["info-convertImage", convertImage, []],
+        ["info-ocrImage", ocrImage, []]
+    ],
+    [
+        ["info-shareImage", shareImage, []],
+        ["info-sendToPPT", sendToPPT, []],
+        ["info-printImage", printImage, []]
+    ],
+]; */
 
 

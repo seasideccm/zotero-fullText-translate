@@ -321,6 +321,9 @@ function makeImgTags(srcImgBase64Arr: {
                 attributes: {
                     src: obj.src,
                     alt: obj.alt,
+                    loading: "lazy",
+                    decoding: "async",
+
                 }
             },]
         });
@@ -389,8 +392,7 @@ function makeImagesDivStyle(sizeStyle: number) {
         max-width: 100vw;
         max-height: ${window.screen.availHeight - 100};
         min-height: 200px;
-        ${getStyle2String(columns, sizeStyle)};
-        overflow: auto;
+        ${getStyle2String(columns, sizeStyle)};        
     }
     [id^="collection-"]{
         grid-column-start: span ${columns};
