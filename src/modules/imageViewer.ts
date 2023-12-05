@@ -177,28 +177,24 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                 menuPropsGroupsArr,
                 idPostfix
             });
-            imgCtxObj.contextMenu.
+            /* imgCtxObj.contextMenu.addEventListener("command", e => {
+                const tagName = (e.target as any).tagName.toLowerCase();
+                if (tagName === 'menuitem') {
+                    imgCtxObj.handleMenuItem(imgCtxObj.contextMenu.triggerNode, e);
+                }
+            }); */
             //事件委托
-            (firstDiv as HTMLElement).addEventListener('contextmenu', e => {
+            firstDiv.addEventListener('contextmenu', e => {
                 const tagName = (e.target as any).tagName;
                 if (tagName === 'IMG') {
-                    imgCtxObj.contextMenu.openPopup(e.target, 'after_pointer', 0, 0, true, false, e);
-                    window.alert(imgCtxObj.contextMenu.triggerNode.id);//有效tagName
+                    //如果传入了最后一个参数 triggerEvent （此处为 e ），contextMenu 才会有 triggerNode
 
-                    //openContextMeun(e, firstDiv);
+                    imgCtxObj.contextMenu.openPopup(e.target, 'after_pointer', 0, 0, true, false, e);
+                    imgCtxObj.contextMenu.moveTo(e.x, e.y);
+
                 }
             });
 
-
-
-            /* const observe = new MutationObserver(mutationCallback);
-            function mutationCallback (element:Element){
-                if(!element.childElementCount){
-                    const elementFill=ztoolkit.UI.createElement(doc,"span",{})
-                    element.appendChild(elementFill)
-                }
-
-            } */
             for (const images of imagesArr) {
                 new Viewer(images as HTMLElement);
                 batchAddEventListener(
@@ -703,7 +699,7 @@ function getParentCollection(item: Zotero.Item) {
     }
 } */
 
-/* 
+/*
 const { HiddenBrowser } = ChromeUtils.import("chrome://zotero/content/HiddenBrowser.jsm");
 let browser = await HiddenBrowser.create(url, {
                     requireSuccessfulStatus: true,
@@ -742,4 +738,14 @@ if (!Zotero.Browser) {
         Zotero.debug(e);
         throw e;
     }
+} */
+
+//openContextMeun(e, firstDiv);
+/* const observe = new MutationObserver(mutationCallback);
+function mutationCallback (element:Element){
+    if(!element.childElementCount){
+        const elementFill=ztoolkit.UI.createElement(doc,"span",{})
+        element.appendChild(elementFill)
+    }
+
 } */

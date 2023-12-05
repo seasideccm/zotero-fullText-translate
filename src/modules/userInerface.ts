@@ -31,16 +31,21 @@ export class contextMenu {
         this.contextMenu = this.createContextMenu(option.menuPropsGroupsArr, option.idPostfix);
     }
 
-    copyImage(targetElementEvent: Event) {
-        const img = (targetElementEvent.target as HTMLImageElement).src;
+
+
+
+
+
+    copyImage(target: Element) {
+        const img = (target as HTMLImageElement).src;
         if (!img) return;
         const clip = new ztoolkit.Clipboard();
         //仅支持添加一张图
         clip.addImage(img);
         clip.copy();
     }
-    saveImage(targetElementEvent: Event) {
-        const img = (targetElementEvent.target as HTMLImageElement).src;
+    saveImage(target: Element) {
+        const img = (target as HTMLImageElement).src;
         onSaveImageAs(img);
 
     }
@@ -49,8 +54,8 @@ export class contextMenu {
     ocrImage() { }
     shareImage() { }
     sendToPPT() { }
-    async printImage(targetElementEvent: Event) {
-        const html = this.getHtml(targetElementEvent.target as HTMLImageElement);
+    async printImage(target: Element) {
+        const html = this.getHtml(target as HTMLImageElement);
         const args = {
             _initPromise: Zotero.Promise.defer(),
             browser: undefined as any,
@@ -132,12 +137,12 @@ export class contextMenu {
     }
 
 
-    handleMenuItem(targetElementEvent: Event, menuPopupEvent: Event) {
+    handleMenuItem(target: Element, menuPopupEvent: Event) {
         if (!menuPopupEvent || !((menuPopupEvent.target as any).label)) return;
         switch ((menuPopupEvent.target as any).label) {
-            case `${getString("info-copyImage")}`: this.copyImage(targetElementEvent);
+            case `${getString("info-copyImage")}`: this.copyImage(target);
                 break;
-            case `${getString("info-saveImage")}`: this.saveImage(targetElementEvent);
+            case `${getString("info-saveImage")}`: this.saveImage(target);
                 break;
             case `${getString("info-editImage")}`: this.editImage();
                 break;
@@ -149,7 +154,7 @@ export class contextMenu {
                 break;
             case `${getString("info-sendToPPT")}`: this.sendToPPT();
                 break;
-            case `${getString("info-printImage")}`: this.printImage(targetElementEvent);
+            case `${getString("info-printImage")}`: this.printImage(target);
                 break;
         }
 
@@ -250,12 +255,20 @@ export class contextMenu {
         }); */
         const menupopupOld = document.querySelector(`[id$="${idPostfix}"]`) as XUL.MenuPopup | null;
         if (menupopupOld) return menupopupOld;
-        return ztoolkit.UI.appendElement({
+        const menupopup = ztoolkit.UI.appendElement({
             tag: "menupopup",
             id: config.addonRef + '-' + idPostfix,
             namespace: "xul",
             children: [],
         }, document.querySelector("#browser")!) as XUL.MenuPopup;
+        menupopup.addEventListener("command", e => {
+            const tagName = (e.target as any).tagName.toLowerCase();
+            if (tagName === 'menuitem') {
+                // anchorNode 为操作的目标元素
+                this.handleMenuItem(menupopup.anchorNode, e);
+            }
+        });
+        return menupopup;
 
     };
 
@@ -272,10 +285,9 @@ export class contextMenu {
                 label: getString(option.label),
             }
         }, menupopup);
-        menuitem.addEventListener("command", async (e) => {
+        /* menuitem.addEventListener("command", async (e) => {
             window.alert(menupopup.selectedItem);
-        }
-        );
+        }); */
     };
 
     makeMenuitemOld(
