@@ -180,12 +180,27 @@ export class contextMenu {
     };
 
 
-    createContextMenu(menuPropsGroups: MenuProps[][], idPostfix: string, event?: MouseEvent) {
+    createContextMenu(menuPropsGroups: MenuProps[][], idPostfix: string) {
+        const menupopup = this.makeMenupopup(idPostfix);
+        if (menupopup.childElementCount) return menupopup;
+        menuPropsGroups.filter((menuPropsGroup: MenuProps[]) => {
+            menuPropsGroup.filter((menuProps: MenuProps) => {
+                this.makeMenuitem(this.creatPropsMeun(menuProps), menupopup);
+            });
+            if (menuPropsGroups.indexOf(menuPropsGroup) !== menuPropsGroups.length - 1) {
+                this.menuseparator(menupopup);
+            }
+        }
+        );
+        return menupopup;
+    }
+
+    createContextMenuOld(menuPropsGroups: MenuProps[][], idPostfix: string, event?: MouseEvent) {
         const menupopup = this.makeMenupopup(idPostfix);
         if (menupopup.childElementCount) return menupopup;
         menuPropsGroups.filter((menuPropsGroup: MenuProps[]) =>
             menuPropsGroup.filter((menuProps: MenuProps) => {
-                this.makeMenuitem(this.creatPropsMeun(menuProps), menupopup, event);
+                this.makeMenuitemOld(this.creatPropsMeun(menuProps), menupopup, event);
             }));
         return menupopup;
     }
@@ -245,6 +260,25 @@ export class contextMenu {
     };
 
     makeMenuitem(
+        option: {
+            label: string,
+        },
+        menupopup: any,
+    ) {
+        const menuitem = ztoolkit.UI.appendElement({
+            tag: "menuitem",
+            namespace: "xul",
+            attributes: {
+                label: getString(option.label),
+            }
+        }, menupopup);
+        menuitem.addEventListener("command", async (e) => {
+            window.alert(menupopup.selectedItem);
+        }
+        );
+    };
+
+    makeMenuitemOld(
         option: {
             label: string,
             func?: (...args: any[]) => any | void,

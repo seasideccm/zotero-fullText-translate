@@ -177,26 +177,17 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                 menuPropsGroupsArr,
                 idPostfix
             });
-            /* 失败
-            const test1 = firstDiv.parentElement! as XUL.Element;
-            ztoolkit.UI.appendElement({
-                tag: "button",
-                namespace: "xul",
-                attributes: {
-                    lable: "Press Me",
-                    context: imgCtxObj.contextMenu.id
-                },
-
-            },
-                test1); */
-            //(firstDiv.parentElement as XUL.Element).setAttribute("context", imgCtxObj.contextMenu.id);
+            imgCtxObj.contextMenu.
             //事件委托
-            /* (firstDiv as HTMLElement).addEventListener('contextmenu', e => {
+            (firstDiv as HTMLElement).addEventListener('contextmenu', e => {
                 const tagName = (e.target as any).tagName;
                 if (tagName === 'IMG') {
-                    openContextMeun(e, firstDiv);
+                    imgCtxObj.contextMenu.openPopup(e.target, 'after_pointer', 0, 0, true, false, e);
+                    window.alert(imgCtxObj.contextMenu.triggerNode.id);//有效tagName
+
+                    //openContextMeun(e, firstDiv);
                 }
-            }); */
+            });
 
 
 
