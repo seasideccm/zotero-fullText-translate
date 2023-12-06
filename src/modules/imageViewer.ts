@@ -5,7 +5,7 @@ import { getPref, readImage } from "../utils/prefs";
 import { makeTagElementProps } from "./toolbarButton";
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
-import { Toolbar, batchAddEventListener, contextMenu, } from './userInerface';
+import { Toolbar, batchAddEventListener, contextMenu, insertStyle, loadCss, makeToolBox, } from './userInerface';
 import { prepareReader } from "./prepareReader";
 import dragula from 'dragula';
 import { getString } from "../utils/locale";
@@ -151,6 +151,15 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
             //[id^="images"]
             const doc = dialogImgViewer.window.document as Document;
             const firstDiv = doc.getElementById('firstDiv')! as Element;
+            const toolboxImage = makeToolBox({
+                doc,
+                elementProps: {
+                    idPostfix: "imageSizeToolbox",
+                    classList: ["toolbox"],
+                },
+                location: "beforebegin",
+                refElement: firstDiv,
+            });
             const toolBarThumbnail = new Toolbar({
                 doc: doc,
                 idPostfixToolbox: "imageSizeToolbox",
@@ -166,7 +175,7 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                 `chrome://${config.addonRef}/content/viewer.css`,
                 `chrome://${config.addonRef}/content/dragula.css`,
             ];
-            insertStyle(dialogImgViewer.window.document);
+            insertStyle(dialogImgViewer.window.document, makeStyle());
             loadCss(dialogImgViewer.window.document, cssfilesURL);
             const menuPropsGroupsArr = [
                 [
@@ -247,6 +256,34 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
     });
     document.querySelector("#browser")!.appendChild(imgCtxObj.contextMenu);
 } */
+
+function makeStyle() {
+    const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
+    const thumbnailSize = getPref('thumbnailSize') as string || "small";
+    let sizeStyle: number = 0;
+    switch (thumbnailSize) {
+        case "small": sizeStyle = 100;
+            break;
+        case "medium": sizeStyle = 300;
+            break;
+        case "large": sizeStyle = 600;
+    }
+    //containerImg{object-fit: contain;} border-color:${backgroundColor};          border: 3vw solid ${backgroundColor};          background-color:${backgroundColor};          padding:1vw;            min-height:20px;
+    const styleImgDiv =
+        `div[id^="container-"]{
+            padding:10px;
+            background-color:${backgroundColor};
+    }`;
+    const styleImg =
+        `img{
+         display: block;
+         width: 100%;
+         max-height: ${2 * sizeStyle}; 
+         object-fit: contain;
+         border-color: #FFFFFF;
+        }`;
+    return makeImagesDivStyle(sizeStyle) + styleImg + styleImgDiv;
+}
 
 async function renderPDFs(newImgItems: any[]) {
     const imageAnnotations = newImgItems.filter((item: any) => item.itemType == "annotation");
@@ -342,39 +379,7 @@ function makeImgTags(srcImgBase64Arr: {
     return elementProps;
 }
 
-function insertStyle(document: Document, style: string = '') {
-    const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
-    const thumbnailSize = getPref('thumbnailSize') as string || "small";
-    let sizeStyle: number = 0;
-    switch (thumbnailSize) {
-        case "small": sizeStyle = 100;
-            break;
-        case "medium": sizeStyle = 300;
-            break;
-        case "large": sizeStyle = 600;
-    }
-    //containerImg{object-fit: contain;} border-color:${backgroundColor};          border: 3vw solid ${backgroundColor};          background-color:${backgroundColor};          padding:1vw;            min-height:20px;
-    const styleImgDiv =
-        `div[id^="container-"]{
-            padding:10px;
-            background-color:${backgroundColor};
-    }`;
-    const styleImg =
-        `img{
-         display: block;
-         width: 100%;
-         max-height: ${2 * sizeStyle}; 
-         object-fit: contain;
-         border-color: #FFFFFF;
-        }`;
-    style = style + makeImagesDivStyle(sizeStyle) + styleImg + styleImgDiv;
-    if (!style.length) return;
-    document.head.appendChild(ztoolkit.UI.createElement(document, "style", {
-        properties: {
-            innerHTML: style,
-        },
-    }));
-}
+
 
 function makeImagesDivStyle(sizeStyle: number) {
     const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
@@ -416,19 +421,6 @@ function makeImagesDivStyle(sizeStyle: number) {
         return `grid-template-columns: repeat(${columns},1fr); min-width: calc(${sizeStyle}px * ${columns});`;
 
     }
-}
-
-function loadCss(document: Document, cssfilesURL: string[] = [`chrome://${config.addonRef}/content/viewer.css`]) {
-    cssfilesURL.filter((hrefURL: string) => {
-        document.head.appendChild(ztoolkit.UI.createElement(document, "link", {
-            attributes: {
-                rel: "stylesheet",
-                href: hrefURL,
-                type: "text/css",
-            }
-        }));
-    });
-
 }
 
 async function windowFitSize(dialogWin: Window) {

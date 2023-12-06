@@ -296,101 +296,124 @@ export class contextMenu {
 }
 
 
-
-
-export class Toolbar {
-    toolBox?: XUL.ToolBox;
-    toolBar: XUL.ToolBar;
-    iconsize: string;
-    idPostfixToolbox?: string;
-    toolboxClassList: string[];
-    idPostfixToolbar: string;
-    toolbarClassList: string[];
-    toolBarButtonClassList: string[];
-    toolBoxcontainer: Element;
+export function makeToolBox(option: {
     doc: Document;
-    toolbarParasArr: any[];
-    /**
-     * 
-     * @param option 
-     */
+    elementProps: {
+        idPostfix: string;
+        classList: string[];
+    };
+    location: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
+    refElement: Element;
+
+}) {
+    const toolboxProps = makeTagElementProps({
+        tag: "toolbox",
+        id: config.addonRef + '-' + option.elementProps.idPostfix,
+        namespace: "xul",
+        classList: option.elementProps.classList,
+        attributes: {
+            mode: "icons",
+            defaultmode: "icons",
+        },
+    });
+    const toolboxElement = ztoolkit.UI.createElement(option.doc, "toolbox", toolboxProps) as XUL.ToolBox;
+    option.refElement.insertAdjacentElement(option.location, toolboxElement);
+    return toolboxElement;
+}
+
+export function insertStyle(document: Document, style: string = '') {
+    if (!style.length) return;
+    document.head.appendChild(ztoolkit.UI.createElement(document, "style", {
+        properties: {
+            innerHTML: style,
+        },
+    }));
+}
+
+export function loadCss(document: Document, cssfilesURL: string[] = [`chrome://${config.addonRef}/content/viewer.css`]) {
+    cssfilesURL.filter((hrefURL: string) => {
+        document.head.appendChild(ztoolkit.UI.createElement(document, "link", {
+            attributes: {
+                rel: "stylesheet",
+                href: hrefURL,
+                type: "text/css",
+            }
+        }));
+    });
+
+}
+
+//["toolbar", "toolbar-primary"];["toolbar", "toolbar-primary"];["toolbox-top"]
+export class Toolbar {
+    toolbar: XUL.ToolBar;
     constructor(option: {
         doc: Document;
-
-        idPostfixToolbar: string;
-        toolbarParasArr: {
-            idPostfixHbox: string;
-            buttonParasArr: [idPostfixToolBarButton: string, tooltiptext: string, imageURL?: string][];
-        }[];
-        toolBoxcontainer?: Element;
-        toolBoxcontainerId?: string;
-        idPostfixToolbox?: string;
-        toolboxClassList?: string[];
-        toolbarClassList?: string[];
-        toolBarButtonClassList?: string[];
-        iconsize?: string;
+        toolbarParas: [toolbarIdPostfix: string, toolbarClassList?: string[]];
+        isHbox: boolean;
+        toolbuttonParasArr: [buttonParasArr: [idPostfix: string, tooltiptext: string, classList?: string, imageURL?: string, iconsize?: string]];
+        toolbox?: XUL.ToolBox;
     }) {
-        this.toolBoxcontainer = option.toolBoxcontainer || option.doc.querySelector(`#${option.toolBoxcontainerId}`)!;
-        this.idPostfixToolbox = option.idPostfixToolbox || undefined;
-        this.toolboxClassList = option.toolboxClassList || ["toolbox-top"];
-        this.idPostfixToolbar = option.idPostfixToolbar;
-        this.toolbarClassList = option.toolbarClassList || ["toolbar", "toolbar-primary"];
-        this.toolBox = this.idPostfixToolbox ? this.makeToolBox() : undefined;
-        this.toolBar = this.makeToolBar(this.toolBox);
-        this.iconsize = option.iconsize || "small";
-        this.toolBarButtonClassList = option.toolBarButtonClassList || ["zotero-tb-button"];
-        this.doc = option.doc;
-        this.toolbarParasArr = option.toolbarParasArr;
-        this.creatToolBars();
+        this.toolbar = this.makeToolBar();
+        this.createToolbar(option);
     }
 
-    creatToolBars() {
-        this.toolbarParasArr.filter((toolbarParas: any) => {
-            const toolBarContainer = this.createToolbar(toolbarParas.idPostfixHbox)(toolbarParas.buttonParasArr);
+    /* creatToolBars(option: any) {
+        option.toolbuttonParasArr.filter((buttonParasArr: any[]) => {
+            const [idPostfix: string, tooltiptext: string, toolBarButtonClassList?: string, imageURL?: string, iconsize?: string] = buttonParasArr;
+            const toolBarContainer = this.createToolbar(option.isHbox)(toolbarParas.buttonParasArr);
             this.toolBar.appendChild(toolBarContainer);
         });
-    }
+    } */
 
-    createToolbar(idPostfixHbox: string) {
-        return (buttonParasArr: any[]) => {
-            const toolBarContainer = this.makeHbox(idPostfixHbox);
-            buttonParasArr.filter((buttonParas: string[]) => {
-                const [idPostfixToolBarButton, tooltiptext, imageURL] = buttonParas;
-                this.makeToolBarButton(toolBarContainer, idPostfixToolBarButton, tooltiptext, imageURL);
-            });
-            return toolBarContainer;
-        };
+    createToolbar(option: {
+        doc: Document;
+        toolbarParas: [toolbarIdPostfix: string, toolbarClassList?: string[]];
+        isHbox: boolean;
+        toolbuttonParasArr: [buttonParasArr: [idPostfix: string, tooltiptext: string, classList?: string[], imageURL?: string, iconsize?: string]];
+        toolbox?: XUL.ToolBox;
+    }) {
+
+        const buttonBox = this.makeButtonBox(option.isHbox);
+        option.toolbuttonParasArr.filter((buttonParasArr) => {
+            const [idPostfix, tooltiptext, classList, imageURL, iconsize] = buttonParasArr;
+            this.makeToolBarButton(buttonBox, idPostfix, tooltiptext, classList, imageURL, iconsize);
+        });
+        return toolBarContainer;
+
     }
 
     //oncommand?: string Zotero.randomString(8)
-    makeToolBarButton(container: Element, idPostfixToolBarButton: string, tooltiptext: string, imageURL?: string) {
+    makeToolBarButton(container: Element, idPostfix: string, tooltiptext: string, type: "menu" | "menu-button" | "checkbox" | "radio", classList?: string[], imageURL?: string) {
         const toolBarButtonProps = makeTagElementProps({
             tag: "toolbarbutton",
-            id: config.addonRef + '-' + idPostfixToolBarButton,
+            id: config.addonRef + '-' + idPostfix,
             namespace: "xul",
-            classList: this.toolBarButtonClassList,
+            classList: classList,
             attributes: {
                 tabindex: "-1",
                 tooltiptext: getString(tooltiptext),
-                image: imageURL || undefined,
+                image: imageURL,
                 label: getString(tooltiptext),
+                type: type,
             },
         });
         return ztoolkit.UI.appendElement(toolBarButtonProps, container) as XUL.ToolBarButton;
     }
 
-    makeHbox(idPostfixHbox: string) {
-        const hboxProps = makeTagElementProps({
-            tag: "hbox",
-            id: config.addonRef + '-' + idPostfixHbox,
+    makeButtonBox(isHbox: boolean) {
+        let tag;
+        isHbox ? tag = "hbox" : tag = "vbox";
+        const boxProps = makeTagElementProps({
+            tag: tag,
+            id: config.addonRef + '-' + Zotero.randomString(8),
             namespace: "xul",
             attributes: {
                 align: "center",
                 flex: 1,
             },
         });
-        const hboxToolButton = ztoolkit.UI.appendElement(hboxProps, this.toolBar);
-        eventDelegation(hboxToolButton, "command", 'toolbarbutton', this.handleToolButton);
+        const buttonBox = ztoolkit.UI.appendElement(boxProps, this.toolbar);
+        eventDelegation(buttonBox, "command", 'toolbarbutton', this.handleToolButton);
         /* hboxToolButton.addEventListener("command", e => {            
             const tagName = (e.target as any).tagName.toLowerCase();
             if (tagName === 'toolbarbutton') {
@@ -398,7 +421,7 @@ export class Toolbar {
                 this.handleToolButton(e.target!);
             }
         }); */
-        return hboxToolButton;
+        return buttonBox;
     }
 
     makeToolBar(container?: Element) {
@@ -416,19 +439,7 @@ export class Toolbar {
 
     }
 
-    makeToolBox() {
-        const toolboxProps = makeTagElementProps({
-            tag: "toolbox",
-            id: config.addonRef + '-' + this.idPostfixToolbox,
-            namespace: "xul",
-            classList: this.toolboxClassList,
-            attributes: {
-                mode: "icons",
-                defaultmode: "icons",
-            },
-        });
-        return ztoolkit.UI.insertElementBefore(toolboxProps, this.toolBoxcontainer.firstElementChild!) as XUL.ToolBox;
-    }
+
 
     handleToolButton(target: EventTarget) {
         () => { };
