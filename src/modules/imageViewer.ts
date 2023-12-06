@@ -5,7 +5,7 @@ import { getPref, readImage } from "../utils/prefs";
 import { makeTagElementProps } from "./toolbarButton";
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
-import { batchAddEventListener, contextMenu, } from './userInerface';
+import { Toolbar, batchAddEventListener, contextMenu, } from './userInerface';
 import { prepareReader } from "./prepareReader";
 import dragula from 'dragula';
 import { getString } from "../utils/locale";
@@ -150,7 +150,17 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
         loadCallback: async () => {
             //[id^="images"]
             const doc = dialogImgViewer.window.document as Document;
-            const firstDiv = doc.getElementById('firstDiv')!;
+            const firstDiv = doc.getElementById('firstDiv')! as Element;
+            const toolBarThumbnail = new Toolbar({
+                doc: doc,
+                idPostfixToolbox: "imageSizeToolbox",
+                idPostfixToolbar: "imageSize",
+                toolbarParasArr: [{
+                    idPostfixHbox: "imageSizeHbox",
+                    buttonParasArr: [["samll", "info-small"], ["medium", "info-medium"], ["large", "info-large"]]
+                }],
+                toolBoxcontainer: firstDiv.parentElement! as Element,
+            });
             const imagesArr = doc.querySelectorAll('[id^="images"]');
             const cssfilesURL = [
                 `chrome://${config.addonRef}/content/viewer.css`,

@@ -113,3 +113,6 @@ info-sendToPPT = 发送图片至 PPT
 info-printImage = 打印图片
 info-collection = 分类
 info-selectedItemsNoImage = 所选项目无图片
+info-small = 小
+info-medium = 中
+info-large = 大
