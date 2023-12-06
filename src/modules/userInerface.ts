@@ -1,13 +1,28 @@
 
-import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
+import { ElementProps, TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
 import { onSaveImageAs } from "../utils/prefs";
-import { randomUUID } from "crypto";
-
+import { ztoolkit } from "../../typings/global";
 
 
 declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
+declare type Toolbarbutton = "menu" | "menu-button" | "checkbox" | "radio" | undefined;
+declare type ButtonParas = [idPostfix: string,
+    tooltiptext: string,
+    type?: Toolbarbutton,
+    namespace?: "xul" | "html" | "svg",
+    children?: TagElementProps[],
+    classList?: string[],
+    imageURL?: string];
+
+declare type ToolbarOption = {
+    doc: Document;
+    toolbarParas: [toolbarIdPostfix: string, toolbarClassList?: string[]];
+    isHbox: boolean;
+    toolbuttonParasArr: [buttonParasArr: ButtonParas];
+    styleInsert: string;
+};
 
 
 export class contextMenu {
@@ -323,11 +338,16 @@ export function makeToolBox(option: {
 
 export function insertStyle(document: Document, style: string = '') {
     if (!style.length) return;
-    document.head.appendChild(ztoolkit.UI.createElement(document, "style", {
-        properties: {
-            innerHTML: style,
-        },
-    }));
+    const styleElement = document.getElementsByTagName("style")[0];
+    if (styleElement) {
+        styleElement.innerHTML += style;
+    } else {
+        document.head.appendChild(ztoolkit.UI.createElement(document, "style", {
+            properties: {
+                innerHTML: style,
+            },
+        }));
+    }
 }
 
 export function loadCss(document: Document, cssfilesURL: string[] = [`chrome://${config.addonRef}/content/viewer.css`]) {
@@ -343,48 +363,46 @@ export function loadCss(document: Document, cssfilesURL: string[] = [`chrome://$
 
 }
 
+
+
 //["toolbar", "toolbar-primary"];["toolbar", "toolbar-primary"];["toolbox-top"]
 export class Toolbar {
-    toolbar: XUL.ToolBar;
-    constructor(option: {
-        doc: Document;
-        toolbarParas: [toolbarIdPostfix: string, toolbarClassList?: string[]];
-        isHbox: boolean;
-        toolbuttonParasArr: [buttonParasArr: [idPostfix: string, tooltiptext: string, classList?: string, imageURL?: string, iconsize?: string]];
-        toolbox?: XUL.ToolBox;
-    }) {
-        this.toolbar = this.makeToolBar();
-        this.createToolbar(option);
+    buttonVHbox: XUL.Element;
+    //toolbar: XUL.Element;
+    doc: Document;
+
+    constructor(option: ToolbarOption) {
+        this.doc = option.doc;
+        this.buttonVHbox = this.makeButtonBox(option.isHbox);
+        //this.toolbar = this.createToolbar(option);
+        insertStyle(option.doc, option.styleInsert);
     }
 
-    /* creatToolBars(option: any) {
-        option.toolbuttonParasArr.filter((buttonParasArr: any[]) => {
-            const [idPostfix: string, tooltiptext: string, toolBarButtonClassList?: string, imageURL?: string, iconsize?: string] = buttonParasArr;
-            const toolBarContainer = this.createToolbar(option.isHbox)(toolbarParas.buttonParasArr);
-            this.toolBar.appendChild(toolBarContainer);
-        });
-    } */
-
-    createToolbar(option: {
-        doc: Document;
-        toolbarParas: [toolbarIdPostfix: string, toolbarClassList?: string[]];
-        isHbox: boolean;
-        toolbuttonParasArr: [buttonParasArr: [idPostfix: string, tooltiptext: string, classList?: string[], imageURL?: string, iconsize?: string]];
-        toolbox?: XUL.ToolBox;
-    }) {
-
-        const buttonBox = this.makeButtonBox(option.isHbox);
+    createToolbar(option: ToolbarOption) {
         option.toolbuttonParasArr.filter((buttonParasArr) => {
-            const [idPostfix, tooltiptext, classList, imageURL, iconsize] = buttonParasArr;
-            this.makeToolBarButton(buttonBox, idPostfix, tooltiptext, classList, imageURL, iconsize);
+            //this.makeToolBarButton(buttonParasArr); 
+            const [idPostfix, tooltiptext, type, children, classList, imageURL] = buttonParasArr;
+            const toolbarbuttonProps = makeTagElementProps({
+                tag: "toolbarbutton",
+                id: config.addonRef + '-' + idPostfix,
+                namespace: "xul",
+                classList: classList,
+                attributes: {
+                    tabindex: "-1",
+                    tooltiptext: getString(tooltiptext),
+                    image: imageURL,
+                    label: getString(tooltiptext),
+                    type: type,
+                },
+                children: children,
+            });
+            ztoolkit.UI.appendElement(toolbarbuttonProps, this.buttonVHbox) as XUL.ToolBarButton;
         });
-        return toolBarContainer;
-
     }
 
-    //oncommand?: string Zotero.randomString(8)
-    makeToolBarButton(container: Element, idPostfix: string, tooltiptext: string, type: "menu" | "menu-button" | "checkbox" | "radio", classList?: string[], imageURL?: string) {
-        const toolBarButtonProps = makeTagElementProps({
+    makeToolBarButton(buttonParasArr: ButtonParas) {
+        const [idPostfix, tooltiptext, type, children, classList, imageURL] = buttonParasArr;
+        const toolbarbuttonProps = makeTagElementProps({
             tag: "toolbarbutton",
             id: config.addonRef + '-' + idPostfix,
             namespace: "xul",
@@ -396,8 +414,9 @@ export class Toolbar {
                 label: getString(tooltiptext),
                 type: type,
             },
+            children: children,
         });
-        return ztoolkit.UI.appendElement(toolBarButtonProps, container) as XUL.ToolBarButton;
+        return ztoolkit.UI.appendElement(toolbarbuttonProps, this.buttonVHbox) as XUL.ToolBarButton;
     }
 
     makeButtonBox(isHbox: boolean) {
@@ -412,8 +431,8 @@ export class Toolbar {
                 flex: 1,
             },
         });
-        const buttonBox = ztoolkit.UI.appendElement(boxProps, this.toolbar);
-        eventDelegation(buttonBox, "command", 'toolbarbutton', this.handleToolButton);
+        const buttonVHbox = ztoolkit.UI.appendElement(boxProps, this.toolbar) as XUL.Element;
+        eventDelegation(buttonVHbox, "command", 'toolbarbutton', this.handleToolButton);
         /* hboxToolButton.addEventListener("command", e => {            
             const tagName = (e.target as any).tagName.toLowerCase();
             if (tagName === 'toolbarbutton') {
@@ -421,7 +440,7 @@ export class Toolbar {
                 this.handleToolButton(e.target!);
             }
         }); */
-        return buttonBox;
+        return buttonVHbox;
     }
 
     makeToolBar(container?: Element) {
@@ -465,15 +484,35 @@ export function batchAddEventListener(args: [element: Element, [eventName: strin
 }
 
 /**
-     * @remark
-     * 传入的参数会覆盖默原有参数：
-     *  ignoreIfExists: true,返回存在的元素,不新建不替换
-        namespace: "xul",
-        enableElementRecord: true,
-        enableElementJSONLog: false,
-        nableElementDOMLog: false,
+* @example
+ * ```
+ * //TagElementProps 属性. 传入的参数会覆盖原默认参数
+ * //默认参数
+ * ignoreIfExists: true,返回存在的元素,不新建不替换
+ * namespace: "xul",
+ * enableElementRecord: true,
+ * enableElementJSONLog: false,
+ * nableElementDOMLog: false,
+ * //其他属性
+ * tag: string;     
+ * classList ?: Array<string>; 
+ * styles ?: Partial<CSSStyleDeclaration>; 、
+ * properties ?: {*[key: string]: unknown;*}; 
+ * attributes ?: {*[key: string]: string | boolean | number | null | undefined;*}; 
+ * listeners ?: Array<{
+ *  type: string;
+ *  listener: EventListenerOrEventListenerObject | ((e: Event) => void) | null | undefined;
+ *  options?: boolean | AddEventListenerOptions;}>;
+ * children ?: Array<TagElementProps>;
+ * skipIfExists ?: boolean;
+ * removeIfExists ?: boolean;
+ * checkExistenceParent ?: HTMLElement;
+ * customCheck ?: (doc: Document, options: ElementProps) => boolean;
+ * subElementOptions ?: Array<TagElementProps>;
+ * ```
+ * @see  {@link ElementProps} for detail
      * @param option 
-     * @returns 
+     * @returns TagElementProps
      */
 function makeTagElementProps(option: TagElementProps): TagElementProps {
     const preDefinedObj = {
@@ -483,7 +522,6 @@ function makeTagElementProps(option: TagElementProps): TagElementProps {
     };
     return Object.assign(preDefinedObj, option);
 }
-
 
 /* const menuPropsGroupsArrWithFunction = [
     [
@@ -500,4 +538,13 @@ function makeTagElementProps(option: TagElementProps): TagElementProps {
     ],
 ]; */
 
+
+
+/* creatToolBars(option: any) {
+    option.toolbuttonParasArr.filter((buttonParasArr: any[]) => {
+        const [idPostfix: string, tooltiptext: string, toolBarButtonClassList?: string, imageURL?: string, iconsize?: string] = buttonParasArr;
+        const toolBarContainer = this.createToolbar(option.isHbox)(toolbarParas.buttonParasArr);
+        this.toolBar.appendChild(toolBarContainer);
+    });
+} */
 
