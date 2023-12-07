@@ -5,7 +5,7 @@ import { getPref, readImage } from "../utils/prefs";
 import { makeTagElementProps } from "./toolbarButton";
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
-import { Toolbar, ToolbarOption, batchAddEventListener, contextMenu, insertStyle, loadCss, makeToolBox, } from './userInerface';
+import { ButtonParas, Toolbar, ToolbarOption, batchAddEventListener, contextMenu, insertStyle, loadCss, makeToolBox, objArrFactory, } from './userInerface';
 import { prepareReader } from "./prepareReader";
 import dragula from 'dragula';
 import { getString } from "../utils/locale";
@@ -151,71 +151,99 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
             //[id^="images"]
             const doc = dialogImgViewer.window.document as Document;
             const firstDiv = doc.getElementById('firstDiv')! as Element;
-
-
-
-
-            const toolboxImage = makeToolBox({
-                doc,
-                elementProps: {
-                    idPostfix: "imageSizeToolbox",
-                    classList: ["toolbox"],
+            const optionButton = {
+                common: {
+                    classList: ["imageToolButton"],
+                    attributes: {
+                        type: "checkbox",
+                    }
                 },
-                location: "beforebegin",
-                refElement: firstDiv,
-            });
-            const toolbarOption: ToolbarOption = {
-                doc: doc,
-                isHbox: true,
-                toolbarParas: {
-                    id: "imageToolBar",
-                    classList: ["imageToolBar"],
-                },
-                buttonParasArr: [
+                objArr: [
                     {
                         id: "imageToolButtonSmall",
-                        classList: ["imageToolButton"],
-                        attributes: {
-                            type: "checkbox",
-                            label: getString("info-small"),
-                            tooltiptext: getString("info-small"),
-                        },
+                        attributes: makeButtonAttributes("info-small")
                     },
                     {
                         id: "imageToolButtonMedium",
-                        classList: ["imageToolButton"],
-                        attributes: {
-                            type: "checkbox",
-                            label: getString("info-medium"),
-                            tooltiptext: getString("info-medium"),
-                        },
+                        attributes: makeButtonAttributes("info-medium")
                     },
                     {
                         id: "imageToolButtonLarge",
-                        classList: ["imageToolButton"],
-                        attributes: {
-                            type: "checkbox",
-                            label: getString("info-large"),
-                            tooltiptext: getString("info-large"),
-                        },
+                        attributes: makeButtonAttributes("info-large")
                     },
                 ],
-                styleInsert: `.imageToolBar{
-                    height: 32px !important;
-	                margin: 0;
-	                padding: 0;
-	                min-width: 1px;
-                }
-                .imageToolButton{
-                    -moz-user-focus: normal;
-	                padding-left: 5px;
-	                padding-right: 5px;
-	                margin-right: 2px;
-	                margin-left: 2px;
-                }
-                `,
             };
+            function makeButtonAttributes(imageSize: string) {
+                return {
+                    label: getString(imageSize),
+                    tooltiptext: getString(imageSize),
+                };
+            }
+            /*             {
+                            option.common;
+            option.tag ? obj.tag = option.tag
+                tag: string;
+            classList ?: Array<string>;
+            styles ?: Partial<CSSStyleDeclaration>; 、
+            properties ?: { *[key: string]: unknown; *};
+            attributes ?: { *[key: string]: string | boolean | number | null | undefined;*};
+            listeners ?: Array<{
+                type: string;
+                listener: EventListenerOrEventListenerObject | ((e: Event) => void) | null | undefined;
+                options?: boolean | AddEventListenerOptions;
+            }>;
+            children ?: Array<TagElementProps>;
+            skipIfExists ?: boolean;
+            removeIfExists ?: boolean;
+            checkExistenceParent ?: HTMLElement;
+            customCheck ?: (doc: Document, options: ElementProps) => boolean;
+            subElementOptions ?: Array<TagElementProps>;
+            
+                        } */
+
+            const buttonPropsArr = objArrFactory(optionButton);
+            const style = `.imageToolBar{
+                height: 32px !important;
+                margin: 0;
+                padding: 0;
+                min-width: 1px;
+            }
+            .imageToolButton{
+                -moz-user-focus: normal;
+                padding-left: 5px;
+                padding-right: 5px;
+                margin-right: 2px;
+                margin-left: 2px;
+            }
+            `;
+            const toolbarParas = {
+                id: "imageToolBar",
+                classList: ["imageToolBar"],
+            };
+            const toolbarOption: ToolbarOption = {
+                doc: doc,
+                isHbox: true,
+                toolbarParas: toolbarParas,
+                buttonParasArr: buttonPropsArr,
+                styleInsert: style,
+                toolbarRefElement: firstDiv,
+                toolbarRefPosition: 'beforebegin',
+            };
+
             const toolBarThumbnail = new Toolbar(toolbarOption);
+
+            test();
+            function test() {
+                const but: ButtonParas = { tag: "dd" };
+                if (!but.attributes) {
+                    but.attributes = {};
+                }
+                but.attributes.type = "checkbox";
+                but.attributes.imageURL = "ok";
+                ztoolkit.log(Object.keys(but));
+                const confirm = window.confirm("继续吗");
+
+            }
 
 
 
@@ -803,3 +831,47 @@ function mutationCallback (element:Element){
     }
 
 } */
+
+/* [
+    {
+        id: "imageToolButtonSmall",
+        classList: ["imageToolButton"],
+        attributes: {
+            type: "checkbox",
+            label: getString("info-small"),
+            tooltiptext: getString("info-small"),
+        },
+    },
+    {
+        id: "imageToolButtonMedium",
+        classList: ["imageToolButton"],
+        attributes: {
+            type: "checkbox",
+            label: getString("info-medium"),
+            tooltiptext: getString("info-medium"),
+        },
+    },
+    {
+        id: "imageToolButtonLarge",
+        classList: ["imageToolButton"],
+        attributes: {
+            type: "checkbox",
+            label: getString("info-large"),
+            tooltiptext: getString("info-large"),
+        },
+    },
+
+
+    {
+                            label: getString("info-small"),
+                            tooltiptext: getString("info-small"),
+                        },
+                        {
+                            label: getString("info-medium"),
+                            tooltiptext: getString("info-medium"),
+                        },
+                        {
+                            label: getString("info-large"),
+                            tooltiptext: getString("info-large"),
+                        },
+] */

@@ -50,13 +50,7 @@ export declare type ButtonParas = ElementProps & {
         type?: ToolbarbuttonType;
     };
 };
-const but: ButtonParas = { tag: "dd" };
-if (!but.attributes) {
-    but.attributes = {};
-}
-but.attributes.type = "checkbox";
-but.attributes.imageURL = "ok";
-ztoolkit.log(Object.keys(but));
+
 
 
 
@@ -68,7 +62,7 @@ export declare type ToolbarOption = {
     styleInsert: string;
     toolbarContainer?: Element;
     toolbarRefElement?: Element;
-    toolbarLocationToRef?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
+    toolbarRefPosition?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
 };
 
 
@@ -362,13 +356,25 @@ export class contextMenu {
 
 
 //["toolbar", "toolbar-primary"];["toolbar", "toolbar-primary"];["toolbox-top"]
+
+/**
+ * @example
+ * ```
+ * buttonVHbox: XUL.Element;
+    toolbar: XUL.Element;
+    doc: Document;
+    toolbarContainer?: Element;
+    toolbarRefElement?: Element;
+    toolbarRefPosition?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
+ * ```
+ */
 export class Toolbar {
     buttonVHbox: XUL.Element;
     toolbar: XUL.Element;
     doc: Document;
     toolbarContainer?: Element;
     toolbarRefElement?: Element;
-    toolbarLocationToRef?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
+    toolbarRefPosition?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
 
     constructor(option: ToolbarOption) {
         this.doc = option.doc;
@@ -377,7 +383,7 @@ export class Toolbar {
         this.makeToolBarButtons(option.buttonParasArr);
         this.toolbar = this.makeToolBar(option.toolbarParas);
         this.toolbarRefElement = option.toolbarRefElement;
-        this.toolbarLocationToRef = option.toolbarLocationToRef;
+        this.toolbarRefPosition = option.toolbarRefPosition;
         insertStyle(option.doc, option.styleInsert);
     }
 
@@ -422,7 +428,7 @@ export class Toolbar {
         toolbarParas.id ? toolbarParas.id = idWithAddon(toolbarParas.id) : () => { };
         const toolbarProps = makeTagElementProps(toolbarParas);
         const toolbar = ztoolkit.UI.createElement(this.doc, "toolbar", toolbarProps) as XUL.ToolBar;
-        this.toolbarContainer ? this.toolbarContainer.appendChild(toolbar) : (this.toolbarRefElement && this.toolbarLocationToRef ? this.toolbarRefElement.insertAdjacentElement(this.toolbarLocationToRef, toolbar) : () => { });
+        this.toolbarContainer ? this.toolbarContainer.appendChild(toolbar) : (this.toolbarRefElement && this.toolbarRefPosition ? this.toolbarRefElement.insertAdjacentElement(this.toolbarRefPosition, toolbar) : () => { });
         return toolbar;
 
     }
@@ -557,6 +563,43 @@ function makeTagElementProps(option: ElementProps | TagElementProps): ElementPro
     }
     return Object.assign(preDefined, option);
 }
+
+export function objArrFactory(option: {
+    common: any;
+    objArr: any[];
+}) {
+    const result: any[] = [];
+    option.objArr.filter((obj: any) => {
+
+        result.push(mergeDeep(obj, option.common));
+    });
+    return result;
+    function mergeDeep(target: any, ...sources: any[]) {
+        sources.forEach(source => {
+
+            Object.keys(source).forEach(key => {
+                if (Array.isArray(source[key])) {
+                    if (!target[key]) {
+                        Object.assign(target, { [key]: source[key] });
+                    }
+                    else {
+                        Object.assign(target, { [key]: [] });
+                        mergeDeep(target[key], source[key]);
+                    }
+
+                }
+                else if (source[key] instanceof Object) {
+                    if (!target[key]) Object.assign(target, { [key]: {} });
+                    mergeDeep(target[key], source[key]);
+                } else {
+                    Object.assign(target, { [key]: source[key] });
+                }
+            });
+        });
+        return target;
+    }
+}
+
 
 /* const menuPropsGroupsArrWithFunction = [
     [
