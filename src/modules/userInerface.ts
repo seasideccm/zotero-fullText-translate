@@ -570,13 +570,12 @@ export function objArrFactory(option: {
 }) {
     const result: any[] = [];
     option.objArr.filter((obj: any) => {
-
         result.push(mergeDeep(obj, option.common));
     });
     return result;
     function mergeDeep(target: any, ...sources: any[]) {
-        sources.forEach(source => {
 
+        sources.forEach(source => {
             Object.keys(source).forEach(key => {
                 if (Array.isArray(source[key])) {
                     if (!target[key]) {

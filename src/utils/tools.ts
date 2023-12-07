@@ -1,4 +1,77 @@
+import { judgeType } from '../modules/fontDetect';
+import { declare } from '../modules/userInerface';
+export function isArray(obj: any) {
+	if (Array.isArray) {
+		return Array.isArray(obj);
+	} else {
+		return Object.prototype.toString.call(obj) === '[object Array]';
+	}
+}
 
+const isPlainObject = (obj: any) => Object.prototype.toString.call(obj) === '[object Object]';
+
+//Reflect.ownKeys 返回正常的属性名，也返回不可枚举属性以及Symbol属性
+export const isEmptyObj = (obj: any) => Reflect.ownKeys(obj).length === 0;
+export const typeReal = (obj: any) => {
+	const text = Object.prototype.toString.call(obj);
+	return text.match(/(\b.+?\b)/g)?.slice(-1)[0];
+};
+const s = Symbol();
+console.log(typeReal(s));
+declare type dataType = "Object" | "Array" | "Function" | "Number" | "String" | "Boolean" | "Number" | "Undefined" | "Null" | "Symbol";
+function typeJudge(arg: any): string;
+function typeJudge(arg1: any, arg2: dataType): boolean;
+function typeJudge(
+	arg1: any,
+	arg2?: dataType
+): string | boolean {
+	if (!arg2) {
+		return "";
+	}
+	else {
+		return true;
+	}
+
+
+}
+
+export function createOverload() {
+	const callMap = new Map();
+	function overload(this: any, ...args: any[]) {
+		const key1 = args.map((arg) => "any").join(',');
+
+		const key = args.map((arg) => typeJudge(arg)).join(',');
+		const fn = callMap.get(key);
+
+		if (fn) {
+			return fn.apply(this, args);
+		}
+		throw new Error("no matching function");
+
+	}
+	/**
+	 * pass each arg's type first
+	 * then put fn at end of args	 * 
+	 * @param args 
+	 * @returns 
+	 */
+	overload.addImpl = function (...args: any[]) {
+		const fn = args.pop();
+		if (typeJudge(fn) !== "Function") return;
+		const types = args;
+		callMap.set(types.join(','), fn);
+	};
+	return overload;
+}
+
+const typeJudge2 = createOverload();
+typeJudge2.addImpl("any");
+
+
+
+
+
+new Date();
 
 /**
  * 
