@@ -182,58 +182,7 @@ declare type DocItem = {
 };
 
 
-/**
- * @example
- * ```
- * // tagName
-* tag?: string;
-*  // id
-* id?: string;
-*  // xul | html | svg
-* namespace?: string;
-*  // classList
-* classList?: Array<string>;
-*  // styles
-* styles?: Partial<CSSStyleDeclaration>;
-*  // Set with `elem.prop =`
-* properties?: {[key: string]: unknown;};
-* //deprecated Use `properties`
-* directAttributes?: {[key: string]: string | boolean | number | null | undefined;};
-*  // Set with `elem.setAttribute()`
-* attributes?: {[key: string]: string | boolean | number | null | undefined;};
-*  // Event listeners 
-* listeners?: Array<{
-*     type: string;
-*     listener: EventListenerOrEventListenerObject | ((e: Event) => void) | null | undefined;
-*     options?: boolean | AddEventListenerOptions;
-* }>;
-*  // Child elements. Will be created and appended to this element.
-* children?: Array<TagElementProps>;
-*  // Set true to check if the element exists using `id`. If exists, return this element and do not do anything.
-* ignoreIfExists?: boolean;
-*  // Set true to check if the element exists using `id`. If exists, skip element creation and continue with props/attrs/children.
-* skipIfExists?: boolean;
-*  // Set true to check if the element exists using `id`. If exists, remove and re-create it, then continue with props/attrs/children.
-* removeIfExists?: boolean;
-*  // Existence check will be processed under this element, default `document`
-* checkExistenceParent?: HTMLElement;
-*  // Custom check hook. If it returns false, return undefined and do not do anything.
-*  //param doc && options
-* customCheck?: (doc: Document, options: ElementProps) => boolean;
-*  //deprecated Use `children`
-* subElementOptions?: Array<TagElementProps>;
-*  // Enable elements to be recorded by the toolkit so it can be removed when calling `unregisterAll`.
-* enableElementRecord?: boolean;
-*  // Enable elements to be printed to console & Zotero.debug.
-* enableElementJSONLog?: boolean;
-*  // Enable elements to be printed to console & Zotero.debug.
-* enableElementDOMLog?: boolean;
- * ```
- *@see  {@link ElementProps} for details 
- */
-export interface TagElementProps extends ElementProps {
-  tag: string;
-}
+
 
 /* declare module "*.css" {
   const css: string;

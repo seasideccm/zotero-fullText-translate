@@ -1,27 +1,74 @@
 
-import { ElementProps, TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
+import { ElementProps, HTMLElementProps, TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
 import { onSaveImageAs } from "../utils/prefs";
-import { ztoolkit } from "../../typings/global";
 
 
-declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
-declare type Toolbarbutton = "menu" | "menu-button" | "checkbox" | "radio" | undefined;
-declare type ButtonParas = [idPostfix: string,
-    tooltiptext: string,
-    type?: Toolbarbutton,
-    namespace?: "xul" | "html" | "svg",
-    children?: TagElementProps[],
-    classList?: string[],
-    imageURL?: string];
 
-declare type ToolbarOption = {
+export declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
+export declare type ToolbarbuttonType = "menu" | "menu-button" | "checkbox" | "radio" | undefined;
+export declare type ButtonParas = ElementProps & {
+    attributes?: {
+        accesskey?: string;
+        autocheck?: boolean;
+        checkState?: number;
+        checked?: boolean;
+        command?: string;
+        crop?: "start" | "end" | "left" | "right" | "center" | "none";
+        dir?: "normal" | "reverse";
+        disabled?: boolean;
+        group?: string;
+        image?: string;
+        label?: string;
+        oncommand?: string;
+        open?: boolean;
+        orient?: "horizontal" | "vertical";
+        tabindex?: number;
+        title?: string;
+        tooltiptext?: string;
+        type?: ToolbarbuttonType;
+        validate?: "always" | "never";
+        wantdropmarker?: boolean;
+    };
+    properties?: {
+        accesskey?: string;
+        accessibleType?: number;
+        autocheck?: boolean;
+        checkState?: number;
+        checked?: boolean;
+        command?: string;
+        crop?: "start" | "end" | "left" | "right" | "center" | "none";
+        dir?: "normal" | "reverse";
+        disabled?: boolean;
+        group?: string;
+        image?: string;
+        open?: boolean;
+        orient?: "horizontal" | "vertical";
+        tabindex?: number;
+        title?: string;
+        type?: ToolbarbuttonType;
+    };
+};
+const but: ButtonParas = { tag: "dd" };
+if (!but.attributes) {
+    but.attributes = {};
+}
+but.attributes.type = "checkbox";
+but.attributes.imageURL = "ok";
+ztoolkit.log(Object.keys(but));
+
+
+
+export declare type ToolbarOption = {
     doc: Document;
-    toolbarParas: [toolbarIdPostfix: string, toolbarClassList?: string[]];
+    toolbarParas: ElementProps;
     isHbox: boolean;
-    toolbuttonParasArr: [buttonParasArr: ButtonParas];
+    buttonParasArr: ButtonParas[];
     styleInsert: string;
+    toolbarContainer?: Element;
+    toolbarRefElement?: Element;
+    toolbarLocationToRef?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
 };
 
 
@@ -110,15 +157,16 @@ export class contextMenu {
             `display: "flex";
             justifyContent: "center";
             width: "100vw"`;
-
-        const imgElment = ztoolkit.UI.createElement(document, "div", {
+        const props = {
             namespace: "html",
             id: "printImg",
             attributes: {
                 style: style,
             },
-            children: [imgProps]
-        });
+            children: [imgProps],
+        } as HTMLElementProps;
+
+        const imgElment = ztoolkit.UI.createElement(document, "div", props);
         const body = ztoolkit.UI.createElement(document, "body");
         body.appendChild(imgElment);
         Zotero.Prefs.resetBranch([], "print");
@@ -311,6 +359,86 @@ export class contextMenu {
 }
 
 
+
+
+//["toolbar", "toolbar-primary"];["toolbar", "toolbar-primary"];["toolbox-top"]
+export class Toolbar {
+    buttonVHbox: XUL.Element;
+    toolbar: XUL.Element;
+    doc: Document;
+    toolbarContainer?: Element;
+    toolbarRefElement?: Element;
+    toolbarLocationToRef?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
+
+    constructor(option: ToolbarOption) {
+        this.doc = option.doc;
+        this.toolbarContainer = option.toolbarContainer;
+        this.buttonVHbox = this.makeButtonBox(option.isHbox);
+        this.makeToolBarButtons(option.buttonParasArr);
+        this.toolbar = this.makeToolBar(option.toolbarParas);
+        this.toolbarRefElement = option.toolbarRefElement;
+        this.toolbarLocationToRef = option.toolbarLocationToRef;
+        insertStyle(option.doc, option.styleInsert);
+    }
+
+    makeToolBarButtons(buttonParasArr: ButtonParas[]) {
+        buttonParasArr.filter((buttonParas) => {
+            buttonParas.tag = "toolbarbutton";
+            buttonParas.id ? buttonParas.id = idWithAddon(buttonParas.id) : () => { };
+            const toolbarbuttonProps = makeTagElementProps(buttonParas);
+            ztoolkit.UI.appendElement(toolbarbuttonProps as TagElementProps, this.buttonVHbox);
+        });
+    }
+
+    makeButtonBox(isHbox: boolean) {
+        let tag;
+        isHbox ? tag = "hbox" : tag = "vbox";
+        const boxProps = makeTagElementProps({
+            tag: tag,
+            id: config.addonRef + '-' + Zotero.randomString(8),
+            namespace: "xul",
+            attributes: {
+                align: "center",
+                flex: 1,
+            },
+        });
+        /* if(this.toolbar){
+
+        } */
+        const buttonVHbox = ztoolkit.UI.appendElement(boxProps as TagElementProps, this.toolbar) as XUL.Element;
+        eventDelegation(buttonVHbox, "command", 'toolbarbutton', this.handleToolButton);
+        /* hboxToolButton.addEventListener("command", e => {            
+            const tagName = (e.target as any).tagName.toLowerCase();
+            if (tagName === 'toolbarbutton') {
+                // anchorNode 为操作的目标元素
+                this.handleToolButton(e.target!);
+            }
+        }); */
+        return buttonVHbox;
+    }
+
+    makeToolBar(toolbarParas: ElementProps) {
+        toolbarParas.tag = "toolbarbutton";
+        toolbarParas.id ? toolbarParas.id = idWithAddon(toolbarParas.id) : () => { };
+        const toolbarProps = makeTagElementProps(toolbarParas);
+        const toolbar = ztoolkit.UI.createElement(this.doc, "toolbar", toolbarProps) as XUL.ToolBar;
+        this.toolbarContainer ? this.toolbarContainer.appendChild(toolbar) : (this.toolbarRefElement && this.toolbarLocationToRef ? this.toolbarRefElement.insertAdjacentElement(this.toolbarLocationToRef, toolbar) : () => { });
+        return toolbar;
+
+    }
+
+
+
+    handleToolButton(target: EventTarget) {
+        () => { };
+    }
+}
+
+export function idWithAddon(idPostfix: string) {
+    return config.addonRef + '-' + idPostfix;
+}
+
+
 export function makeToolBox(option: {
     doc: Document;
     elementProps: {
@@ -364,107 +492,6 @@ export function loadCss(document: Document, cssfilesURL: string[] = [`chrome://$
 }
 
 
-
-//["toolbar", "toolbar-primary"];["toolbar", "toolbar-primary"];["toolbox-top"]
-export class Toolbar {
-    buttonVHbox: XUL.Element;
-    //toolbar: XUL.Element;
-    doc: Document;
-
-    constructor(option: ToolbarOption) {
-        this.doc = option.doc;
-        this.buttonVHbox = this.makeButtonBox(option.isHbox);
-        //this.toolbar = this.createToolbar(option);
-        insertStyle(option.doc, option.styleInsert);
-    }
-
-    createToolbar(option: ToolbarOption) {
-        option.toolbuttonParasArr.filter((buttonParasArr) => {
-            //this.makeToolBarButton(buttonParasArr); 
-            const [idPostfix, tooltiptext, type, children, classList, imageURL] = buttonParasArr;
-            const toolbarbuttonProps = makeTagElementProps({
-                tag: "toolbarbutton",
-                id: config.addonRef + '-' + idPostfix,
-                namespace: "xul",
-                classList: classList,
-                attributes: {
-                    tabindex: "-1",
-                    tooltiptext: getString(tooltiptext),
-                    image: imageURL,
-                    label: getString(tooltiptext),
-                    type: type,
-                },
-                children: children,
-            });
-            ztoolkit.UI.appendElement(toolbarbuttonProps, this.buttonVHbox) as XUL.ToolBarButton;
-        });
-    }
-
-    makeToolBarButton(buttonParasArr: ButtonParas) {
-        const [idPostfix, tooltiptext, type, children, classList, imageURL] = buttonParasArr;
-        const toolbarbuttonProps = makeTagElementProps({
-            tag: "toolbarbutton",
-            id: config.addonRef + '-' + idPostfix,
-            namespace: "xul",
-            classList: classList,
-            attributes: {
-                tabindex: "-1",
-                tooltiptext: getString(tooltiptext),
-                image: imageURL,
-                label: getString(tooltiptext),
-                type: type,
-            },
-            children: children,
-        });
-        return ztoolkit.UI.appendElement(toolbarbuttonProps, this.buttonVHbox) as XUL.ToolBarButton;
-    }
-
-    makeButtonBox(isHbox: boolean) {
-        let tag;
-        isHbox ? tag = "hbox" : tag = "vbox";
-        const boxProps = makeTagElementProps({
-            tag: tag,
-            id: config.addonRef + '-' + Zotero.randomString(8),
-            namespace: "xul",
-            attributes: {
-                align: "center",
-                flex: 1,
-            },
-        });
-        const buttonVHbox = ztoolkit.UI.appendElement(boxProps, this.toolbar) as XUL.Element;
-        eventDelegation(buttonVHbox, "command", 'toolbarbutton', this.handleToolButton);
-        /* hboxToolButton.addEventListener("command", e => {            
-            const tagName = (e.target as any).tagName.toLowerCase();
-            if (tagName === 'toolbarbutton') {
-                // anchorNode 为操作的目标元素
-                this.handleToolButton(e.target!);
-            }
-        }); */
-        return buttonVHbox;
-    }
-
-    makeToolBar(container?: Element) {
-        const toolbarProps = makeTagElementProps({
-            tag: "toolbar",
-            id: config.addonRef + '-' + this.idPostfixToolbar,
-            namespace: "xul",
-            classList: this.toolbarClassList,
-            attributes: {
-                tabindex: "-1",
-            },
-        });
-        return container ? ztoolkit.UI.appendElement(toolbarProps, container) as XUL.ToolBar
-            : ztoolkit.UI.createElement(this.doc, "toolbar", toolbarProps) as XUL.ToolBar;
-
-    }
-
-
-
-    handleToolButton(target: EventTarget) {
-        () => { };
-    }
-}
-
 function eventDelegation(element: Element, eventType: string, tagNameTarget: string, func: (arg0: any) => any) {
     element.addEventListener(eventType, e => {
         const tagName = (e.target as any).tagName.toLowerCase();
@@ -486,9 +513,11 @@ export function batchAddEventListener(args: [element: Element, [eventName: strin
 /**
 * @example
  * ```
- * //TagElementProps 属性. 传入的参数会覆盖原默认参数
+ * //TagElementProps 属性. 传入的参数会覆盖原默认参数, 同时处理 children 属性
  * //默认参数
- * ignoreIfExists: true,返回存在的元素,不新建不替换
+ * ignoreIfExists: true,根据 id 查找元素，如果有则仅返回该元素。
+ * skipIfExists：true，不新建元素，继续处理 props/attrs/children
+ * removeIfExists: false, 
  * namespace: "xul",
  * enableElementRecord: true,
  * enableElementJSONLog: false,
@@ -514,13 +543,19 @@ export function batchAddEventListener(args: [element: Element, [eventName: strin
      * @param option 
      * @returns TagElementProps
      */
-function makeTagElementProps(option: TagElementProps): TagElementProps {
-    const preDefinedObj = {
+function makeTagElementProps(option: ElementProps | TagElementProps): ElementProps | TagElementProps {
+    const preDefined = {
+        enableElementRecord: false,
         enableElementDOMLog: false,
         ignoreIfExists: true,
         namespace: "xul",
     };
-    return Object.assign(preDefinedObj, option);
+    if (option.children) {
+        option.children.filter((child: ElementProps | TagElementProps) => {
+            child = makeTagElementProps(child);
+        });
+    }
+    return Object.assign(preDefined, option);
 }
 
 /* const menuPropsGroupsArrWithFunction = [

@@ -5,7 +5,7 @@ import { getPref, readImage } from "../utils/prefs";
 import { makeTagElementProps } from "./toolbarButton";
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
-import { Toolbar, batchAddEventListener, contextMenu, insertStyle, loadCss, makeToolBox, } from './userInerface';
+import { Toolbar, ToolbarOption, batchAddEventListener, contextMenu, insertStyle, loadCss, makeToolBox, } from './userInerface';
 import { prepareReader } from "./prepareReader";
 import dragula from 'dragula';
 import { getString } from "../utils/locale";
@@ -151,6 +151,10 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
             //[id^="images"]
             const doc = dialogImgViewer.window.document as Document;
             const firstDiv = doc.getElementById('firstDiv')! as Element;
+
+
+
+
             const toolboxImage = makeToolBox({
                 doc,
                 elementProps: {
@@ -160,16 +164,62 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                 location: "beforebegin",
                 refElement: firstDiv,
             });
-            const toolBarThumbnail = new Toolbar({
+            const toolbarOption: ToolbarOption = {
                 doc: doc,
-                idPostfixToolbox: "imageSizeToolbox",
-                idPostfixToolbar: "imageSize",
-                toolbarParasArr: [{
-                    idPostfixHbox: "imageSizeHbox",
-                    buttonParasArr: [["samll", "info-small"], ["medium", "info-medium"], ["large", "info-large"]]
-                }],
-                toolBoxcontainer: firstDiv.parentElement! as Element,
-            });
+                isHbox: true,
+                toolbarParas: {
+                    id: "imageToolBar",
+                    classList: ["imageToolBar"],
+                },
+                buttonParasArr: [
+                    {
+                        id: "imageToolButtonSmall",
+                        classList: ["imageToolButton"],
+                        attributes: {
+                            type: "checkbox",
+                            label: getString("info-small"),
+                            tooltiptext: getString("info-small"),
+                        },
+                    },
+                    {
+                        id: "imageToolButtonMedium",
+                        classList: ["imageToolButton"],
+                        attributes: {
+                            type: "checkbox",
+                            label: getString("info-medium"),
+                            tooltiptext: getString("info-medium"),
+                        },
+                    },
+                    {
+                        id: "imageToolButtonLarge",
+                        classList: ["imageToolButton"],
+                        attributes: {
+                            type: "checkbox",
+                            label: getString("info-large"),
+                            tooltiptext: getString("info-large"),
+                        },
+                    },
+                ],
+                styleInsert: `.imageToolBar{
+                    height: 32px !important;
+	                margin: 0;
+	                padding: 0;
+	                min-width: 1px;
+                }
+                .imageToolButton{
+                    -moz-user-focus: normal;
+	                padding-left: 5px;
+	                padding-right: 5px;
+	                margin-right: 2px;
+	                margin-left: 2px;
+                }
+                `,
+            };
+            const toolBarThumbnail = new Toolbar(toolbarOption);
+
+
+
+
             const imagesArr = doc.querySelectorAll('[id^="images"]');
             const cssfilesURL = [
                 `chrome://${config.addonRef}/content/viewer.css`,
