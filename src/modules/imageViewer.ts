@@ -10,6 +10,7 @@ import { prepareReader } from "./prepareReader";
 import dragula from 'dragula';
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
+import { typeJudge2 } from "../utils/tools";
 
 export const viewImgMenuArr = [
     {
@@ -20,6 +21,8 @@ export const viewImgMenuArr = [
 ];
 
 async function viewImg() {
+    const typetype = (typeJudge2({}, "Object"));
+    const test = typetype;
     const hasNewContent = await makeDialogElementProps();
     await showDialog(hasNewContent);
 };

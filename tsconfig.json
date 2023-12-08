@@ -7,7 +7,7 @@
     "skipLibCheck": true,
     "strict": true,
     "outDir": "lib",
-    "soureMap":true,
+    "sourceMap":true,
     "declaration": true,
     "emitDeclarationOnly": true,
     "declarationDir": "./typings",

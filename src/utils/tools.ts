@@ -11,41 +11,63 @@ const isPlainObject = (obj: any) => Object.prototype.toString.call(obj) === '[ob
 //Reflect.ownKeys 返回正常的属性名，也返回不可枚举属性以及Symbol属性
 export const isEmptyObj = (obj: any) => Reflect.ownKeys(obj).length === 0;
 
-
-declare type DataTypeJS = "Object" | "Array" | "Function" | "Number" | "String" | "Boolean" | "Number" | "Undefined" | "Null" | "Symbol";
+/**
+ * 不区分大小写
+ */
+declare type DataTypeJS = "object" | "array" | "function" | "number" | "string" | "boolean" | "number" | "undefined" | "null" | "symbol" | "Object" | "Array" | "Function" | "Number" | "String" | "Boolean" | "Number" | "Undefined" | "Null" | "Symbol";
 function typeJudge(arg: any): string;
 function typeJudge(arg1: any, arg2: DataTypeJS): boolean;
 function typeJudge(
 	arg1: any,
 	arg2?: DataTypeJS
 ): string | boolean | undefined {
-	return arg2 ? typeReal(arg1) === arg2 : typeReal(arg1);
+	return arg2 ? typeReal(arg1) === arg2.toLowerCase() : typeReal(arg1);
 }
 
+console.log(typeJudge("good", "number"));
 
-export const typeReal = (obj: any) => {
-	return Object.prototype.toString.call(obj).match(/(\b.+?\b)/g)?.slice(-1)[0];
+
+export function typeReal(obj: any) {
+	return Object.prototype.toString.call(obj).match(/(\b.+?\b)/g)?.slice(-1)[0].toLowerCase();
 };
 /**
  * 替换数组元素 0 - n 个的排列
  * @param arr 数组
  */
-export function arrange(arr: any[], replaceText: string) {
+export function arrange(arr: any[], replaceText: string | number) {
 	const arrArr: any[] = [];
+	arrArr.push(arr);
 	for (let i = 0; i < arr.length; i++) {
-		const arr1 = arr.slice(0, i);
-		arr1.filter((e, i) => arr1[i] = replaceText);
-		const arr2 = arr.slice(i);
-		for (let j = 0; j < arr2.length; j++) {
-			arrArr.push(arr1.concat(arr2.slice(0, j).concat(replaceText).concat(arr2.slice(j + 1))));
-		}
+		const temp: any[] = [];
+		arrArr.filter(arrOld => {
+			temp.push(arrOld.slice(0, i).concat(replaceText).concat(arrOld.slice(i + 1)));
+		});
+		arrArr.push(...temp);
+		temp.length = 0;
 	}
 	return arrArr;
 }
+const arrTest = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+console.log(arrange(arrTest, 5).length);
+
+/* interface Overload {
+	//类型判断
+	overload(arg: any): string;
+	//判断是否为指定类型
+	overload(arg: any, arg2: string): boolean;
+}
+
+interface createOverload {
+	(): Overload;
+	overload: Overload;
+
+} */
+
 export function createOverload() {
 	const callMap = new Map();
-	function overload(this: any, ...args: any[]) {
-		const types = args;
+	function overload(...args: any[]) {
+		const types = args.map((arg) => typeReal(arg));
 		const typesArrang = arrange(types, "any");
 		const kesArr = typesArrang.map((types) => types.join(','));
 		const key = args.map((arg) => typeReal(arg)).join(',');
@@ -62,25 +84,21 @@ export function createOverload() {
 		}
 		throw new Error("no matching function");
 	}
-	/**
-	 *  first pass each arg's type，
-	 * then put fn at end of args
-	 * @param args 
-	 * @returns 
-	 */
 	overload.addImpl = function (...args: any[]) {
 		const fn = args.pop();
-		if (typeJudge(fn) !== "Function") return;
+		if (typeReal(fn) !== "function") return;
 		const types = args;
 		callMap.set(types.join(','), fn);
 	};
 	return overload;
 }
 
-const typeJudge2 = createOverload();
+export const typeJudge2 = createOverload();
 typeJudge2.addImpl("any", (obj: any) => typeReal(obj));
-typeJudge2.addImpl("any", "string", (obj: any, condition: DataTypeJS) => typeReal(obj) === condition);
-console.log(typeJudge2({}));
+typeJudge2.addImpl("any", "string", (obj: any, condition: DataTypeJS) => typeReal(obj) === condition.toLowerCase());
+typeJudge2();
+
+
 
 /**
  * 
