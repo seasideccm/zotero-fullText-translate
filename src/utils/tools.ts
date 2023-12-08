@@ -1,5 +1,3 @@
-import { judgeType } from '../modules/fontDetect';
-import { declare } from '../modules/userInerface';
 export function isArray(obj: any) {
 	if (Array.isArray) {
 		return Array.isArray(obj);
@@ -12,46 +10,61 @@ const isPlainObject = (obj: any) => Object.prototype.toString.call(obj) === '[ob
 
 //Reflect.ownKeys 返回正常的属性名，也返回不可枚举属性以及Symbol属性
 export const isEmptyObj = (obj: any) => Reflect.ownKeys(obj).length === 0;
-export const typeReal = (obj: any) => {
-	const text = Object.prototype.toString.call(obj);
-	return text.match(/(\b.+?\b)/g)?.slice(-1)[0];
-};
-const s = Symbol();
-console.log(typeReal(s));
-declare type dataType = "Object" | "Array" | "Function" | "Number" | "String" | "Boolean" | "Number" | "Undefined" | "Null" | "Symbol";
+
+
+declare type DataTypeJS = "Object" | "Array" | "Function" | "Number" | "String" | "Boolean" | "Number" | "Undefined" | "Null" | "Symbol";
 function typeJudge(arg: any): string;
-function typeJudge(arg1: any, arg2: dataType): boolean;
+function typeJudge(arg1: any, arg2: DataTypeJS): boolean;
 function typeJudge(
 	arg1: any,
-	arg2?: dataType
-): string | boolean {
-	if (!arg2) {
-		return "";
-	}
-	else {
-		return true;
-	}
-
-
+	arg2?: DataTypeJS
+): string | boolean | undefined {
+	return arg2 ? typeReal(arg1) === arg2 : typeReal(arg1);
 }
 
+
+export const typeReal = (obj: any) => {
+	return Object.prototype.toString.call(obj).match(/(\b.+?\b)/g)?.slice(-1)[0];
+};
+/**
+ * 替换数组元素 0 - n 个的排列
+ * @param arr 数组
+ */
+export function arrange(arr: any[], replaceText: string) {
+	const arrArr: any[] = [];
+	for (let i = 0; i < arr.length; i++) {
+		const arr1 = arr.slice(0, i);
+		arr1.filter((e, i) => arr1[i] = replaceText);
+		const arr2 = arr.slice(i);
+		for (let j = 0; j < arr2.length; j++) {
+			arrArr.push(arr1.concat(arr2.slice(0, j).concat(replaceText).concat(arr2.slice(j + 1))));
+		}
+	}
+	return arrArr;
+}
 export function createOverload() {
 	const callMap = new Map();
 	function overload(this: any, ...args: any[]) {
-		const key1 = args.map((arg) => "any").join(',');
-
-		const key = args.map((arg) => typeJudge(arg)).join(',');
-		const fn = callMap.get(key);
-
+		const types = args;
+		const typesArrang = arrange(types, "any");
+		const kesArr = typesArrang.map((types) => types.join(','));
+		const key = args.map((arg) => typeReal(arg)).join(',');
+		let fn = callMap.get(key);
 		if (fn) {
 			return fn.apply(this, args);
+		} else {
+			for (const key of kesArr) {
+				fn = callMap.get(key);
+				if (fn) {
+					return fn.apply(this, args);
+				}
+			}
 		}
 		throw new Error("no matching function");
-
 	}
 	/**
-	 * pass each arg's type first
-	 * then put fn at end of args	 * 
+	 *  first pass each arg's type，
+	 * then put fn at end of args
 	 * @param args 
 	 * @returns 
 	 */
@@ -65,13 +78,9 @@ export function createOverload() {
 }
 
 const typeJudge2 = createOverload();
-typeJudge2.addImpl("any");
-
-
-
-
-
-new Date();
+typeJudge2.addImpl("any", (obj: any) => typeReal(obj));
+typeJudge2.addImpl("any", "string", (obj: any, condition: DataTypeJS) => typeReal(obj) === condition);
+console.log(typeJudge2({}));
 
 /**
  * 
