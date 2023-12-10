@@ -2,7 +2,8 @@
 import { ElementProps, HTMLElementProps, TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
-import { onSaveImageAs } from "../utils/prefs";
+import { onSaveImageAs, setPref } from "../utils/prefs";
+import { calColumns, makeStyle, showDialog } from "./imageViewer";
 
 
 
@@ -57,13 +58,19 @@ export declare type ButtonParas = ElementProps & {
 export declare type ToolbarOption = {
     doc: Document;
     toolbarParas: ElementProps;
+    toolboxParas: ElementProps;
     isHbox: boolean;
     buttonParasArr: ButtonParas[];
     styleInsert: string;
-    toolbarContainer?: Element;
-    toolbarRefElement?: Element;
-    toolbarRefPosition?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
+    toolboxContainerOrRef?: ContainerOrRef;
+    toolbarContainerOrRef?: ContainerOrRef;
 };
+
+export declare type ContainerOrRef = {
+    container?: Element;
+    refElement?: Element;
+    position?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
+} & ({ container: Element; } | { refElement: Element; });
 
 
 export class contextMenu {
@@ -194,8 +201,6 @@ export class contextMenu {
             case `${getString("info-printImage")}`: this.printImage(target);
                 break;
         }
-
-
     }
 
     batchAddEventListener(args: [element: Element, [eventName: string, callBack: any][]][]) {
@@ -352,51 +357,35 @@ export class contextMenu {
     };
 }
 
-
-
-
 //["toolbar", "toolbar-primary"];["toolbar", "toolbar-primary"];["toolbox-top"]
 
-/**
- * @example
- * ```
- * buttonVHbox: XUL.Element;
-    toolbar: XUL.Element;
-    doc: Document;
-    toolbarContainer?: Element;
-    toolbarRefElement?: Element;
-    toolbarRefPosition?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
- * ```
- */
 export class Toolbar {
     buttonVHbox: XUL.Element;
     toolbar: XUL.Element;
+    toolbox: XUL.Element;
     doc: Document;
-    toolbarContainer?: Element;
-    toolbarRefElement?: Element;
-    toolbarRefPosition?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
-
     constructor(option: ToolbarOption) {
         this.doc = option.doc;
-        this.toolbarContainer = option.toolbarContainer;
-        this.buttonVHbox = this.makeButtonBox(option.isHbox);
+        this.toolbox = this.makeToolBox(option);
+        if (!option.toolbarContainerOrRef) {
+            option["toolbarContainerOrRef"] = { container: this.toolbox };
+        }
+        this.toolbar = this.makeToolBar(option);
+        this.buttonVHbox = this.makeButtonVHBox(option.isHbox);
         this.makeToolBarButtons(option.buttonParasArr);
-        this.toolbar = this.makeToolBar(option.toolbarParas);
-        this.toolbarRefElement = option.toolbarRefElement;
-        this.toolbarRefPosition = option.toolbarRefPosition;
         insertStyle(option.doc, option.styleInsert);
     }
 
     makeToolBarButtons(buttonParasArr: ButtonParas[]) {
         buttonParasArr.filter((buttonParas) => {
-            buttonParas.tag = "toolbarbutton";
+            //buttonParas.tag = "toolbarbutton";
             buttonParas.id ? buttonParas.id = idWithAddon(buttonParas.id) : () => { };
             const toolbarbuttonProps = makeTagElementProps(buttonParas);
             ztoolkit.UI.appendElement(toolbarbuttonProps as TagElementProps, this.buttonVHbox);
         });
     }
 
-    makeButtonBox(isHbox: boolean) {
+    makeButtonVHBox(isHbox: boolean) {
         let tag;
         isHbox ? tag = "hbox" : tag = "vbox";
         const boxProps = makeTagElementProps({
@@ -408,41 +397,106 @@ export class Toolbar {
                 flex: 1,
             },
         });
-        /* if(this.toolbar){
-
-        } */
         const buttonVHbox = ztoolkit.UI.appendElement(boxProps as TagElementProps, this.toolbar) as XUL.Element;
-        eventDelegation(buttonVHbox, "command", 'toolbarbutton', this.handleToolButton);
-        /* hboxToolButton.addEventListener("command", e => {            
-            const tagName = (e.target as any).tagName.toLowerCase();
-            if (tagName === 'toolbarbutton') {
-                // anchorNode 为操作的目标元素
-                this.handleToolButton(e.target!);
-            }
-        }); */
+        eventDelegation(buttonVHbox, "click", 'button', this.handleToolButton);
         return buttonVHbox;
     }
 
-    makeToolBar(toolbarParas: ElementProps) {
+    makeToolBar({ toolbarParas, toolbarContainerOrRef }: { toolbarParas: ElementProps, toolbarContainerOrRef?: ContainerOrRef; }) {
         toolbarParas.tag = "toolbarbutton";
         toolbarParas.id ? toolbarParas.id = idWithAddon(toolbarParas.id) : () => { };
         const toolbarProps = makeTagElementProps(toolbarParas);
         const toolbar = ztoolkit.UI.createElement(this.doc, "toolbar", toolbarProps) as XUL.ToolBar;
-        this.toolbarContainer ? this.toolbarContainer.appendChild(toolbar) : (this.toolbarRefElement && this.toolbarRefPosition ? this.toolbarRefElement.insertAdjacentElement(this.toolbarRefPosition, toolbar) : () => { });
+        toolbarContainerOrRef?.container ? toolbarContainerOrRef.container.appendChild(toolbar) : (toolbarContainerOrRef?.refElement && toolbarContainerOrRef?.position ? toolbarContainerOrRef?.refElement.insertAdjacentElement(toolbarContainerOrRef.position, toolbar) : () => { });
         return toolbar;
 
     }
-
-
+    makeToolBox({ toolboxParas, toolboxContainerOrRef }: { toolboxParas: ElementProps, toolboxContainerOrRef?: ContainerOrRef; }) {
+        toolboxParas.tag = "toolbox";
+        toolboxParas.id ? toolboxParas.id = idWithAddon(toolboxParas.id) : () => { };
+        const toolboxProps = makeTagElementProps(toolboxParas);
+        const toolbox = ztoolkit.UI.createElement(this.doc, "toolbox", toolboxProps) as XUL.ToolBox;
+        toolboxContainerOrRef?.container ? toolboxContainerOrRef.container.appendChild(toolbox) : (toolboxContainerOrRef?.refElement && toolboxContainerOrRef?.position ? toolboxContainerOrRef.refElement.insertAdjacentElement(toolboxContainerOrRef.position, toolbox) : () => { });
+        return toolbox;
+    }
 
     handleToolButton(target: EventTarget) {
-        () => { };
+        let size;
+        switch ((target as any).id) {
+            case `${idWithAddon("imageToolButtonSmall")}`: size = "small";
+                break;
+            case `${idWithAddon("imageToolButtonMedium")}`: size = "medium";
+                break;
+            case `${idWithAddon("imageToolButtonLarge")}`: size = "large";
+                break;
+        }
+        if (size) {
+            let sizeStyle: number;
+            switch (size) {
+                case "small": sizeStyle = 100;
+                    break;
+                case "medium": sizeStyle = 300;
+                    break;
+                case "large": sizeStyle = 600;
+                    break;
+                default: sizeStyle = 100;
+            }
+            setPref('thumbnailSize', size);
+            const columns = calColumns(sizeStyle);
+            const objTempArr = [{
+                varName: "--thumbnailSize",
+                value: sizeStyle,
+            },
+            {
+                varName: "--columns",
+                value: columns,
+            }];
+            const doc = addon.data.globalObjs.dialogImgViewer.window.document! as Document;
+            if (!doc) return;
+            const targetElement = styleElement(doc)();
+            styleVarSet(objTempArr)(targetElement);
+
+            //showDialog(true);
+            //insertStyle(addon.data.globalObjs.dialogImgViewer.window.document, makeStyle());
+            //updateDialog();
+        }
+        ztoolkit.log(size);
     }
 }
 
 export function idWithAddon(idPostfix: string) {
     return config.addonRef + '-' + idPostfix;
 }
+
+export function styleVarSet(KVs: { varName: string; value: string | number; }[],) {
+    return function doIt(element: XUL.Element | HTMLElement) {
+        KVs.filter((kv: { varName: string; value: string | number; }) => {
+            element.style.setProperty(kv.varName, String(kv.value));
+        });
+    };
+};
+
+export function styleVarGet(varNames: string[]) {
+    return function doIt(element: XUL.Element | HTMLElement) {
+        const elementStyle = getComputedStyle(element);
+        if (varNames.length == 1) return elementStyle.getPropertyValue(varNames[0]);
+        const obj: any = {};
+        varNames.filter((varName) => {
+            obj[varName] = elementStyle.getPropertyValue(varName);
+        });
+        return obj;
+    };
+}
+
+export function styleElement(doc: Document) {
+    return function targetElement(element?: Element) {
+        !element ? element = doc.querySelector(":root")! : element;
+        return element as XUL.Element | HTMLElement;
+    };
+}
+
+
+
 
 
 export function makeToolBox(option: {
@@ -564,6 +618,8 @@ function makeTagElementProps(option: ElementProps | TagElementProps): ElementPro
     return Object.assign(preDefined, option);
 }
 
+
+
 export function objArrFactory(option: {
     common: any;
     objArr: any[];
@@ -574,7 +630,6 @@ export function objArrFactory(option: {
     });
     return result;
     function mergeDeep(target: any, ...sources: any[]) {
-
         sources.forEach(source => {
             Object.keys(source).forEach(key => {
                 if (Array.isArray(source[key])) {
@@ -598,6 +653,7 @@ export function objArrFactory(option: {
         return target;
     }
 }
+
 
 
 /* const menuPropsGroupsArrWithFunction = [

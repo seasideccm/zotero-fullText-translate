@@ -5,12 +5,12 @@ import { getPref, readImage } from "../utils/prefs";
 import { makeTagElementProps } from "./toolbarButton";
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
-import { ButtonParas, Toolbar, ToolbarOption, batchAddEventListener, contextMenu, insertStyle, loadCss, makeToolBox, objArrFactory, } from './userInerface';
+import { ButtonParas, ContainerOrRef, Toolbar, ToolbarOption, batchAddEventListener, contextMenu, insertStyle, loadCss, makeToolBox, objArrFactory, } from './userInerface';
 import { prepareReader } from "./prepareReader";
 import dragula from 'dragula';
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
-import { typeJudge2 } from "../utils/tools";
+
 
 export const viewImgMenuArr = [
     {
@@ -21,8 +21,6 @@ export const viewImgMenuArr = [
 ];
 
 async function viewImg() {
-    const typetype = (typeJudge2({}, "Object"));
-    const test = typetype;
     const hasNewContent = await makeDialogElementProps();
     await showDialog(hasNewContent);
 };
@@ -73,6 +71,16 @@ async function makeDialogElementProps() {
             dialogImgViewer.addCell(0, 0,
                 container
             );
+            /* .addButton("Confirm", "confirm")
+                .addButton("Cancel", "cancel")
+                .addButton("Help", "help", {
+                    noClose: true,
+                    callback: (e) => {
+                        dialogImgViewer.window?.alert(
+                            "按钮啊",
+                        );
+                    },
+                }); */
         }
         const collectionName =
         {
@@ -124,7 +132,7 @@ async function makeDialogElementProps() {
     return hasNewContent;
 }
 
-async function showDialog(hasNewContent: boolean, dialogData?: any,) {
+export function showDialog(hasNewContent: boolean, dialogData?: any,) {
     const args = {
         title: `${config.addonRef}`,
         windowFeatures: {
@@ -135,7 +143,7 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
         }
     };
     const dialogImgViewer = addon.data.globalObjs?.dialogImgViewer;
-    async function restoreDialog() {
+    async function restoreDialogSize() {
         if (dialogImgViewer.window.document.fullscreen && getPref('windowSizeOnViewImage') != "full") {
             await dialogImgViewer.window.document.exitFullscreen();
         }
@@ -156,53 +164,45 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
             const firstDiv = doc.getElementById('firstDiv')! as Element;
             const optionButton = {
                 common: {
+                    tag: "button",
                     classList: ["imageToolButton"],
-                    attributes: {
+                    namespace: "html",
+                    /* properties: {
+                        //Gets and sets the value of the type attribute.  
                         type: "checkbox",
-                    }
+                    }, */
+                    attributes: {
+                        type: "button",
+                    },
                 },
                 objArr: [
                     {
                         id: "imageToolButtonSmall",
-                        attributes: makeButtonAttributes("info-small")
+                        properties: makeButtonProperties("info-small"),
+                        attributes: makeButtonAttributes("info-small"),
                     },
                     {
                         id: "imageToolButtonMedium",
-                        attributes: makeButtonAttributes("info-medium")
+                        properties: makeButtonProperties("info-medium"),
+                        attributes: makeButtonAttributes("info-medium"),
                     },
                     {
                         id: "imageToolButtonLarge",
-                        attributes: makeButtonAttributes("info-large")
+                        properties: makeButtonProperties("info-large"),
+                        attributes: makeButtonAttributes("info-large"),
                     },
                 ],
             };
             function makeButtonAttributes(imageSize: string) {
                 return {
-                    label: getString(imageSize),
                     tooltiptext: getString(imageSize),
                 };
             }
-            /*             {
-                            option.common;
-            option.tag ? obj.tag = option.tag
-                tag: string;
-            classList ?: Array<string>;
-            styles ?: Partial<CSSStyleDeclaration>; 、
-            properties ?: { *[key: string]: unknown; *};
-            attributes ?: { *[key: string]: string | boolean | number | null | undefined;*};
-            listeners ?: Array<{
-                type: string;
-                listener: EventListenerOrEventListenerObject | ((e: Event) => void) | null | undefined;
-                options?: boolean | AddEventListenerOptions;
-            }>;
-            children ?: Array<TagElementProps>;
-            skipIfExists ?: boolean;
-            removeIfExists ?: boolean;
-            checkExistenceParent ?: HTMLElement;
-            customCheck ?: (doc: Document, options: ElementProps) => boolean;
-            subElementOptions ?: Array<TagElementProps>;
-            
-                        } */
+            function makeButtonProperties(imageSize: string) {
+                return {
+                    innerHTML: getString(imageSize),
+                };
+            }
 
             const buttonPropsArr = objArrFactory(optionButton);
             const style = `.imageToolBar{
@@ -217,40 +217,43 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                 padding-right: 5px;
                 margin-right: 2px;
                 margin-left: 2px;
+                border: 1px solid;
+            }
+            .imageToolbox{
+                appearance: auto;
+                -moz-default-appearance: toolbar;
+                min-width: 1px;
+                min-height: 19px;
+                border: 1px solid;
             }
             `;
             const toolbarParas = {
                 id: "imageToolBar",
                 classList: ["imageToolBar"],
             };
+            const toolboxParas = {
+                id: "imageToolBox",
+                classlist: ["imageToolbox"],
+            };
+            const toolboxContainerOrRef: ContainerOrRef = {
+                refElement: firstDiv,
+                position: 'beforebegin',
+            };
+
+
+
             const toolbarOption: ToolbarOption = {
                 doc: doc,
                 isHbox: true,
+                toolboxParas: toolboxParas,
                 toolbarParas: toolbarParas,
                 buttonParasArr: buttonPropsArr,
                 styleInsert: style,
-                toolbarRefElement: firstDiv,
-                toolbarRefPosition: 'beforebegin',
+                toolboxContainerOrRef: toolboxContainerOrRef,
             };
 
             const toolBarThumbnail = new Toolbar(toolbarOption);
-
-            test();
-            function test() {
-                const but: ButtonParas = { tag: "dd" };
-                if (!but.attributes) {
-                    but.attributes = {};
-                }
-                but.attributes.type = "checkbox";
-                but.attributes.imageURL = "ok";
-                ztoolkit.log(Object.keys(but));
-                const confirm = window.confirm("继续吗");
-
-            }
-
-
-
-
+            //const confirm = window.confirm("继续吗");
             const imagesArr = doc.querySelectorAll('[id^="images"]');
             const cssfilesURL = [
                 `chrome://${config.addonRef}/content/viewer.css`,
@@ -301,7 +304,7 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
                     [
                         [images,
                             [
-                                ['hidden', restoreDialog],
+                                ['hidden', restoreDialogSize],
                                 ['view', maxOrFullDialog],
                             ],
                         ],
@@ -322,6 +325,7 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
         return open(args);
     };
     const focus = () => dialogImgViewer.window.focus();
+
     dialogImgViewer.window ? (dialogImgViewer.window.closed ? open(args) : (hasNewContent ? closeOpen(args) : focus())) : open(args);
 }
 
@@ -338,7 +342,7 @@ async function showDialog(hasNewContent: boolean, dialogData?: any,) {
     document.querySelector("#browser")!.appendChild(imgCtxObj.contextMenu);
 } */
 
-function makeStyle() {
+export function makeStyle() {
     const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
     const thumbnailSize = getPref('thumbnailSize') as string || "small";
     let sizeStyle: number = 0;
@@ -349,22 +353,68 @@ function makeStyle() {
             break;
         case "large": sizeStyle = 600;
     }
-    //containerImg{object-fit: contain;} border-color:${backgroundColor};          border: 3vw solid ${backgroundColor};          background-color:${backgroundColor};          padding:1vw;            min-height:20px;
+    //containerImg{object-fit: contain;} 
+    const rootStyle =
+        `:root{
+        --bgColor:${backgroundColor};
+        --columns:${calColumns(sizeStyle)};
+        --thumbnailSize:${sizeStyle};
+        --screenHeight:${window.screen.availHeight};
+    }
+    `;
+
+
     const styleImgDiv =
         `div[id^="container-"]{
-            padding:10px;
-            background-color:${backgroundColor};
+            margin:2px;
+            padding:5px;
+            background-color:var(--bgColor);
     }`;
     const styleImg =
         `img{
          display: block;
          width: 100%;
-         max-height: ${2 * sizeStyle}; 
+         max-height: calc(2 * var(--thumbnailSize)); 
          object-fit: contain;
          border-color: #FFFFFF;
         }`;
-    return makeImagesDivStyle(sizeStyle) + styleImg + styleImgDiv;
+
+    const containerImagesDivStyle = `
+    [id^="images"]{
+        margin: 2px;
+        display: grid;
+        grid-template-rows: masonry;
+        max-width: 100vw;
+        max-height: calc(var(--screenHeight) - 100};
+        min-height: 200px;
+        background-color: var(--bgColor);
+        grid-template-columns: repeat(var(--columns),1fr); min-width: calc(var(--thumbnailSize)px * var(--columns));     
+    }
+    [id^="collection-"]{
+        margin: 2px;
+        grid-column-start: span var(--columns);
+        place-self: center center;
+        background-color: #FFFFFF;
+    }
+    `;
+    return rootStyle + containerImagesDivStyle + styleImg + styleImgDiv;
 }
+export function calColumns(sizeStyle: number) {
+    let maxColumns;
+    const maxColumnsPC = 10;
+    const maxColumnsMobileH = 5;
+    const maxColumnsMobileV = 3;
+    window.screen.width > 768 ? maxColumns = maxColumnsPC : (window.screen.width > window.screen.height ? maxColumns = maxColumnsMobileH : maxColumns = maxColumnsMobileV);
+    maxColumns * sizeStyle > window.screen.width ? maxColumns = Math.floor(window.screen.width / sizeStyle) : () => { };
+    return maxColumns;
+}
+
+
+
+
+
+
+
 
 async function renderPDFs(newImgItems: any[]) {
     const imageAnnotations = newImgItems.filter((item: any) => item.itemType == "annotation");
@@ -421,8 +471,6 @@ async function renderAnnotationImage(imageAnnotations: Zotero.Item[]) {
     }
 }
 
-
-
 function makeImgTags(srcImgBase64Arr: {
     key: string;
     src: string;
@@ -458,50 +506,6 @@ function makeImgTags(srcImgBase64Arr: {
         elementProps.push(elementProp);
     });
     return elementProps;
-}
-
-
-
-function makeImagesDivStyle(sizeStyle: number) {
-    const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
-    let maxColumns;
-    const maxColumnsPC = 10;
-    const maxColumnsMobileH = 5;
-    const maxColumnsMobileV = 3;
-    window.screen.width > 768 ? maxColumns = maxColumnsPC : (window.screen.width > window.screen.height ? maxColumns = maxColumnsMobileH : maxColumns = maxColumnsMobileV);
-    maxColumns * sizeStyle > window.screen.width ? maxColumns = Math.floor(window.screen.width / sizeStyle) : () => { };
-    /* const container = addon.data.globalObjs?.dialogImgViewer.elementProps.children[0].children[0].children[0];
-    const imgContainerDivs = container.children[0].children;
-    if (sizeStyle != 0) {
-        columnsByScreen = Math.floor(window.screen.width / sizeStyle);
-        columnsByScreen > maxColumns ? columnsByScreen = maxColumns : (columnsByScreen == 0 ? columnsByScreen = 1 : () => { });
-
-    } else {
-        columnsByScreen = maxColumns;
-    } */
-    const columns = maxColumns;
-    //const columns = imgContainerDivs.length >= columnsByScreen ? columnsByScreen : imgContainerDivs.length; grid-gap: 1vw; background-color: ${backgroundColor};         overflow: auto;
-    const containerImagesDivStyle = `
-    [id^="images"]{
-        display: grid;
-        grid-template-rows: masonry;
-        max-width: 100vw;
-        max-height: ${window.screen.availHeight - 100};
-        min-height: 200px;
-        ${getStyle2String(columns, sizeStyle)};        
-    }
-    [id^="collection-"]{
-        grid-column-start: span ${columns};
-        place-self: center center;
-        background-color: #FFFFFF;
-    }
-    `;
-    //防止溢出 min-width: 0;     overflow: hidden;
-    return containerImagesDivStyle;
-    function getStyle2String(columns: number, sizeStyle: number) {
-        return `grid-template-columns: repeat(${columns},1fr); min-width: calc(${sizeStyle}px * ${columns});`;
-
-    }
 }
 
 async function windowFitSize(dialogWin: Window) {
@@ -878,3 +882,11 @@ function mutationCallback (element:Element){
                             tooltiptext: getString("info-large"),
                         },
 ] */
+
+
+/* {
+    ${getStyle2String(columns, sizeStyle)};   
+    function getStyle2String(columns: number, sizeStyle: number) {
+        return `grid-template-columns: repeat(${columns},1fr); min-width: calc(${sizeStyle}px * ${columns});`;
+    }
+} */

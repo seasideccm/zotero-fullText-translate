@@ -1,12 +1,3 @@
-export function isArray(obj: any) {
-	if (Array.isArray) {
-		return Array.isArray(obj);
-	} else {
-		return Object.prototype.toString.call(obj) === '[object Array]';
-	}
-}
-
-const isPlainObject = (obj: any) => Object.prototype.toString.call(obj) === '[object Object]';
 
 //Reflect.ownKeys 返回正常的属性名，也返回不可枚举属性以及Symbol属性
 export const isEmptyObj = (obj: any) => Reflect.ownKeys(obj).length === 0;
@@ -15,90 +6,160 @@ export const isEmptyObj = (obj: any) => Reflect.ownKeys(obj).length === 0;
  * 不区分大小写
  */
 declare type DataTypeJS = "object" | "array" | "function" | "number" | "string" | "boolean" | "number" | "undefined" | "null" | "symbol" | "Object" | "Array" | "Function" | "Number" | "String" | "Boolean" | "Number" | "Undefined" | "Null" | "Symbol";
-function typeJudge(arg: any): string;
-function typeJudge(arg1: any, arg2: DataTypeJS): boolean;
-function typeJudge(
+/* interface TypeJudge {
+	typeJudge(arg: any): string;
+	typeJudge(arg1: any, arg2: DataTypeJS): boolean;
+} */
+
+export function typeJudge(arg: any): string;
+export function typeJudge(arg1: any, arg2: DataTypeJS): boolean;
+export function typeJudge(
 	arg1: any,
 	arg2?: DataTypeJS
 ): string | boolean | undefined {
 	return arg2 ? typeReal(arg1) === arg2.toLowerCase() : typeReal(arg1);
 }
 
-console.log(typeJudge("good", "number"));
+
+//console.log(typeJudge("good", "number"));
 
 
-export function typeReal(obj: any) {
-	return Object.prototype.toString.call(obj).match(/(\b.+?\b)/g)?.slice(-1)[0].toLowerCase();
-};
+//函数，接口，重载
 /**
- * 替换数组元素 0 - n 个的排列
- * @param arr 数组
+ * 给定数据，返回其类型的小写名称
+ * @param obj 
+ * @returns type name string in lowerCase
  */
-export function arrange(arr: any[], replaceText: string | number) {
-	const arrArr: any[] = [];
-	arrArr.push(arr);
-	for (let i = 0; i < arr.length; i++) {
-		const temp: any[] = [];
-		arrArr.filter(arrOld => {
-			temp.push(arrOld.slice(0, i).concat(replaceText).concat(arrOld.slice(i + 1)));
-		});
-		arrArr.push(...temp);
-		temp.length = 0;
-	}
-	return arrArr;
+export function typeReal(obj: any) {
+	return Object.prototype.toString.call(obj).match(/(\b.+?\b)/g)!.slice(-1)[0].toLowerCase();
+};
+
+declare type Func = (...argsFn: any[]) => any | void;
+interface AddImpl {
+	(func: Func, ...args: string[]): void;
 }
-const arrTest = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-console.log(arrange(arrTest, 5).length);
-
-/* interface Overload {
+interface Overload {
 	//类型判断
-	overload(arg: any): string;
+	(arg: any): string;
 	//判断是否为指定类型
-	overload(arg: any, arg2: string): boolean;
-}
+	(arg: any, arg2: string): boolean;
+	addImpl: AddImpl;
 
-interface createOverload {
-	(): Overload;
+}
+/* interface CreateOverload {
+	():Overload;
 	overload: Overload;
 
 } */
 
-export function createOverload() {
+
+
+export function createOverload(): Overload {
 	const callMap = new Map();
-	function overload(...args: any[]) {
-		const types = args.map((arg) => typeReal(arg));
-		const typesArrang = arrange(types, "any");
-		const kesArr = typesArrang.map((types) => types.join(','));
-		const key = args.map((arg) => typeReal(arg)).join(',');
-		let fn = callMap.get(key);
-		if (fn) {
-			return fn.apply(this, args);
-		} else {
-			for (const key of kesArr) {
-				fn = callMap.get(key);
-				if (fn) {
-					return fn.apply(this, args);
-				}
-			}
-		}
-		throw new Error("no matching function");
-	}
-	overload.addImpl = function (...args: any[]) {
-		const fn = args.pop();
-		if (typeReal(fn) !== "function") return;
-		const types = args;
-		callMap.set(types.join(','), fn);
+	const overload: Overload = (...args: any[]) => {
+		//map的所有键（类型名称数组）组成数组
+		const callMapKeys = [...callMap.keys()];
+		//函数调用传递的参数转换为类型名称后匹配 map 的键
+		const key = findMapKey(args)(callMapKeys)()("any");
+		if (!key) throw new Error("no matching function");
+		return callMap.get(key).apply(this, args);
+	};
+	//任意参数类型名称组成的数组作为 map 的键
+	overload.addImpl = function (func: Func, ...args: string[]) {
+		if (typeReal(func) !== "function") return;
+		callMap.set(args, func);
 	};
 	return overload;
+
+};
+
+/**
+ * 在数组中查找与参数列表各项类型相同的项
+ * @param args 参数列表
+ * @returns 
+ */
+function findMapKey(args: any[]) {
+	return getSTA;
+	/**
+	 * 
+	 * @param specifiedTypesArr 数组的项为类型名称，以"," 间隔的符串或字符串数组
+	 * @returns 
+	 */
+	function getSTA(specifiedTypesArr: any[]) {
+		return typeConvert;
+		/**
+		 * 
+		 * @param isConvert 参数是否转换为类型名称，默认 true
+		 * @returns 
+		 */
+		function typeConvert(isConvert: boolean = true) {
+			return getString;
+			/**
+			 * 
+			 * @param excludeElement 可选, 如"any"类型（查找相同数组时，可以是其他想要忽略的字符串）
+			 * @returns 
+			 */
+			function getString(excludeElement?: string) {
+				let argsTypes;
+				isConvert ? argsTypes = args.map((arg) => typeReal(arg)) : argsTypes = args;
+				specifiedTypesArr = specifiedTypesArr.filter((e => e.length == argsTypes.length));
+				for (const specifiedTypes of specifiedTypesArr) {
+					let specifiedItems;
+					if (typeReal(specifiedTypes) !== "array") {
+						specifiedItems = specifiedTypes.split(",");
+					} else {
+						specifiedItems = [...specifiedTypes];
+					}
+					let find = true;
+					while (specifiedItems.length) {
+						const argType = argsTypes.shift();
+						const specifiedType = specifiedItems.shift();
+						if (specifiedType != argType) {
+							if (excludeElement) {
+								if (specifiedType != excludeElement) {
+									find = false;
+									break;
+								}
+							} else {
+								find = false;
+								break;
+							}
+						}
+					}
+					if (find) {
+						return specifiedTypes;
+					}
+				}
+			}
+
+		};
+	};
+
 }
+export const typeIdentify = createOverload();
+const getTypeName = (obj: any) => typeReal(obj);
+const isTypeName = (obj: any, condition: DataTypeJS) => typeReal(obj) === condition.toLowerCase();
+typeIdentify.addImpl(getTypeName, "any");
+typeIdentify.addImpl(isTypeName, "any", "string",);
+//typeIdentify({});
 
-export const typeJudge2 = createOverload();
-typeJudge2.addImpl("any", (obj: any) => typeReal(obj));
-typeJudge2.addImpl("any", "string", (obj: any, condition: DataTypeJS) => typeReal(obj) === condition.toLowerCase());
-typeJudge2();
 
 
+
+/**
+ * 获取函数的形参个数
+ * @param  {Function} func [要获取的函数]
+ * @return {*}             [形参的数组或undefind]
+ */
+function getFuncParameters(func: any) {
+	if (typeof func == 'function') {
+		const mathes = /[^(]+\(([^)]*)?\)/gm.exec(Function.prototype.toString.call(func))!;
+		if (mathes[1]) {
+			const args = mathes[1].replace(/[^,\w]*/g, '').split(',');
+			return args;
+		}
+	}
+}
 
 /**
  * 
@@ -613,3 +674,40 @@ export const invertKeyValues = (obj: any) =>
 		return acc;
 	}, {});
 
+
+//数组单元素是非全排列 2^n
+export function arrange(arr: any[], replaceText: string | number) {
+	//console.log("数组长度：",arr.length)
+	let arrArr: any[] = [];
+	arrArr.push(arr);
+	for (let i = 0; i < arr.length; i++) {
+		const temp: any[] = [];
+		for (const arrElement of arrArr) {
+			const arrReplace = [...arrElement];
+			arrReplace[i] = 5;
+			temp.push(arrReplace);
+		}
+		arrArr = arrArr.concat(temp);
+	}
+	return arrArr;
+}
+//const arrTest = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+function fib(n: number, n1 = 1, n2 = 1) {
+	if (n <= 2) {
+		return n2;
+	}
+	return fib(n - 1, n2, n1 + n2);
+}
+
+/* export function isArray(obj: any) {
+	if (Array.isArray) {
+		return Array.isArray(obj);
+	} else {
+		return Object.prototype.toString.call(obj) === '[object Array]';
+	}
+} 
+
+const isPlainObject = (obj: any) => Object.prototype.toString.call(obj) === '[object Object]';
+
+*/
