@@ -5,7 +5,7 @@ import { getPref, readImage } from "../utils/prefs";
 import { makeTagElementProps } from "./toolbarButton";
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
-import { ContainerOrRef, Toolbar, ToolbarOption, batchAddEventListener, contextMenu, insertStyle, loadCss, objArrFactory, setGlobalCssVar, } from './userInerface';
+import { ContainerOrRef, Toolbar, ToolbarOption, addContextMenu, addToolBar, batchAddEventListener, contextMenu, cssfilesURL, loadCss, objsGenerateFactory, setGlobalCssVar, } from './userInerface';
 import { prepareReader } from "./prepareReader";
 import dragula from 'dragula';
 import { getString } from "../utils/locale";
@@ -31,10 +31,14 @@ async function makeDialogElementProps() {
     for (const item of items) {
         imageItems.push(...(await findImageItems(item)));
     }
+    const currentCollection = ZoteroPane.collectionsView.selectedTreeRow.ref;
     let hasNewContent = false;
     if (!imageItems.length) {
         fullTextTranslate.showInfo(getString("info-selectedItemsNoImage"), 3000);
-        return hasNewContent;
+        return {
+            hasNewContent: hasNewContent,
+            collectionId: `collection-${currentCollection.id}`
+        };
     }
 
     let dialogImgViewer: DialogHelper;
@@ -42,7 +46,7 @@ async function makeDialogElementProps() {
         dialogImgViewer = new ztoolkit.Dialog(1, 1);
         addon.data.globalObjs = { dialogImgViewer: dialogImgViewer };
     }
-    const currentCollection = ZoteroPane.collectionsView.selectedTreeRow.ref;
+
     let container = (dialogImgViewer as any).elementProps.children[0].children[0].children[0];
     let creatCollectionGallery = false;
     if (!container) {
@@ -123,10 +127,26 @@ async function makeDialogElementProps() {
         const imgsProps = makeImgTags(imageInfoArr);
         imgContainerDivs.push(...imgsProps);
     }
-    return hasNewContent;
+    return {
+        hasNewContent: hasNewContent,
+        collectionId: `collection-${currentCollection.id}`
+    };
 }
 
-export function showDialog(hasNewContent: boolean, dialogData?: any,) {
+/**
+ * show Dialog
+ * @param param0 是否有新元素，分类 id
+ * @param dialogData 回调函数，添加元素的属性数据 elementProps
+ * @remarks
+ * 解构传入的对象给参数赋值
+ * 
+ * { hasNewContent, collectionId }: { hasNewContent: boolean, collectionId: string; }
+ * 
+ * 要解构的参数{ hasNewContent, collectionId }
+ * 
+ * 参数的类型{ hasNewContent: boolean, collectionId: string; }
+ */
+export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boolean, collectionId: string; }, dialogData?: any,) {
     const args = {
         title: `${config.addonRef}`,
         windowFeatures: {
@@ -143,6 +163,7 @@ export function showDialog(hasNewContent: boolean, dialogData?: any,) {
         }
         dialogImgViewer.window.sizeToContent();
         await windowFitSize(dialogImgViewer.window);
+        scrollToCollection(collectionId);
     }
     async function maxOrFullDialog() {
         const windowSizeOnViewImage = getPref('windowSizeOnViewImage') || "full";
@@ -153,126 +174,13 @@ export function showDialog(hasNewContent: boolean, dialogData?: any,) {
 
     dialogData = {
         loadCallback: async () => {
-            //[id^="images"]
             const doc = dialogImgViewer.window.document as Document;
             const firstDiv = doc.getElementById('firstDiv')! as Element;
-            const optionButton = {
-                common: {
-                    tag: "button",
-                    classList: ["imageToolButton"],
-                    namespace: "html",
-                    /* properties: {
-                        //Gets and sets the value of the type attribute.  
-                        type: "checkbox",
-                    }, */
-                    attributes: {
-                        type: "button",
-                    },
-                },
-                objArr: [
-                    {
-                        id: "imageToolButtonSmall",
-                        properties: makeButtonProperties("info-small"),
-                        attributes: makeButtonAttributes("info-small"),
-                    },
-                    {
-                        id: "imageToolButtonMedium",
-                        properties: makeButtonProperties("info-medium"),
-                        attributes: makeButtonAttributes("info-medium"),
-                    },
-                    {
-                        id: "imageToolButtonLarge",
-                        properties: makeButtonProperties("info-large"),
-                        attributes: makeButtonAttributes("info-large"),
-                    },
-                ],
-            };
-            function makeButtonAttributes(imageSize: string) {
-                return {
-                    tooltiptext: getString(imageSize),
-                };
-            }
-            function makeButtonProperties(imageSize: string) {
-                return {
-                    innerHTML: getString(imageSize),
-                };
-            }
-
-            const buttonPropsArr = objArrFactory(optionButton);
-            const toolbarParas = {
-                id: "imageToolBar",
-                classList: ["imageToolBar"],
-            };
-            const toolboxParas = {
-                id: "imageToolBox",
-                classList: ["imageToolbox"],
-            };
-            const toolboxContainerOrRef: ContainerOrRef = {
-                refElement: firstDiv,
-                position: 'beforebegin',
-            };
-
-
-
-            const toolbarOption: ToolbarOption = {
-                doc: doc,
-                isHbox: true,
-                toolboxParas: toolboxParas,
-                toolbarParas: toolbarParas,
-                buttonParasArr: buttonPropsArr,
-                //styleInsert: style,
-                toolboxContainerOrRef: toolboxContainerOrRef,
-            };
-
-            const toolBarThumbnail = new Toolbar(toolbarOption);
-            //const confirm = window.confirm("继续吗");
+            addToolBar(doc, firstDiv);
             const imagesArr = doc.querySelectorAll('[id^="images"]');
-
-            const cssfilesURL = [
-                `chrome://${config.addonRef}/content/viewer.css`,
-                `chrome://${config.addonRef}/content/dragula.css`,
-                `chrome://${config.addonRef}/content/css/imageDialog.css`,
-            ];
-            //insertStyle(dialogImgViewer.window.document, makeStyle());
             setGlobalCssVar(doc)(styleGlobalVar());
-            loadCss(dialogImgViewer.window.document, cssfilesURL);
-            const menuPropsGroupsArr = [
-                [
-                    ["info-copyImage"],
-                    ["info-saveImage"],
-                    ["info-editImage"],
-                    ["info-convertImage"],
-                    ["info-ocrImage"]
-                ],
-                [
-                    ["info-shareImage"],
-                    ["info-sendToPPT"],
-                    ["info-printImage"]
-                ],
-            ];
-            const idPostfix = "imageViewerContextMeun";
-            const imgCtxObj = new contextMenu({
-                menuPropsGroupsArr,
-                idPostfix
-            });
-            /* imgCtxObj.contextMenu.addEventListener("command", e => {
-                const tagName = (e.target as any).tagName.toLowerCase();
-                if (tagName === 'menuitem') {
-                    imgCtxObj.handleMenuItem(imgCtxObj.contextMenu.triggerNode, e);
-                }
-            }); */
-            //事件委托
-            firstDiv.addEventListener('contextmenu', e => {
-                const tagName = (e.target as any).tagName;
-                if (tagName === 'IMG') {
-                    //如果传入了最后一个参数 triggerEvent （此处为 e ），contextMenu 才会有 triggerNode
-
-                    imgCtxObj.contextMenu.openPopup(e.target, 'after_pointer', 0, 0, true, false, e);
-                    imgCtxObj.contextMenu.moveTo(e.x, e.y);
-
-                }
-            });
-
+            loadCss(doc, cssfilesURL);
+            addContextMenu(firstDiv);
             for (const images of imagesArr) {
                 new Viewer(images as HTMLElement);
                 batchAddEventListener(
@@ -289,6 +197,7 @@ export function showDialog(hasNewContent: boolean, dialogData?: any,) {
             Zotero.dragDoc = doc;
             const foo = dragula(containers);
             await windowFitSize(dialogImgViewer.window);
+            scrollToCollection(collectionId);
         }
     };
     if (dialogData) {
@@ -299,23 +208,17 @@ export function showDialog(hasNewContent: boolean, dialogData?: any,) {
         dialogImgViewer.window.close();
         return open(args);
     };
-    const focus = () => dialogImgViewer.window.focus();
-
+    const focus = () => {
+        scrollToCollection(collectionId);
+        dialogImgViewer.window.focus();
+    };
     dialogImgViewer.window ? (dialogImgViewer.window.closed ? open(args) : (hasNewContent ? closeOpen(args) : focus())) : open(args);
+
+    function scrollToCollection(collectionId: string) {
+        const collection = dialogImgViewer.window.document?.querySelector(`#${collectionId}`);
+        collection?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
 }
-
-
-/* function openContextMeun(contextMenuObj: contextMenu, event: MouseEvent, element: HTMLElement) {
-    contextMenuObj.contextMenu.openPopupAtScreen(event.clientX + element.screenX, event.clientY + element.screenY, true);
-
-    contextMenuObj.contextMenu.addEventListener('click', (e: Event) => {
-        const tagName = (e.target as any).tagName.toLowerCase();
-        if (tagName === 'menuitem') {
-            contextMenuObj.handleMenuItem(event, e);
-        }
-    });
-    document.querySelector("#browser")!.appendChild(imgCtxObj.contextMenu);
-} */
 
 function styleGlobalVar() {
     const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
@@ -337,72 +240,6 @@ function styleGlobalVar() {
     ];
 }
 
-/* export function makeStyle() {
-
-
-    const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
-    const thumbnailSize = getPref('thumbnailSize') as string || "small";
-    let sizeStyle: number = 0;
-    switch (thumbnailSize) {
-        case "small": sizeStyle = 100;
-            break;
-        case "medium": sizeStyle = 300;
-            break;
-        case "large": sizeStyle = 600;
-    }
-    //containerImg{object-fit: contain;} 
-    const columns = calColumns(sizeStyle);
-    const KVs = [
-        ["--bgColor", backgroundColor],
-        ["--columns", columns],
-        ["--thumbnailSize", `${sizeStyle}px`],
-        ["--screenHeight", `${window.screen.availHeight}px`]
-    ];
-
-    const rootStyle =
-        `:root{
---bgColor:${backgroundColor};
---columns:${calColumns(sizeStyle)};
---thumbnailSize:${sizeStyle}px;
---screenHeight:${window.screen.availHeight}px;
-}`;
-
-
-    const styleImgDiv =
-        `div[id^="container-"]{
-margin:2px;
-padding:5px;
-background-color:var(--bgColor);
-}`;
-    const styleImg =
-        `img{
- display: block;
- width: 100%;
- max-height: calc(2 * var(--thumbnailSize)); 
- object-fit: contain;
- border-color: #FFFFFF;
-}`;
-
-    const containerImagesDivStyle =
-        `[id^="images"]{
-margin: 2px;
-display: grid;
-grid-template-rows: masonry;
-max-width: 100vw;
-max-height: calc(var(--screenHeight) - 100px);
-min-height: 200px;
-background-color: var(--bgColor);
-grid-template-columns: repeat(var(--columns), 1fr);
-min-width: calc(var(--thumbnailSize) * var(--columns));     
-}
-[id^="collection-"]{
-margin: 2px;
-grid-column-start: span var(--columns);
-place-self: center center;
-background-color: #FFFFFF;
-}`;
-    return rootStyle + containerImagesDivStyle + styleImg + styleImgDiv;
-} */
 export function calColumns(sizeStyle: number) {
     let maxColumns;
     const maxColumnsPC = 10;
@@ -412,13 +249,6 @@ export function calColumns(sizeStyle: number) {
     maxColumns * sizeStyle > window.screen.width ? maxColumns = Math.floor(window.screen.width / sizeStyle) : () => { };
     return maxColumns;
 }
-
-
-
-
-
-
-
 
 async function renderPDFs(newImgItems: any[]) {
     const imageAnnotations = newImgItems.filter((item: any) => item.itemType == "annotation");
@@ -547,6 +377,7 @@ async function getImageInfo(item: Zotero.Item) {
     switch (itemType) {
         case "annotation":
             if (item.annotationType != "image") { break; };
+            //path=Zotero.Annotations.getCacheImagePath(an)
             return await srcBase64Annotation(item, item.parentItem?.getField("title") as string);
         case "attachment":
             if (!item.attachmentContentType.includes("image")) { break; };
@@ -612,8 +443,6 @@ async function getImageAnnotations(item: Zotero.Item) {
     const imageAnnotations = annotations.filter(e => e.annotationType == 'image');
     return imageAnnotations;
 }
-
-
 
 async function srcBase64Annotation(imageAnnotation: Zotero.Item, title: string) {
     const jsonAnnotation = await Zotero.Annotations.toJSON(imageAnnotation);
@@ -731,166 +560,3 @@ function getParentCollection(item: Zotero.Item) {
     if (attachment.itemType == "attachment") {                
     } */
 }
-//primaryView.navigate(location)
-
-/* _render(pageIndexes) {
-    for (let page of this._pages) {
-        if (!pageIndexes || pageIndexes.includes(page.pageIndex)) {
-            page.render();
-        }
-    }
-} */
-/* function addBrowser() {
-    if (!Zotero.Browser) {
-        Zotero.Browser = {
-            createHiddenBrowser: function (win, options = {}) {
-                if (!win) {
-                    win = Services.wm.getMostRecentWindow("navigator:browser");
-                    if (!win) {
-                        win = Services.ww.activeWindow;
-                    }
-                    // Use the hidden DOM window on macOS with the main window closed
-                    if (!win) {
-                        const appShellService = Components.classes["@mozilla.org/appshell/appShellService;1"]
-                            .getService(Components.interfaces.nsIAppShellService);
-                        win = appShellService.hiddenDOMWindow;
-                    }
-                    if (!win) {
-                        throw new Error("Parent window not available for hidden browser");
-                    }
-                }
-
-                // Create a hidden browser
-                const hiddenBrowser = win.document.createElement("browser");
-                hiddenBrowser.setAttribute('type', 'content');
-                hiddenBrowser.setAttribute('disableglobalhistory', 'true');
-                win.document.documentElement.appendChild(hiddenBrowser);
-                //docShell缺失
-                // Disable some features
-                hiddenBrowser.docShell.allowAuth = false;
-                hiddenBrowser.docShell.allowDNSPrefetch = false;
-                hiddenBrowser.docShell.allowImages = false;
-                hiddenBrowser.docShell.allowJavascript = options.allowJavaScript !== false;
-                hiddenBrowser.docShell.allowMetaRedirects = false;
-                hiddenBrowser.docShell.allowPlugins = false;
-                Zotero.debug("Created hidden browser");
-                return hiddenBrowser;
-            },
-
-            deleteHiddenBrowser: function (myBrowsers) {
-                if (!(myBrowsers instanceof Array)) myBrowsers = [myBrowsers];
-                for (let i = 0; i < myBrowsers.length; i++) {
-                    let myBrowser = myBrowsers[i];
-                    myBrowser.stop();
-                    myBrowser.destroy();
-                    myBrowser.parentNode.removeChild(myBrowser);
-                    myBrowser = null;
-                    Zotero.debug("Deleted hidden browser");
-                }
-            }
-        };
-    }
-} */
-
-/*
-const { HiddenBrowser } = ChromeUtils.import("chrome://zotero/content/HiddenBrowser.jsm");
-let browser = await HiddenBrowser.create(url, {
-                    requireSuccessfulStatus: true,
-                    docShell: { allowImages: true },
-                    cookieSandbox,
-                });
-
-if (!Zotero.Browser) {
-            Zotero.Browser = {
-                createHiddenBrowser: function () {
-                    const hiddenBrowser = document.createElement("iframe");
-                    hiddenBrowser.style.display = "none";
-                    if (document.domain == document.location.hostname) {
-                        hiddenBrowser.sandbox = "allow-same-origin allow-forms allow-scripts";
-                    }
-                    const body = document.createElement("body");
-                    //ztoolkit.UI.replaceElement({ tag: "body", namespace: "html" }, document.body);
-                    document.body.remove();
-                    document.appendChild(body);
-                    document.body.appendChild(hiddenBrowser);
-                    return hiddenBrowser;
-                },
-                deleteHiddenBrowser: function (hiddenBrowser: HTMLIFrameElement) {
-                    document.body.removeChild(hiddenBrowser);
-                }
-            };
-        } */
-/* if (!await Zotero.Annotations.hasCacheImage(imageAnnotation)) {
-    try {
-
-        await Zotero.PDFRenderer.renderAttachmentAnnotations(imageAnnotation.parentID);
-        Zotero_Tabs.close(Zotero_Tabs.selectedID);
-
-    }
-    catch (e) {
-        Zotero.debug(e);
-        throw e;
-    }
-} */
-
-//openContextMeun(e, firstDiv);
-/* const observe = new MutationObserver(mutationCallback);
-function mutationCallback (element:Element){
-    if(!element.childElementCount){
-        const elementFill=ztoolkit.UI.createElement(doc,"span",{})
-        element.appendChild(elementFill)
-    }
-
-} */
-
-/* [
-    {
-        id: "imageToolButtonSmall",
-        classList: ["imageToolButton"],
-        attributes: {
-            type: "checkbox",
-            label: getString("info-small"),
-            tooltiptext: getString("info-small"),
-        },
-    },
-    {
-        id: "imageToolButtonMedium",
-        classList: ["imageToolButton"],
-        attributes: {
-            type: "checkbox",
-            label: getString("info-medium"),
-            tooltiptext: getString("info-medium"),
-        },
-    },
-    {
-        id: "imageToolButtonLarge",
-        classList: ["imageToolButton"],
-        attributes: {
-            type: "checkbox",
-            label: getString("info-large"),
-            tooltiptext: getString("info-large"),
-        },
-    },
-
-
-    {
-                            label: getString("info-small"),
-                            tooltiptext: getString("info-small"),
-                        },
-                        {
-                            label: getString("info-medium"),
-                            tooltiptext: getString("info-medium"),
-                        },
-                        {
-                            label: getString("info-large"),
-                            tooltiptext: getString("info-large"),
-                        },
-] */
-
-
-/* {
-    ${getStyle2String(columns, sizeStyle)};   
-    function getStyle2String(columns: number, sizeStyle: number) {
-        return `grid-template-columns: repeat(${columns},1fr); min-width: calc(${sizeStyle}px * ${columns});`;
-    }
-} */
