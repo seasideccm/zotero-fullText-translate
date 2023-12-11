@@ -5,7 +5,7 @@ import { getPref, readImage } from "../utils/prefs";
 import { makeTagElementProps } from "./toolbarButton";
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
-import { ButtonParas, ContainerOrRef, Toolbar, ToolbarOption, batchAddEventListener, contextMenu, insertStyle, loadCss, makeToolBox, objArrFactory, } from './userInerface';
+import { ContainerOrRef, Toolbar, ToolbarOption, batchAddEventListener, contextMenu, insertStyle, loadCss, objArrFactory, setGlobalCssVar, } from './userInerface';
 import { prepareReader } from "./prepareReader";
 import dragula from 'dragula';
 import { getString } from "../utils/locale";
@@ -71,16 +71,6 @@ async function makeDialogElementProps() {
             dialogImgViewer.addCell(0, 0,
                 container
             );
-            /* .addButton("Confirm", "confirm")
-                .addButton("Cancel", "cancel")
-                .addButton("Help", "help", {
-                    noClose: true,
-                    callback: (e) => {
-                        dialogImgViewer.window?.alert(
-                            "按钮啊",
-                        );
-                    },
-                }); */
         }
         const collectionName =
         {
@@ -91,9 +81,6 @@ async function makeDialogElementProps() {
             properties: {
                 innerText: `${getString("info-collection")}-${currentCollection.name}`
             },
-            attributes: {
-                style: `font-size: 2rem;`
-            }
         };
 
         const imagesContainer = makeTagElementProps(
@@ -104,9 +91,16 @@ async function makeDialogElementProps() {
                 children: [collectionName, ...imgsProps],
             }
         );
+        //防止 margin 塌陷
+        const blankDiv = makeTagElementProps(
+            {
+                tag: "div",
+                namespace: "html",
+            }
+        );
         container = (dialogImgViewer as any).elementProps.children[0].children[0].children[0];
         //container.children.push(collectionName, imagesContainer);
-        container.children.push(imagesContainer);
+        container.children.push(imagesContainer, blankDiv);
 
     } else {
         const imgContainerDivs = container.children.find((imgContainerDiv: TagElementProps) => imgContainerDiv.id == `images-collection-${currentCollection.id}`).children;
@@ -205,35 +199,13 @@ export function showDialog(hasNewContent: boolean, dialogData?: any,) {
             }
 
             const buttonPropsArr = objArrFactory(optionButton);
-            const style = `.imageToolBar{
-                height: 32px !important;
-                margin: 0;
-                padding: 0;
-                min-width: 1px;
-            }
-            .imageToolButton{
-                -moz-user-focus: normal;
-                padding-left: 5px;
-                padding-right: 5px;
-                margin-right: 2px;
-                margin-left: 2px;
-                border: 1px solid;
-            }
-            .imageToolbox{
-                appearance: auto;
-                -moz-default-appearance: toolbar;
-                min-width: 1px;
-                min-height: 19px;
-                border: 1px solid;
-            }
-            `;
             const toolbarParas = {
                 id: "imageToolBar",
                 classList: ["imageToolBar"],
             };
             const toolboxParas = {
                 id: "imageToolBox",
-                classlist: ["imageToolbox"],
+                classList: ["imageToolbox"],
             };
             const toolboxContainerOrRef: ContainerOrRef = {
                 refElement: firstDiv,
@@ -248,18 +220,21 @@ export function showDialog(hasNewContent: boolean, dialogData?: any,) {
                 toolboxParas: toolboxParas,
                 toolbarParas: toolbarParas,
                 buttonParasArr: buttonPropsArr,
-                styleInsert: style,
+                //styleInsert: style,
                 toolboxContainerOrRef: toolboxContainerOrRef,
             };
 
             const toolBarThumbnail = new Toolbar(toolbarOption);
             //const confirm = window.confirm("继续吗");
             const imagesArr = doc.querySelectorAll('[id^="images"]');
+
             const cssfilesURL = [
                 `chrome://${config.addonRef}/content/viewer.css`,
                 `chrome://${config.addonRef}/content/dragula.css`,
+                `chrome://${config.addonRef}/content/css/imageDialog.css`,
             ];
-            insertStyle(dialogImgViewer.window.document, makeStyle());
+            //insertStyle(dialogImgViewer.window.document, makeStyle());
+            setGlobalCssVar(doc)(styleGlobalVar());
             loadCss(dialogImgViewer.window.document, cssfilesURL);
             const menuPropsGroupsArr = [
                 [
@@ -342,7 +317,29 @@ export function showDialog(hasNewContent: boolean, dialogData?: any,) {
     document.querySelector("#browser")!.appendChild(imgCtxObj.contextMenu);
 } */
 
-export function makeStyle() {
+function styleGlobalVar() {
+    const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
+    const thumbnailSize = getPref('thumbnailSize') as string || "small";
+    let sizeStyle: number = 0;
+    switch (thumbnailSize) {
+        case "small": sizeStyle = 100;
+            break;
+        case "medium": sizeStyle = 300;
+            break;
+        case "large": sizeStyle = 600;
+    }
+    const columns = calColumns(sizeStyle);
+    return [
+        ["--bgColor", backgroundColor],
+        ["--columns", columns],
+        ["--thumbnailSize", `${sizeStyle}px`],
+        ["--screenHeight", `${window.screen.availHeight}px`]
+    ];
+}
+
+/* export function makeStyle() {
+
+
     const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
     const thumbnailSize = getPref('thumbnailSize') as string || "small";
     let sizeStyle: number = 0;
@@ -354,6 +351,14 @@ export function makeStyle() {
         case "large": sizeStyle = 600;
     }
     //containerImg{object-fit: contain;} 
+    const columns = calColumns(sizeStyle);
+    const KVs = [
+        ["--bgColor", backgroundColor],
+        ["--columns", columns],
+        ["--thumbnailSize", `${sizeStyle}px`],
+        ["--screenHeight", `${window.screen.availHeight}px`]
+    ];
+
     const rootStyle =
         `:root{
 --bgColor:${backgroundColor};
@@ -397,7 +402,7 @@ place-self: center center;
 background-color: #FFFFFF;
 }`;
     return rootStyle + containerImagesDivStyle + styleImg + styleImgDiv;
-}
+} */
 export function calColumns(sizeStyle: number) {
     let maxColumns;
     const maxColumnsPC = 10;

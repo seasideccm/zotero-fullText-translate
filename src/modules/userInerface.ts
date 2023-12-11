@@ -3,7 +3,7 @@ import { ElementProps, HTMLElementProps, TagElementProps } from "zotero-plugin-t
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
 import { onSaveImageAs, setPref } from "../utils/prefs";
-import { calColumns, makeStyle, showDialog } from "./imageViewer";
+import { calColumns } from "./imageViewer";
 
 
 
@@ -61,7 +61,7 @@ export declare type ToolbarOption = {
     toolboxParas: ElementProps;
     isHbox: boolean;
     buttonParasArr: ButtonParas[];
-    styleInsert: string;
+    //styleInsert: string;
     toolboxContainerOrRef?: ContainerOrRef;
     toolbarContainerOrRef?: ContainerOrRef;
 };
@@ -373,7 +373,7 @@ export class Toolbar {
         this.toolbar = this.makeToolBar(option);
         this.buttonVHbox = this.makeButtonVHBox(option.isHbox);
         this.makeToolBarButtons(option.buttonParasArr);
-        insertStyle(option.doc, option.styleInsert);
+        //insertStyle(option.doc, option.styleInsert);
     }
 
     makeToolBarButtons(buttonParasArr: ButtonParas[]) {
@@ -454,7 +454,7 @@ export class Toolbar {
             const doc = addon.data.globalObjs.dialogImgViewer.window.document! as Document;
             if (!doc) return;
             const targetElement = styleElement(doc)();
-            styleVarSet(objTempArr)(targetElement);
+            setStyleVar(objTempArr)(targetElement);
 
             //showDialog(true);
             //insertStyle(addon.data.globalObjs.dialogImgViewer.window.document, makeStyle());
@@ -468,7 +468,7 @@ export function idWithAddon(idPostfix: string) {
     return config.addonRef + '-' + idPostfix;
 }
 
-export function styleVarSet(KVs: { varName: string; value: string | number; }[],) {
+export function setStyleVar(KVs: { varName: string; value: string | number; }[]) {
     return function doIt(element: XUL.Element | HTMLElement) {
         KVs.filter((kv: { varName: string; value: string | number; }) => {
             element.style.setProperty(kv.varName, String(kv.value));
@@ -476,7 +476,7 @@ export function styleVarSet(KVs: { varName: string; value: string | number; }[],
     };
 };
 
-export function styleVarGet(varNames: string[]) {
+export function getStyleVar(varNames: string[]) {
     return function doIt(element: XUL.Element | HTMLElement) {
         const elementStyle = getComputedStyle(element);
         if (varNames.length == 1) return elementStyle.getPropertyValue(varNames[0]);
@@ -654,6 +654,14 @@ export function objArrFactory(option: {
     }
 }
 
+export function setGlobalCssVar(doc: Document) {
+    if (!doc.documentElement.style) doc.head.appendChild(ztoolkit.UI.createElement(doc, "style"));
+    return function setKVs(KVs: (string | number)[][]) {
+        KVs.filter((KV) => {
+            doc.documentElement.style.setProperty(String(KV[0]), String(KV[1]));
+        });
+    };
+}
 
 
 /* const menuPropsGroupsArrWithFunction = [
