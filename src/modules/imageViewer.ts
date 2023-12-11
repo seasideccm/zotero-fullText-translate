@@ -356,47 +356,46 @@ export function makeStyle() {
     //containerImg{object-fit: contain;} 
     const rootStyle =
         `:root{
-        --bgColor:${backgroundColor};
-        --columns:${calColumns(sizeStyle)};
-        --thumbnailSize:${sizeStyle};
-        --screenHeight:${window.screen.availHeight};
-    }
-    `;
+--bgColor:${backgroundColor};
+--columns:${calColumns(sizeStyle)};
+--thumbnailSize:${sizeStyle}px;
+--screenHeight:${window.screen.availHeight}px;
+}`;
 
 
     const styleImgDiv =
         `div[id^="container-"]{
-            margin:2px;
-            padding:5px;
-            background-color:var(--bgColor);
-    }`;
+margin:2px;
+padding:5px;
+background-color:var(--bgColor);
+}`;
     const styleImg =
         `img{
-         display: block;
-         width: 100%;
-         max-height: calc(2 * var(--thumbnailSize)); 
-         object-fit: contain;
-         border-color: #FFFFFF;
-        }`;
+ display: block;
+ width: 100%;
+ max-height: calc(2 * var(--thumbnailSize)); 
+ object-fit: contain;
+ border-color: #FFFFFF;
+}`;
 
-    const containerImagesDivStyle = `
-    [id^="images"]{
-        margin: 2px;
-        display: grid;
-        grid-template-rows: masonry;
-        max-width: 100vw;
-        max-height: calc(var(--screenHeight) - 100};
-        min-height: 200px;
-        background-color: var(--bgColor);
-        grid-template-columns: repeat(var(--columns),1fr); min-width: calc(var(--thumbnailSize)px * var(--columns));     
-    }
-    [id^="collection-"]{
-        margin: 2px;
-        grid-column-start: span var(--columns);
-        place-self: center center;
-        background-color: #FFFFFF;
-    }
-    `;
+    const containerImagesDivStyle =
+        `[id^="images"]{
+margin: 2px;
+display: grid;
+grid-template-rows: masonry;
+max-width: 100vw;
+max-height: calc(var(--screenHeight) - 100px);
+min-height: 200px;
+background-color: var(--bgColor);
+grid-template-columns: repeat(var(--columns), 1fr);
+min-width: calc(var(--thumbnailSize) * var(--columns));     
+}
+[id^="collection-"]{
+margin: 2px;
+grid-column-start: span var(--columns);
+place-self: center center;
+background-color: #FFFFFF;
+}`;
     return rootStyle + containerImagesDivStyle + styleImg + styleImgDiv;
 }
 export function calColumns(sizeStyle: number) {
