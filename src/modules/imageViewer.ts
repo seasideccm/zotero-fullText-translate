@@ -59,11 +59,13 @@ async function makeDialogElementProps() {
         await renderPDFs(imageItems);
         const imageInfoArr = [];
         for (const imgItem of imageItems) {
-            const imageInfo = await getImageInfo(imgItem);
+            //const imageInfo = await getImageInfo(imgItem);
+            const imageInfo = imageDataFromFile(imgItem);
             if (!imageInfo) continue;
             imageInfoArr.push(imageInfo);
         }
-        const imgsProps = makeImgTags(imageInfoArr);
+        //const imgsProps = makeImgTags(imageInfoArr);
+        const imgsProps = makeImgTagsFilePath(imageInfoArr);
         if (!container) {
             //容器之上套一层DIV，否则页面过高，对话框有两层vbox
             const container = makeTagElementProps({
@@ -120,11 +122,13 @@ async function makeDialogElementProps() {
         renderPDFs(newImgItems);
         const imageInfoArr = [];
         for (const imgItem of newImgItems) {
-            const imageInfo = await getImageInfo(imgItem);
+            //const imageInfo = await getImageInfo(imgItem);
+            const imageInfo = imageDataFromFile(imgItem);
             if (!imageInfo) continue;
             imageInfoArr.push(imageInfo);
         }
-        const imgsProps = makeImgTags(imageInfoArr);
+        //const imgsProps = makeImgTags(imageInfoArr);
+        const imgsProps = makeImgTagsFilePath(imageInfoArr);
         imgContainerDivs.push(...imgsProps);
     }
     return {
@@ -305,6 +309,40 @@ async function renderAnnotationImage(imageAnnotations: Zotero.Item[]) {
     }
 }
 
+function makeImgTagsFilePath(srcData: {
+    key: string;
+    parentKey: number;
+    src: string;
+    alt: string;
+}[]) {
+    const elementProps: TagElementProps[] = [];
+    srcData.filter(obj => {
+        const elementProp = makeTagElementProps({
+            //每张图片上套一层 div 作为容器
+            tag: "div",
+            namespace: "html",
+            id: "container-" + obj.key,
+            attributes: {
+                class: "containerImg",
+            },
+            children: [{
+                tag: "img",
+                namespace: "html",
+                id: "showImg-" + obj.key,
+                attributes: {
+                    src: obj.src,
+                    alt: obj.alt,
+                    loading: "lazy",
+                    decoding: "async",
+
+                }
+            },]
+        });
+        elementProps.push(elementProp);
+    });
+    return elementProps;
+}
+
 function makeImgTags(srcImgBase64Arr: {
     key: string;
     src: string;
@@ -377,7 +415,6 @@ async function getImageInfo(item: Zotero.Item) {
     switch (itemType) {
         case "annotation":
             if (item.annotationType != "image") { break; };
-            //path=Zotero.Annotations.getCacheImagePath(an)
             return await srcBase64Annotation(item, item.parentItem?.getField("title") as string);
         case "attachment":
             if (!item.attachmentContentType.includes("image")) { break; };
@@ -459,6 +496,49 @@ async function srcBase64Annotation(imageAnnotation: Zotero.Item, title: string) 
         src: jsonAnnotation.image,
         alt: title + "-annotation",
         srcWidthHeight: imgWidthHeight,
+    };
+}
+
+function imageDataFromFile(attachment: Zotero.Item) {
+    let srcPath: string, title: string;
+    const itemType = attachment.itemType as string;
+    switch (itemType) {
+        case "annotation":
+            if (attachment.annotationType != "image") { break; };
+            srcPath = Zotero.Annotations.getCacheImagePath(attachment);
+            title = attachment.parentItem?.getField("title") + "-annotation";
+            break;
+
+        case "attachment":
+            if (!attachment.attachmentContentType.includes("image")) { break; };
+            srcPath = attachment.getFilePath() as string;
+            title = attachment.getField("title") + "-image";
+            break;
+    }
+    srcPath = "file:///" + srcPath!;
+
+    /* const srcBase64 = await readImage(srcPath);
+    if (!srcBase64) return;
+    let imgWidthHeight;
+    if (srcBase64?.width && srcBase64?.height) {
+        imgWidthHeight = {
+            width: srcBase64?.width,
+            height: srcBase64?.height
+        };
+    } else {
+        imgWidthHeight = {
+            width: window.screen.width,
+            height: window.screen.height,
+        };
+    } */
+
+    //const alt = title ? title + "-annotation" : srcBase64.fileName + srcBase64.fileType;
+    //const src = base64OrFilePath == "filePath" ? srcPath : srcBase64.base64;
+    return {
+        key: attachment.key,
+        parentKey: attachment.parentID! as number,
+        src: srcPath!,
+        alt: title!,
     };
 }
 
