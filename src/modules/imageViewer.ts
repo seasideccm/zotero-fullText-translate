@@ -5,7 +5,7 @@ import { getPref, readImage } from "../utils/prefs";
 import { makeTagElementProps } from "./toolbarButton";
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
-import { ContainerOrRef, Toolbar, ToolbarOption, addContextMenu, addToolBar, batchAddEventListener, contextMenu, cssfilesURL, loadCss, objsGenerateFactory, setGlobalCssVar, } from './userInerface';
+import { addContextMenu, addToolBar, batchAddEventListener, cssfilesURL, loadCss, setGlobalCssVar, } from './userInerface';
 import { prepareReader } from "./prepareReader";
 import dragula from 'dragula';
 import { getString } from "../utils/locale";
