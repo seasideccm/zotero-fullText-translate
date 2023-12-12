@@ -190,6 +190,50 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
         }
     }
 
+    const viewers: any[] = [];
+    dialogImgViewer.viewers = viewers;
+    //doc.querySelectorAll("[id^='viewer'].viewer-container")
+    //doc.querySelector(".viewer-canvas img").parentElement.parentElement.id 
+    function setStyleBody(e: any) {
+        const doc = dialogImgViewer.window.document;
+        //viewer 给 body添加了style.paddingRight,予以纠正令图片墙居中
+        doc.body.style.paddingRight = "";
+        //设置显示图片的style
+        const currentImg = doc.querySelector(".viewer-canvas img");
+        let condition: any = "fillWidth";
+        condition = "fillHeight";
+        if (condition) {
+            currentImg.style = "";
+        }
+        switch (condition) {
+            case "fillWidth":
+                currentImg.style.width = "100%";
+                break;
+            case "fillHeight":
+                currentImg.style.height = "100%";
+                break;
+            default: currentImg.style = condition;
+        }
+        const option = { zoom: 2 };
+        if (!option) return;
+        const viewerIdCurrent = doc.querySelector(".viewer-canvas img").parentElement.parentElement.id;
+        const viewerCurrent = viewers.find((e: any) =>
+            e.viewer?.id == viewerIdCurrent
+        );
+        if (!viewerCurrent) return;
+        for (const key in option) {
+            viewerCurrent[key](option[key as keyof typeof option]);
+
+            /* viewerCurrent[key](option[key as keyof typeof option],
+                {
+                    x: doc.documentElement.clientWidth / 2,
+                    y: doc.documentElement.clientHeight / 2,
+                }); */
+        }
+        currentImg.style.margin = "0 auto";
+
+    }
+
     dialogData = {
         loadCallback: async () => {
             const doc = dialogImgViewer.window.document as Document;
@@ -200,13 +244,15 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
             loadCss(doc, cssfilesURL);
             addContextMenu(firstDiv);
             for (const images of imagesArr) {
-                new Viewer(images as HTMLElement);
+                const viewer = new Viewer(images as HTMLElement);
+                viewers.push(viewer);
                 batchAddEventListener(
                     [
                         [images,
                             [
                                 ['hidden', restoreDialogSize],
                                 ['view', maxOrFullDialog],
+                                ["viewed", setStyleBody],
                             ],
                         ],
                     ]);

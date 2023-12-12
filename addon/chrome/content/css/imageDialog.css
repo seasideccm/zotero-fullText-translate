@@ -46,18 +46,18 @@ img {
 
 .imageToolBar {
     height: 32px !important;
-    margin: 0;
-    padding: 0;
     min-width: 1px;
-    /*  border: 2px solid #52c783 */
+    border: 2px solid #52c783;
+    display: flex;
+    align-items: center; /*定义body的元素垂直居中*/
+    justify-content: center
+
 }
 
 .imageToolButton {
     -moz-user-focus: normal;
-    padding-left: 5px;
-    padding-right: 5px;
-    margin-right: 2px;
-    margin-left: 2px;
+    padding: 2px 5px;
+    margin: 1px 3px;
     border: 2px solid #526ec7;
 }
 
