@@ -162,14 +162,28 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
     };
     const dialogImgViewer = addon.data.globalObjs?.dialogImgViewer;
     async function restoreDialogSize() {
+        const state = {
+            STATE_MAXIMIZED: 1,
+            STATE_MINIMIZED: 2,
+            STATE_NORMAL: 3,
+            STATE_FULLSCREEN: 4,
+        };
         if (dialogImgViewer.window.document.fullscreen && getPref('windowSizeOnViewImage') != "full") {
             await dialogImgViewer.window.document.exitFullscreen();
         }
-        dialogImgViewer.window.sizeToContent();
-        await windowFitSize(dialogImgViewer.window);
+        switch (dialogImgViewer.windowState) {
+            case state.STATE_MAXIMIZED: break;
+            case state.STATE_MINIMIZED: break;
+            case state.STATE_NORMAL:
+                dialogImgViewer.window.sizeToContent();
+                await windowFitSize(dialogImgViewer.window);
+                break;
+            case state.STATE_FULLSCREEN: break;
+        }
         scrollToCollection(collectionId);
     }
     async function maxOrFullDialog() {
+        dialogImgViewer.windowState = dialogImgViewer.window.windowState;
         const windowSizeOnViewImage = getPref('windowSizeOnViewImage') || "full";
         if (windowSizeOnViewImage !== "origin") {
             windowSizeOnViewImage == "full" ? await dialogImgViewer.window.document.documentElement.requestFullscreen() : dialogImgViewer.window.maximize();
