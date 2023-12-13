@@ -120,3 +120,5 @@ info-selectedItemsNoImage= No Image In Items Selected
 info-small = small
 info-medium = medium
 info-large = large
+info-fillWidth = fill Width
+info-fillHeight = fill Height

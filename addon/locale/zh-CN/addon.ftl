@@ -116,3 +116,5 @@ info-selectedItemsNoImage = 所选项目无图片
 info-small = 小
 info-medium = 中
 info-large = 大
+info-fillWidth = 适应宽度
+info-fillHeight = 适应高度

@@ -51,26 +51,40 @@ export declare type ButtonParas = ElementProps & {
         type?: ToolbarbuttonType;
     };
 };
-
-
-
+export declare type Container = {
+    container: Element;
+    position?: 'head' | 'end';
+};
+export declare type RefElement = {
+    refElement: Element;
+    position?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
+};
+export declare type ButtonGroupData = {
+    buttonParasArr: ButtonParas[];
+    container?: Container;
+    refElement?: RefElement;
+    childBox?: "hbox" | "vbox";
+};
+export declare type ToobarData = {
+    toolbarParas: ElementProps;
+    container?: Container;
+    refElement?: RefElement;
+    buttonGroupsData?: ButtonGroupData[];
+    childBox?: "hbox" | "vbox";
+};
+export declare type ToolboxData = {
+    toolboxParas: ElementProps;
+    container?: Container;
+    refElement?: RefElement;
+};
 
 export declare type ToolbarOption = {
     doc: Document;
-    toolbarParas: ElementProps;
-    toolboxParas: ElementProps;
-    isHbox: boolean;
-    buttonParasArr: ButtonParas[];
-    //styleInsert: string;
-    toolboxContainerOrRef?: ContainerOrRef;
-    toolbarContainerOrRef?: ContainerOrRef;
+    toolbarGroupData?: ToobarData[];
+    toolboxData?: ToolboxData;
 };
 
-export declare type ContainerOrRef = {
-    container?: Element;
-    refElement?: Element;
-    position?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
-} & ({ container: Element; } | { refElement: Element; });
+
 
 
 export class contextMenu {
@@ -360,71 +374,162 @@ export class contextMenu {
 //["toolbar", "toolbar-primary"];["toolbar", "toolbar-primary"];["toolbox-top"]
 
 export class Toolbar {
-    buttonVHbox: XUL.Element;
-    toolbar: XUL.Element;
-    toolbox: XUL.Element;
+    toolbox?: XUL.Element;
+    toolbarGroup: XUL.Element[];
     doc: Document;
     constructor(option: ToolbarOption) {
         this.doc = option.doc;
-        this.toolbox = this.makeToolBox(option);
-        if (!option.toolbarContainerOrRef) {
-            option["toolbarContainerOrRef"] = { container: this.toolbox };
-        }
-        this.toolbar = this.makeToolBar(option);
-        this.buttonVHbox = this.makeButtonVHBox(option.isHbox);
-        this.makeToolBarButtons(option.buttonParasArr);
-        //insertStyle(option.doc, option.styleInsert);
+        option.toolboxData ? this.toolbox = this.makeToolBox(option.toolboxData) : () => { };
+        this.toolbarGroup = [];
+        this.init(option);
+    }
+    init(option: ToolbarOption) {
+        option.toolbarGroupData?.filter((toolbardata: ToobarData) => {
+            if (!toolbardata.container && !toolbardata.refElement && this.toolbox) {
+                toolbardata.container = {
+                    container: this.toolbox
+                };
+            }
+            const toolbar = this.makeToolBar(toolbardata);
+
+            if (toolbardata.container && option.toolbarGroupData!.indexOf(toolbardata) !== option.toolbarGroupData!.length - 1) {
+                ztoolkit.UI.appendElement(makeTagElementProps({ tag: "toolbarseparator" }) as TagElementProps, toolbardata.container.container);
+            }
+
+            toolbardata.buttonGroupsData?.filter((buttonGroupData: ButtonGroupData) => {
+                if (!buttonGroupData.container && !buttonGroupData.refElement) {
+                    let container;
+                    if (toolbar.firstChild && ["vbox", "hbox"].includes(toolbar.firstChild.tagName)) {
+                        buttonGroupData.container = { container: toolbar.firstChild as Element };
+                        container = toolbar.firstChild;
+                    } else {
+                        buttonGroupData.container = { container: toolbar };
+                    }
+                }
+                const buttons = this.makeToolBarButtons(buttonGroupData);
+                if (buttons[0].parentElement) {
+                    if (toolbardata.buttonGroupsData && toolbardata.buttonGroupsData!.indexOf(buttonGroupData) !== toolbardata.buttonGroupsData!.length - 1) {
+                        ztoolkit.UI.appendElement(makeTagElementProps({ tag: "toolbarseparator" }) as TagElementProps, buttons[0].parentElement!);
+                    }
+                }
+            });
+            this.toolbarGroup.push(toolbar);
+        });
+
+
     }
 
-    makeToolBarButtons(buttonParasArr: ButtonParas[]) {
+    /**
+     * 参数有 childBox 则创建 vbox或 hbox，
+     * 挂载至 container 或 refElement，
+     * 按钮挂载到 v/hbox 中。
+     * 
+     * 参数无 childBox 时，按钮挂载至 container 或 refElement
+     * @param {ButtonGroupData} param0 
+     * @returns 
+     */
+    makeToolBarButtons({ buttonParasArr, container, refElement, childBox }: ButtonGroupData) {
+        const buttons: Element[] = [];
+        if (childBox) {
+            container = { container: this.makeButtonVHBox(childBox, container, refElement) };
+        }
         buttonParasArr.filter((buttonParas) => {
-            //buttonParas.tag = "toolbarbutton";
             buttonParas.id ? buttonParas.id = idWithAddon(buttonParas.id) : () => { };
             const toolbarbuttonProps = makeTagElementProps(buttonParas);
-            ztoolkit.UI.appendElement(toolbarbuttonProps as TagElementProps, this.buttonVHbox);
+            const tagName = buttonParas.tag || "button";
+            const button = ztoolkit.UI.createElement(this.doc, tagName, toolbarbuttonProps);
+            this.mounting(button, container, refElement);
+            buttons.push(button);
         });
+        return buttons;
     }
 
-    makeButtonVHBox(isHbox: boolean) {
-        let tag;
-        isHbox ? tag = "hbox" : tag = "vbox";
+    /**
+     * 生成水平或垂直容器盒，
+     * 并完成事件委托
+     * @param {"hbox" | "vbox"} childBox 
+     * @param {Element} container 
+     * @returns 
+     */
+    makeButtonVHBox(childBox: "hbox" | "vbox", container?: Container, refElement?: RefElement) {
+        const tag = childBox;
         const boxProps = makeTagElementProps({
-            tag: tag,
             id: config.addonRef + '-' + Zotero.randomString(8),
             classList: ["buttonVHBox"],
             namespace: "xul",
         });
-        const buttonVHbox = ztoolkit.UI.appendElement(boxProps as TagElementProps, this.toolbar) as XUL.Element;
+        const buttonVHbox = ztoolkit.UI.createElement(this.doc, tag, boxProps) as XUL.Element;
+        this.mounting(buttonVHbox, container, refElement);
         eventDelegation(buttonVHbox, "click", 'button', this.handleToolButton);
         return buttonVHbox;
     }
 
-    makeToolBar({ toolbarParas, toolbarContainerOrRef }: { toolbarParas: ElementProps, toolbarContainerOrRef?: ContainerOrRef; }) {
+    /**
+     * 生成工具条 toolbar
+     * @param {ToobarData} param0 
+     * @returns 
+     */
+    makeToolBar({ toolbarParas, container, refElement, childBox }: ToobarData) {
         toolbarParas.tag = "toolbarbutton";
         toolbarParas.id ? toolbarParas.id = idWithAddon(toolbarParas.id) : () => { };
         const toolbarProps = makeTagElementProps(toolbarParas);
         const toolbar = ztoolkit.UI.createElement(this.doc, "toolbar", toolbarProps) as XUL.ToolBar;
-        toolbarContainerOrRef?.container ? toolbarContainerOrRef.container.appendChild(toolbar) : (toolbarContainerOrRef?.refElement && toolbarContainerOrRef?.position ? toolbarContainerOrRef?.refElement.insertAdjacentElement(toolbarContainerOrRef.position, toolbar) : () => { });
+        if (childBox) {
+            this.makeButtonVHBox(childBox, { container: toolbar });
+        }
+        this.mounting(toolbar, container, refElement);
         return toolbar;
-
     }
-    makeToolBox({ toolboxParas, toolboxContainerOrRef }: { toolboxParas: ElementProps, toolboxContainerOrRef?: ContainerOrRef; }) {
+
+    /**
+     * 生成工具盒 toolbox
+     * @param {ElementProps} toolboxParas
+     * @param {Container} container
+     * @param {RefElement} refElement   
+     * @returns 
+     */
+    makeToolBox({ toolboxParas, container, refElement }: ToolboxData) {
         toolboxParas.tag = "toolbox";
         toolboxParas.id ? toolboxParas.id = idWithAddon(toolboxParas.id) : () => { };
         const toolboxProps = makeTagElementProps(toolboxParas);
         const toolbox = ztoolkit.UI.createElement(this.doc, "toolbox", toolboxProps) as XUL.ToolBox;
-        toolboxContainerOrRef?.container ? toolboxContainerOrRef.container.appendChild(toolbox) : (toolboxContainerOrRef?.refElement && toolboxContainerOrRef?.position ? toolboxContainerOrRef.refElement.insertAdjacentElement(toolboxContainerOrRef.position, toolbox) : () => { });
+        this.mounting(toolbox, container, refElement);
         return toolbox;
     }
 
+    /**
+     * 装载 DOM 元素至父元素开头或末尾，
+     * 
+     * 或装载 DOM 元素至参考元素前后
+     * @param {Element} element 
+     * @param {Container} container 
+     * @param {RefElement} refElement 
+     */
+    mounting(element: Element, container?: Container, refElement?: RefElement) {
+        if (container && !refElement) {
+            container.position && container.position == "head" ? container.container.insertBefore(element, container.container.firstChild) : container.container.appendChild(element);
+        }
+        if (!container && refElement) {
+            const position = refElement.position || "afterend";
+            refElement.refElement.insertAdjacentElement(position, element);
+        }
+        if (container && refElement) {
+            container.container.insertBefore(element, refElement.refElement);
+        }
+    }
+
     handleToolButton(target: EventTarget) {
-        let size;
+        let size, fill;
         switch ((target as any).id) {
             case `${idWithAddon("imageToolButtonSmall")}`: size = "small";
                 break;
             case `${idWithAddon("imageToolButtonMedium")}`: size = "medium";
                 break;
             case `${idWithAddon("imageToolButtonLarge")}`: size = "large";
+                break;
+            case `${idWithAddon("fillWidthToolButton")}`: fill = "fillWidth";
+                break;
+            case `${idWithAddon("fillHeightToolButton")}`: fill = "fillHeight";
                 break;
         }
         if (size) {
@@ -456,6 +561,12 @@ export class Toolbar {
             //showDialog(true);
             //insertStyle(addon.data.globalObjs.dialogImgViewer.window.document, makeStyle());
             //updateDialog();
+        }
+        if (fill) {
+            if (addon.data.globalObjs?.dialogImgViewer) {
+                addon.data.globalObjs.dialogImgViewer.fill = fill;
+            }
+
         }
         ztoolkit.log(size);
     }
@@ -608,7 +719,11 @@ function makeTagElementProps(option: ElementProps | TagElementProps): ElementPro
             child = makeTagElementProps(child);
         });
     }
-    return Object.assign(preDefined, option);
+    if (option.tag) {
+        return Object.assign(preDefined, option) as TagElementProps;
+    } else {
+        return Object.assign(preDefined, option) as ElementProps;
+    }
 }
 
 export const cssfilesURL = [
@@ -656,33 +771,71 @@ export function addToolBar(doc: Document, ref: Element) {
     }
 
     const buttonPropsArr = objsGenerateFactory(buttonProps);
-    const toolbarParas = {
-        id: "imageToolBar",
-        classList: ["imageToolBar"],
-    };
-    const toolboxParas = {
-        id: "imageToolBox",
-        classList: ["imageToolbox"],
-    };
-    const toolboxContainerOrRef: ContainerOrRef = {
-        refElement: ref,
-        position: 'beforebegin',
-    };
 
 
+    const fillModeButtonProps = {
+        commonProps: {
+            tag: "button",
+            classList: ["fillModeToolButton"],
+            namespace: "html",
+            attributes: {
+                type: "button",
+            },
+        },
+
+        privatePropsArr: [
+            {
+                id: "fillWidthToolButton",
+                properties: makeButtonProperties("info-fillWidth"),
+                attributes: makeButtonAttributes("info-fillWidth"),
+            },
+            {
+                id: "fillHeightToolButton",
+                properties: makeButtonProperties("info-fillHeight"),
+                attributes: makeButtonAttributes("info-fillHeight"),
+            },
+        ],
+    };
+    const fillModeButtonPropsArr = objsGenerateFactory(fillModeButtonProps);
+
+    const toolbarGroupData: ToobarData = {
+        toolbarParas: {
+            id: "imageToolBar",
+            classList: ["imageToolBar"],
+        },
+        buttonGroupsData: [{
+            buttonParasArr: buttonPropsArr,
+            childBox: "hbox",
+        },
+        {
+            buttonParasArr: fillModeButtonPropsArr,
+            childBox: "hbox",
+        }],
+    };
+
+    const toolboxData: ToolboxData = {
+        toolboxParas: {
+            id: "imageToolBox",
+            classList: ["imageToolbox"],
+        },
+        refElement: {
+            refElement: ref,
+            position: 'beforebegin',
+        }
+
+    };
 
     const toolbarOption: ToolbarOption = {
         doc: doc,
-        isHbox: true,
-        toolboxParas: toolboxParas,
-        toolbarParas: toolbarParas,
-        buttonParasArr: buttonPropsArr,
-        //styleInsert: style,
-        toolboxContainerOrRef: toolboxContainerOrRef,
+        toolboxData: toolboxData,
+        toolbarGroupData: [toolbarGroupData],
     };
 
     const toolBarThumbnail = new Toolbar(toolbarOption);
 
+
+
+    return toolBarThumbnail;
 }
 
 export function objsGenerateFactory(option: {
@@ -1041,3 +1194,9 @@ function mutationCallback (element:Element){
         return `grid-template-columns: repeat(${columns},1fr); min-width: calc(${sizeStyle}px * ${columns});`;
     }
 } */
+
+/* export declare type ContainerOrRef = {
+    container?: Element;
+    refElement?: Element;
+    position?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
+} & ({ container: Element; } | { refElement: Element; }); */

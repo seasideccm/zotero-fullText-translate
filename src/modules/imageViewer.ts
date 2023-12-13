@@ -192,29 +192,39 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
 
     const viewers: any[] = [];
     dialogImgViewer.viewers = viewers;
+
     //doc.querySelectorAll("[id^='viewer'].viewer-container")
     //doc.querySelector(".viewer-canvas img").parentElement.parentElement.id 
+    function setStyleTop() {
+        const doc = dialogImgViewer.window.document;
+        const currentImg = doc.querySelector(".viewer-canvas img");
+        currentImg.style.margin = "0px auto 0px auto";
+        const test = "test";
+    }
     function setStyleBody(e: any) {
         const doc = dialogImgViewer.window.document;
+        const currentImg = doc.querySelector(".viewer-canvas img");
         //viewer 给 body添加了style.paddingRight,予以纠正令图片墙居中
         doc.body.style.paddingRight = "";
         //设置显示图片的style
-        const currentImg = doc.querySelector(".viewer-canvas img");
-        let condition: any = "fillWidth";
+        //const currentImg = doc.querySelector(".viewer-canvas img");
+        /* let condition: any = "fillWidth";
         condition = "fillHeight";
         if (condition) {
             currentImg.style = "";
+        } */
+
+        //viewer 给 body添加了style.paddingRight,予以纠正令图片墙居中
+        doc.body.style.paddingRight = "";
+
+        if (addon.data.globalObjs?.dialogImgViewer.fill == "fillWidth") {
+            currentImg.style.width = "100%";
         }
-        switch (condition) {
-            case "fillWidth":
-                currentImg.style.width = "100%";
-                break;
-            case "fillHeight":
-                currentImg.style.height = "100%";
-                break;
-            default: currentImg.style = condition;
+        if (addon.data.globalObjs?.dialogImgViewer.fill == "fillHeight") {
+            currentImg.style.height = "100%";
         }
-        const option = { zoom: 2 };
+
+        /* const option = { zoom: 2 };
         if (!option) return;
         const viewerIdCurrent = doc.querySelector(".viewer-canvas img").parentElement.parentElement.id;
         const viewerCurrent = viewers.find((e: any) =>
@@ -223,16 +233,35 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
         if (!viewerCurrent) return;
         for (const key in option) {
             viewerCurrent[key](option[key as keyof typeof option]);
+        } */
+        /*         switch (condition) {
+                    case "fillWidth":
+                        currentImg.style.width = "100%";
+                        break;
+                    case "fillHeight":
+                        currentImg.style.height = "100%";
+                        break;
+                    default: currentImg.style = condition;
+                }
+                const option = { zoom: 2 };
+                if (!option) return;
+                const viewerIdCurrent = doc.querySelector(".viewer-canvas img").parentElement.parentElement.id;
+                const viewerCurrent = viewers.find((e: any) =>
+                    e.viewer?.id == viewerIdCurrent
+                );
+                if (!viewerCurrent) return;
+                for (const key in option) {
+                    viewerCurrent[key](option[key as keyof typeof option]);
+                } */
+        //currentImg.style.margin = "0px auto auto auto";
 
-            /* viewerCurrent[key](option[key as keyof typeof option],
+
+    }
+    /* viewerCurrent[key](option[key as keyof typeof option],
                 {
                     x: doc.documentElement.clientWidth / 2,
                     y: doc.documentElement.clientHeight / 2,
                 }); */
-        }
-        currentImg.style.margin = "0 auto";
-
-    }
 
     dialogData = {
         loadCallback: async () => {
@@ -253,6 +282,8 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
                                 ['hidden', restoreDialogSize],
                                 ['view', maxOrFullDialog],
                                 ["viewed", setStyleBody],
+                                //["zoomed", setStyleTop],
+
                             ],
                         ],
                     ]);
