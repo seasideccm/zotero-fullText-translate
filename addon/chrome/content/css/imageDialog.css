@@ -49,9 +49,16 @@ img {
     min-width: 1px;
     border: 2px solid #52c783;
     display: flex;
-    align-items: center; /*定义body的元素垂直居中*/
-    justify-content: center
-
+    align-items: center;
+    /*定义body的元素垂直居中*/
+    justify-content: center;
+    background-color: beige;
+    visibility: visible;
+    -webkit-transition: visible 2s ease-in-out 5s;
+    -moz-transition: visible 2s ease-in-out 5s;
+    -o-transition: visible 2s ease-in-out 5s;
+    -ms-transition: visible 2s ease-in-out 5s;
+    transition: visible 2s ease-in-out 5s;
 }
 
 .imageToolButton {
@@ -62,8 +69,9 @@ img {
 }
 
 .imageToolbox {
-    min-width: 1px;
-    min-height: 19px;
+    margin-right: 10;
+    min-width: 10px;
+    min-height: 32px;
     /* border: 1px solid #c75283; */
     display: flex;
     justify-content: flex-end;
@@ -71,4 +79,25 @@ img {
     position: fixed;
     top: 0;
     right: 0;
+    background-color: beige;
 }
+
+.imageToolbox:hover .imageToolBar {
+    visibility: visible;
+    display: flex;
+}
+
+.imageToolbox:not(:hover):after {
+    content: '●●●'
+}
+
+.imageToolbox:not(:hover) .imageToolBar {
+    visibility: hidden;
+    display: none;
+}
+
+
+/* .imageToolbox:after:not(:hover) .imageToolBar {
+    visibility: hidden;
+    display: none;
+} */

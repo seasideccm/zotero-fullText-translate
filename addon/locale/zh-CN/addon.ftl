@@ -118,3 +118,6 @@ info-medium = 中
 info-large = 大
 info-fillWidth = 适应宽度
 info-fillHeight = 适应高度
+info-fillDefault = 默认缩放
+info-thumbnailSize = 图片大小：
+info-fillModel = 看图缩放方式：

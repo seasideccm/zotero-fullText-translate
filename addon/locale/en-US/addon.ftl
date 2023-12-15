@@ -122,3 +122,6 @@ info-medium = medium
 info-large = large
 info-fillWidth = fill Width
 info-fillHeight = fill Height
+info-fillDefault = default Scale
+info-thumbnailSize = thumbnail Size: 
+info-fillModel = view Image Scale Model: 

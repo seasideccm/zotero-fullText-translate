@@ -203,9 +203,11 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
     }
     function setStyleBody(e: any) {
         const doc = dialogImgViewer.window.document;
+        const dialogWindow = dialogImgViewer.window;
         const currentImg = doc.querySelector(".viewer-canvas img");
+        const imgRatio = currentImg.naturalWidth / currentImg.naturalHeight;
         //viewer 给 body添加了style.paddingRight,予以纠正令图片墙居中
-        doc.body.style.paddingRight = "";
+        //doc.body.style.paddingRight = "";
         //设置显示图片的style
         //const currentImg = doc.querySelector(".viewer-canvas img");
         /* let condition: any = "fillWidth";
@@ -215,25 +217,38 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
         } */
 
         //viewer 给 body添加了style.paddingRight,予以纠正令图片墙居中
-        doc.body.style.paddingRight = "";
+        if (!addon.data.globalObjs?.dialogImgViewer.fill) return;
 
         if (addon.data.globalObjs?.dialogImgViewer.fill == "fillWidth") {
-            currentImg.style.width = "100%";
+            const width = Math.min(dialogImgViewer.window.innerWidth, currentImg.naturalWidth);
+            const height = Math.round(width / imgRatio);
+            currentImg.style.width = "".concat(`${width}px`);
+            currentImg.style.height = "".concat(`${height}px`);
+            //currentImg.style.margin = "auto";
+            currentImg.style.marginInline = "auto";
+
         }
         if (addon.data.globalObjs?.dialogImgViewer.fill == "fillHeight") {
-            currentImg.style.height = "100%";
+            const height = Math.min(dialogImgViewer.window.innerHeight, currentImg.naturalHeight);
+            const width = Math.round(height * imgRatio);
+            currentImg.style.width = "".concat(`${width}px`);
+            currentImg.style.height = "".concat(`${height}px`);
+            //currentImg.style.margin = "auto";
+            currentImg.style.marginInline = "auto";
+        }
+        if (addon.data.globalObjs?.dialogImgViewer.fill == "fillDefault") {
+            getViewerCurrent(doc, viewers)?.reset();
         }
 
-        /* const option = { zoom: 2 };
-        if (!option) return;
-        const viewerIdCurrent = doc.querySelector(".viewer-canvas img").parentElement.parentElement.id;
-        const viewerCurrent = viewers.find((e: any) =>
-            e.viewer?.id == viewerIdCurrent
-        );
-        if (!viewerCurrent) return;
-        for (const key in option) {
-            viewerCurrent[key](option[key as keyof typeof option]);
-        } */
+
+
+        //const option = { zoom: 2 };
+        //if (!option) return;
+        //const viewerCurrent = getViewerCurrent(doc, viewers)
+
+        //for (const key in option) {
+        //    viewerCurrent[key](option[key as keyof typeof option]);
+        //}
         /*         switch (condition) {
                     case "fillWidth":
                         currentImg.style.width = "100%";
@@ -272,8 +287,16 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
             setGlobalCssVar(doc)(styleGlobalVar());
             loadCss(doc, cssfilesURL);
             addContextMenu(firstDiv);
+            const viewerContainer = ztoolkit.UI.appendElement({ tag: "div", namespace: "html" }, doc.body) as HTMLElement;
             for (const images of imagesArr) {
-                const viewer = new Viewer(images as HTMLElement);
+                const viewer = new Viewer(images as HTMLElement, {
+                    title: [1, () => "自定义"],
+                    backdrop: "static",
+                    container: viewerContainer,
+                    zoomRatio: 0.2,
+                    initialCoverage: 1,
+
+                });
                 viewers.push(viewer);
                 batchAddEventListener(
                     [
@@ -313,6 +336,15 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
         const collection = dialogImgViewer.window.document?.querySelector(`#${collectionId}`);
         collection?.scrollIntoView({ block: "start", behavior: "smooth" });
     }
+}
+
+function getViewerCurrent(doc: Document, viewers: any[]) {
+    const viewerIdCurrent = doc.querySelector(".viewer-canvas img")?.parentElement?.parentElement?.id;
+    if (!viewerIdCurrent) return;
+    const viewerCurrent = viewers.find((e: any) =>
+        e.viewer?.id == viewerIdCurrent
+    );
+    return viewerCurrent;
 }
 
 function styleGlobalVar() {
