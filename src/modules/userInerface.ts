@@ -2,8 +2,11 @@
 import { ElementProps, HTMLElementProps, TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
-import { onSaveImageAs, setPref } from "../utils/prefs";
-import { calColumns } from "./imageViewer";
+import { onSaveImageAs, readImage, setPref } from "../utils/prefs";
+import { calColumns, getParentItem, getThumbnailSize } from "./imageViewer";
+import { objFactory, objsAddKVFactory } from "../utils/tools";
+import { listeners } from "process";
+import { imageIdPrefix } from "../utils/imageConjfig";
 
 
 
@@ -95,18 +98,109 @@ export class contextMenu {
     }
 
     copyImage(target: Element) {
-        const img = (target as HTMLImageElement).src;
-        if (!img) return;
-        const clip = new ztoolkit.Clipboard();
-        //仅支持添加一张图
-        clip.addImage(img);
-        clip.copy();
-    }
-    saveImage(target: Element) {
-        const img = (target as HTMLImageElement).src;
-        onSaveImageAs(img);
+        let imgSrc = (target as HTMLImageElement).src;
+        if (!imgSrc) return;
+        if (imgSrc.startsWith("file:///")) {
+            const imgPath = imgSrc.replace("file:///", "");
+            readImage(imgPath).then((imgData) => {
+                imgSrc = imgData?.base64 as string;
+                if (!imgSrc.startsWith("data:")) return;
+                const clip = new ztoolkit.Clipboard();
+                //仅支持添加一张图
+                clip.addImage(imgSrc);
+                clip.copy();
+            });
+        }
+        if (imgSrc.startsWith("data:")) {
+            const clip = new ztoolkit.Clipboard();
+            //仅支持添加一张图
+            clip.addImage(imgSrc);
+            clip.copy();
+        };
 
     }
+    saveImage(target: Element) {
+        const imgSrc = (target as HTMLImageElement).src;
+        const altText = (target as HTMLImageElement).alt;
+        onSaveImageAs(imgSrc, altText);
+
+    }
+    showFolder(target: Element) {
+        const attachmentKey = target.id.replace(imageIdPrefix, "");
+        const libraryID = Zotero.Libraries.userLibraryID;
+        const attachment = Zotero.Items.getByLibraryAndKey(libraryID, attachmentKey) as Zotero.Item;
+        const imgSrc = (target as HTMLImageElement).src;
+        let path;
+        if (!imgSrc) return;
+        if (imgSrc.startsWith("file:///")) {
+            path = imgSrc.replace("file:///", "");
+
+
+        } else {
+            const itemType = attachment.itemType as string;
+            switch (itemType) {
+                case "annotation":
+                    if (attachment.annotationType != "image") { break; };
+                    path = Zotero.Annotations.getCacheImagePath(attachment);
+                    break;
+
+                case "attachment":
+                    if (!attachment.attachmentContentType.includes("image")) { break; };
+                    path = attachment.getFilePath() as string;
+                    break;
+            }
+        }
+        path = OS.Path.normalize(path!);
+        const file = Zotero.File.pathToFile(path);
+        try {
+            Zotero.debug("Revealing " + file.path);
+            file.reveal();
+        }
+        catch (e) {
+            // On platforms that don't support nsIFile.reveal() (e.g. Linux),
+            // launch the parent directory
+            Zotero.launchFile(file.parent as any);
+        }
+        Zotero.Notifier.trigger('open', 'file', attachment.id);
+
+
+    }
+    async showLibraryItem(target: Element) {
+        Zotero_Tabs.select("zotero-pane");
+        const zp = ztoolkit.getGlobal("ZoteroPane");
+        const match = target?.parentElement?.parentElement?.id.match(/\d+$/m);
+        let collectionId;
+        if (match) {
+            collectionId = match[0];
+        }
+        //分类 id 字符串 数字均可
+        collectionId ? await zp.collectionsView.selectCollection(collectionId) : () => { };
+        const attachmentKey = target.id.replace(imageIdPrefix, "");
+        const libraryID = Zotero.Libraries.userLibraryID;
+        const attachment = Zotero.Items.getByLibraryAndKey(libraryID, attachmentKey) as Zotero.Item;
+        const parentItem = getParentItem(attachment);
+        window.focus();
+        zp.selectItem(parentItem!.id);
+
+    }
+    showOnPage(target: Element) {
+        Zotero_Tabs.select("zotero-pane");
+        const attachmentKey = target.id.replace(imageIdPrefix, "");
+        const libraryID = Zotero.Libraries.userLibraryID;
+        const attachment = Zotero.Items.getByLibraryAndKey(libraryID, attachmentKey) as Zotero.Item;
+        const parentItem = attachment.parentItem;
+        if (parentItem?.isPDFAttachment() && attachment.itemType as string == "annotation") {
+            const zp = Zotero.getActiveZoteroPane();
+            if (zp) {
+                const position = JSON.parse(attachment.annotationPosition);
+                zp.viewPDF(parentItem.id, { position });
+            }
+        }
+        if (parentItem?.isNote()) {
+            () => { };
+        }
+
+    };
     editImage() { }
     convertImage() { }
     ocrImage() { }
@@ -126,36 +220,17 @@ export class contextMenu {
             `chrome,centerscreen,resizable,status,width=900,height=650,dialog=no`,
             args,
         )!;
-        //if (!printWindow) return;
+
         await args._initPromise.promise;
         args.browser?.contentWindow.postMessage({ type: "print", html }, "*");
+        window.addEventListener("afterprint", (event) => {
+            console.log("打印后");
+        });
+        //无效
+        //printWindow.addEventListener("afterprint", () => { printWindow.close(); });
         printWindow.print();
+        Zotero.Promise.delay(10000).then(() => printWindow.close());
         //printWindow.close();
-
-
-
-        /* printWindow.addEventListener("DOMContentLoaded", async function onWindowLoad(ev) {
-            const img = (targetElementEvent.target as HTMLImageElement).src;
-            const imgElment = ztoolkit.UI.createElement(printWindow.document, "img", {
-                namespace: "html",
-                id: "printImg",
-                attributes: {
-                    src: img,
-                    alt: "printImg",
-                },
-            });
-            printWindow.document.body.appendChild(imgElment);
-
-
-            let n = 0;
-            while (printWindow.document.readyState != "complete" && n++ < 1000) {
-                await Zotero.Promise.delay(100);
-            }
-        }); */
-
-
-
-
     }
     getHtml(htmlImageElement: HTMLImageElement) {
         const img = (htmlImageElement as HTMLImageElement).src;
@@ -196,7 +271,7 @@ export class contextMenu {
     }
 
 
-    handleMenuItem(target: Element, menuPopupEvent: Event) {
+    async handleMenuItem(target: Element, menuPopupEvent: Event) {
         if (!menuPopupEvent || !((menuPopupEvent.target as any).label)) return;
         switch ((menuPopupEvent.target as any).label) {
             case `${getString("info-copyImage")}`: this.copyImage(target);
@@ -215,6 +290,14 @@ export class contextMenu {
                 break;
             case `${getString("info-printImage")}`: this.printImage(target);
                 break;
+            case `${getString("info-showFolder")}`: this.showFolder(target);
+                break;
+            case `${getString("info-showLibraryItem")}`: await this.showLibraryItem(target);
+                break;
+            case `${getString("info-showOnPage")}`: await this.showOnPage(target);
+                break;
+
+
         }
     }
 
@@ -225,14 +308,6 @@ export class contextMenu {
             }
         }
     }
-    /*  creatPropsMeunGroups(menuPropsGroups: MenuProps[][]) {
-         
-         return menuPropsGroups.map((menuPropsGroup: MenuProps[]) => this.creatPropsMeunGroup(menuPropsGroup));
-     };
-     creatPropsMeunGroup(menuPropsGroup: MenuProps[]) {
-         return menuPropsGroup.map((menuProps: MenuProps) => this.creatPropsMeun(menuProps));
- 
-     }; */
     creatPropsMeun(menuProps: MenuProps) {
         return {
             label: menuProps[0],
@@ -240,7 +315,6 @@ export class contextMenu {
             args: menuProps[2] || undefined,
         };
     };
-
 
     createContextMenu(menuPropsGroups: MenuProps[][], idPostfix: string) {
         const menupopup = this.makeMenupopup(idPostfix);
@@ -267,19 +341,6 @@ export class contextMenu {
         return menupopup;
     }
 
-    /* createContextMenu(menuitemGroupArr: any[][], idPostfix: string, event: MouseEvent) {
-        const menupopup = this.makeMenupopup(idPostfix);
-        menuitemGroupArr.filter((menuitemGroup: any[]) => {
-            menuitemGroup.map((e: any) => this.makeMenuitem(e, menupopup, event));
-            if (menuitemGroupArr.indexOf(menuitemGroup) !== menuitemGroupArr.length - 1) {
-                this.menuseparator(menupopup);
-            }
-        });
-        return menupopup;
-    } */
-
-
-
     menuseparator(menupopup: any) {
         ztoolkit.UI.appendElement({
             tag: "menuseparator",
@@ -287,11 +348,6 @@ export class contextMenu {
         }, menupopup);
     };
     makeMenupopup(idPostfix: string) {
-        /* makeTagElementProps({
-            tag: "menupopup",
-            id: config.addonRef + '-' + idPostfix,
-            children: children,
-        }); */
         const menupopupOld = document.querySelector(`[id$="${idPostfix}"]`) as XUL.MenuPopup | null;
         if (menupopupOld) return menupopupOld;
         const menupopup = ztoolkit.UI.appendElement({
@@ -300,11 +356,11 @@ export class contextMenu {
             namespace: "xul",
             children: [],
         }, document.querySelector("#browser")!) as XUL.MenuPopup;
-        menupopup.addEventListener("command", e => {
+        menupopup.addEventListener("command", async e => {
             const tagName = (e.target as any).tagName.toLowerCase();
             if (tagName === 'menuitem') {
                 // anchorNode 为操作的目标元素
-                this.handleMenuItem(menupopup.anchorNode, e);
+                await this.handleMenuItem(menupopup.anchorNode, e);
             }
         });
         return menupopup;
@@ -388,26 +444,25 @@ export class Toolbar {
                 toolbardata.container = { container: this.toolbox };
             }
             const toolbar = this.makeToolBar(toolbardata);
+            const Vbox = ztoolkit.UI.appendElement(
+                makeTagElementProps({
+                    tag: "vbox",
+                    classList: ["toolbarVbox"]
+                }) as TagElementProps,
+                toolbar);
 
-            if (toolbardata.container && option.toolbarGroupData!.indexOf(toolbardata) !== option.toolbarGroupData!.length - 1) {
+            /* if (toolbardata.container && option.toolbarGroupData!.indexOf(toolbardata) !== option.toolbarGroupData!.length - 1) {
                 ztoolkit.UI.appendElement(makeTagElementProps({ tag: "toolbarseparator" }) as TagElementProps, toolbardata.container.container);
-            }
+            } */
 
             toolbardata.buttonGroupsData?.filter((buttonGroupData: ButtonGroupData) => {
                 if (!buttonGroupData.container && !buttonGroupData.refElement) {
-                    buttonGroupData.container = { container: toolbar };
+                    buttonGroupData.container = { container: Vbox };
                 }
                 const buttons = this.makeToolBarButtons(buttonGroupData);
-                if (buttons[0].parentElement) {
-                    if (toolbardata.buttonGroupsData && toolbardata.buttonGroupsData!.indexOf(buttonGroupData) !== toolbardata.buttonGroupsData!.length - 1) {
-                        ztoolkit.UI.appendElement(makeTagElementProps({ tag: "toolbarseparator" }) as TagElementProps, buttons[0].parentElement!);
-                    }
-                }
             });
             this.toolbarGroup.push(toolbar);
         });
-
-
     }
 
     /**
@@ -509,7 +564,7 @@ export class Toolbar {
     }
 
     handleToolButton(target: EventTarget) {
-        let size, fill;
+        let size, fit;
         switch ((target as any).id) {
             case `${idWithAddon("imageToolButtonSmall")}`: size = "small";
                 break;
@@ -517,11 +572,11 @@ export class Toolbar {
                 break;
             case `${idWithAddon("imageToolButtonLarge")}`: size = "large";
                 break;
-            case `${idWithAddon("fillWidthToolButton")}`: fill = "fillWidth";
+            case `${idWithAddon("fitWidthToolButton")}`: fit = "fitWidth";
                 break;
-            case `${idWithAddon("fillHeightToolButton")}`: fill = "fillHeight";
+            case `${idWithAddon("fitHeightToolButton")}`: fit = "fitHeight";
                 break;
-            case `${idWithAddon("fillDefaultToolButton")}`: fill = "fillDefault";
+            case `${idWithAddon("fitDefaultToolButton")}`: fit = "fitDefault";
                 break;
         }
         if (size) {
@@ -537,26 +592,30 @@ export class Toolbar {
             }
             setPref('thumbnailSize', size);
             const columns = calColumns(sizeStyle);
-            const objTempArr = [{
-                varName: "--thumbnailSize",
-                value: sizeStyle,
-            },
-            {
-                varName: "--columns",
-                value: columns,
-            }];
+            const objTempArr = [
+                {
+                    varName: "--thumbnailSize",
+                    value: sizeStyle,
+                },
+                {
+                    varName: "--columns",
+                    value: columns,
+                }];
             const doc = addon.data.globalObjs.dialogImgViewer.window.document! as Document;
             if (!doc) return;
             const targetElement = styleElement(doc)();
             setStyleVar(objTempArr)(targetElement);
-
+            const imagesColumns = doc.querySelector("#".concat(idWithAddon("imagesColumns")));
+            if (imagesColumns) {
+                imagesColumns.value = String(columns);
+            }
             //showDialog(true);
             //insertStyle(addon.data.globalObjs.dialogImgViewer.window.document, makeStyle());
             //updateDialog();
         }
-        if (fill) {
+        if (fit) {
             if (addon.data.globalObjs?.dialogImgViewer) {
-                addon.data.globalObjs.dialogImgViewer.fill = fill;
+                addon.data.globalObjs.dialogImgViewer.fit = fit;
             }
 
         }
@@ -568,8 +627,11 @@ export function idWithAddon(idPostfix: string) {
     return config.addonRef + '-' + idPostfix;
 }
 
-export function setStyleVar(KVs: { varName: string; value: string | number; }[]) {
+export function setStyleVar(KVs: { varName: string; value: string | number; } | any[]) {
     return function doIt(element: XUL.Element | HTMLElement) {
+        if (!Array.isArray(KVs)) {
+            KVs = [KVs];
+        }
         KVs.filter((kv: { varName: string; value: string | number; }) => {
             element.style.setProperty(kv.varName, String(kv.value));
         });
@@ -588,6 +650,11 @@ export function getStyleVar(varNames: string[]) {
     };
 }
 
+/**
+ * 
+ * @param doc 
+ * @returns :root or element
+ */
 export function styleElement(doc: Document) {
     return function targetElement(element?: Element) {
         !element ? element = doc.querySelector(":root")! : element;
@@ -723,107 +790,108 @@ export const cssfilesURL = [
     `chrome://${config.addonRef}/content/dragula.css`,
     `chrome://${config.addonRef}/content/css/imageDialog.css`,
 ];
+
 export function addToolBar(doc: Document, ref: Element) {
-    const buttonProps = {
+    const commonProps = objFactory(
+        ["tag", "classList", "namespace", ["attributes", ["type"]]],
+        ["button", ["imageToolButton"], "html", "button"]);
+    const privatePropsArrKeys = ["id", ["properties", ["innerHTML"]], ["attributes", ["tooltiptext"]]];
+
+    const privatePropsArr = objFactory(privatePropsArrKeys,
+        [
+            ["imageToolButtonSmall", [getString("info-small")], [getString("info-small")]],
+            ["imageToolButtonMedium", [getString("info-medium")], [getString("info-medium")]],
+            ["imageToolButtonLarge", [getString("info-large")], [getString("info-large")]],
+        ]);
+    const buttonPropsArr = objsAddKVFactory({
+        commonProps: commonProps,
+        privatePropsArr: privatePropsArr
+    });
+
+    const sizeStyle = getThumbnailSize();
+    const columns = calColumns(sizeStyle);
+
+    const columnsPropsArr = makeTagElementProps({
+        tag: "input",
+        id: "imagesColumns",
+        namespace: "html",
+        classList: ["columnsInput"],
+        attributes: {
+            type: "number",
+            min: "1",
+            max: "10",
+            value: String(columns),
+            required: "true",
+            style: `width:3em`,
+        },
+        listeners: [{
+            type: "change",
+            listener: (e) => {
+                const doc = addon.data.globalObjs.dialogImgViewer.window.document! as Document;
+                if (!doc) return;
+                setStyleVar({
+                    varName: "--columns",
+                    value: e.target!.value,
+                })(styleElement(doc)());
+            }
+        }]
+    });
+
+
+    const fitModeButtonProps = {
         commonProps: {
             tag: "button",
-            classList: ["imageToolButton"],
+            classList: ["fitModeToolButton"],
             namespace: "html",
             attributes: {
                 type: "button",
             },
         },
-        privatePropsArr: [
-            {
-                id: "imageToolButtonSmall",
-                properties: makeButtonProperties("info-small"),
-                attributes: makeButtonAttributes("info-small"),
-            },
-            {
-                id: "imageToolButtonMedium",
-                properties: makeButtonProperties("info-medium"),
-                attributes: makeButtonAttributes("info-medium"),
-            },
-            {
-                id: "imageToolButtonLarge",
-                properties: makeButtonProperties("info-large"),
-                attributes: makeButtonAttributes("info-large"),
-            },
-        ],
+
+        privatePropsArr: objFactory(privatePropsArrKeys,
+            [
+                ["fitWidthToolButton", [getString("info-fitWidth")], [getString("info-fitWidth")]],
+                ["fitHeightToolButton", [getString("info-fitHeight")], [getString("info-fitHeight")]],
+                ["fitDefaultToolButton", [getString("info-fitDefault")], [getString("info-fitDefault")]]
+            ]
+        )
     };
-    function makeButtonAttributes(imageSize: string) {
-        return {
-            tooltiptext: getString(imageSize),
-        };
-    }
-    function makeButtonProperties(imageSize: string) {
-        return {
-            innerHTML: getString(imageSize),
-        };
-    }
 
-    const buttonPropsArr = objsGenerateFactory(buttonProps);
-
-
-    const fillModeButtonProps = {
-        commonProps: {
-            tag: "button",
-            classList: ["fillModeToolButton"],
+    const fitModeButtonPropsArr = objsAddKVFactory(fitModeButtonProps);
+    function labelProps(label: string) {
+        return makeTagElementProps({
+            tag: "label",
             namespace: "html",
+            properties: {
+                innerHTML: `${getString(label)}`
+            },
             attributes: {
-                type: "button",
+                style: `font-size:120%`,
             },
-        },
-
-        privatePropsArr: [
-            {
-                id: "fillWidthToolButton",
-                properties: makeButtonProperties("info-fillWidth"),
-                attributes: makeButtonAttributes("info-fillWidth"),
-            },
-            {
-                id: "fillHeightToolButton",
-                properties: makeButtonProperties("info-fillHeight"),
-                attributes: makeButtonAttributes("info-fillHeight"),
-            },
-            {
-                id: "fillDefaultToolButton",
-                properties: makeButtonProperties("info-fillDefault"),
-                attributes: makeButtonAttributes("info-fillDefault"),
-            },
-        ],
-    };
-    const fillModeButtonPropsArr = objsGenerateFactory(fillModeButtonProps);
+        }) as TagElementProps;
+    }
 
     const toolbarGroupData: ToobarData = {
         toolbarParas: {
             id: "imageToolBar",
             classList: ["imageToolBar"],
         },
-        buttonGroupsData: [{
-            buttonParasArr: buttonPropsArr,
-            childBox: "hbox",
-            label: makeTagElementProps({
-                tag: "label", namespace: "html", properties: {
-                    innerHTML: `${getString("info-thumbnailSize")}`
-                },
-                attributes: {
-                    style: `font-size:120%`,
-                },
-            }) as TagElementProps
-        },
-        {
-            buttonParasArr: fillModeButtonPropsArr,
-            childBox: "hbox",
-            label: makeTagElementProps({
-                tag: "label", namespace: "html", properties: {
-                    innerHTML: `${getString("info-fillModel")}`
-                },
-                attributes: {
-                    style: `font-size:120%`,
-                }
-            }) as TagElementProps
-        }],
+        buttonGroupsData: [
+            {
+                buttonParasArr: buttonPropsArr,
+                childBox: "hbox",
+                label: labelProps("info-thumbnailSize")
+            },
+            {
+                buttonParasArr: [columnsPropsArr],
+                childBox: "hbox",
+                label: labelProps("info-thumbnailColumns")
+            },
+            {
+                buttonParasArr: fitModeButtonPropsArr,
+                childBox: "hbox",
+                label: labelProps("info-fitModel")
+            }],
     };
 
     const toolboxData: ToolboxData = {
@@ -837,53 +905,16 @@ export function addToolBar(doc: Document, ref: Element) {
         }
 
     };
-
     const toolbarOption: ToolbarOption = {
         doc: doc,
         toolboxData: toolboxData,
         toolbarGroupData: [toolbarGroupData],
     };
-
     const toolBarThumbnail = new Toolbar(toolbarOption);
-
-
-
     return toolBarThumbnail;
 }
 
-export function objsGenerateFactory(option: {
-    commonProps: any;
-    privatePropsArr: any[];
-}) {
-    const result: any[] = [];
-    option.privatePropsArr.filter((obj: any) => {
-        result.push(mergeDeep(obj, option.commonProps));
-    });
-    return result;
-    function mergeDeep(target: any, ...sources: any[]) {
-        sources.forEach(source => {
-            Object.keys(source).forEach(key => {
-                if (Array.isArray(source[key])) {
-                    if (!target[key]) {
-                        Object.assign(target, { [key]: source[key] });
-                    }
-                    else {
-                        Object.assign(target, { [key]: [] });
-                        mergeDeep(target[key], source[key]);
-                    }
 
-                }
-                else if (source[key] instanceof Object) {
-                    if (!target[key]) Object.assign(target, { [key]: {} });
-                    mergeDeep(target[key], source[key]);
-                } else {
-                    Object.assign(target, { [key]: source[key] });
-                }
-            });
-        });
-        return target;
-    }
-}
 
 export function addContextMenu(elementTriggerCTM: Element) {
     const menuPropsGroupsArr = [
@@ -895,6 +926,9 @@ export function addContextMenu(elementTriggerCTM: Element) {
             ["info-ocrImage"]
         ],
         [
+            ["info-showFolder"],
+            ["info-showLibraryItem"],
+            ["info-showOnPage"],
             ["info-shareImage"],
             ["info-sendToPPT"],
             ["info-printImage"]
@@ -925,13 +959,26 @@ export function addContextMenu(elementTriggerCTM: Element) {
 }
 
 export function setGlobalCssVar(doc: Document) {
-    if (!doc.documentElement.style) doc.head.appendChild(ztoolkit.UI.createElement(doc, "style"));
+    if (!doc.documentElement.style) {
+        doc.head.appendChild(ztoolkit.UI.createElement(doc, "style"));
+    };
     return function setKVs(KVs: (string | number)[][]) {
         KVs.filter((KV) => {
             doc.documentElement.style.setProperty(String(KV[0]), String(KV[1]));
         });
     };
 }
+
+/* function makeButtonAttributes(imageSize: string) {
+    return {
+        tooltiptext: getString(imageSize),
+    };
+}
+function makeButtonProperties(imageSize: string) {
+    return {
+        innerHTML: getString(imageSize),
+    };
+} */
 
 
 /* const menuPropsGroupsArrWithFunction = [
@@ -1213,3 +1260,54 @@ function mutationCallback (element:Element){
     refElement?: Element;
     position?: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend';
 } & ({ container: Element; } | { refElement: Element; }); */
+
+/* {
+    tag: "button",
+    classList: ["imageToolButton"],
+    namespace: "html",
+    attributes: {
+        type: "button",
+    },
+}, */
+
+/* const buttonProps = {
+    commonProps: commonProps, 
+    privatePropsArr: privatePropsArr    
+}; */
+/* [
+    {
+        id: "imageToolButtonSmall",
+        properties: makeButtonProperties("info-small"),
+        attributes: makeButtonAttributes("info-small"),
+    },
+    {
+        id: "imageToolButtonMedium",
+        properties: makeButtonProperties("info-medium"),
+        attributes: makeButtonAttributes("info-medium"),
+    },
+    {
+        id: "imageToolButtonLarge",
+        properties: makeButtonProperties("info-large"),
+        attributes: makeButtonAttributes("info-large"),
+    },
+], */
+
+
+
+/*  [
+     {
+         id: "fitWidthToolButton",
+         properties: makeButtonProperties("info-fitWidth"),
+         attributes: makeButtonAttributes("info-fitWidth"),
+     },
+     {
+         id: "fitHeightToolButton",
+         properties: makeButtonProperties("info-fitHeight"),
+         attributes: makeButtonAttributes("info-fitHeight"),
+     },
+     {
+         id: "fitDefaultToolButton",
+         properties: makeButtonProperties("info-fitDefault"),
+         attributes: makeButtonAttributes("info-fitDefault"),
+     },
+ ], */

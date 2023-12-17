@@ -6,12 +6,14 @@ div[id^="container-"] {
 }
 
 [id^="collection-"] {
+    --fontColor:#d2b199
+
     margin: 2px;
     grid-column-start: span var(--columns);
     text-align: center;
     font-size: 2rem;
     font-weight: bold;
-    color: chocolate;
+    color: #d2b199;
     /* place-self: center center; */
     background-color: #526ec7;
 }
@@ -45,7 +47,7 @@ img {
 }
 
 .imageToolBar {
-    height: 32px !important;
+    /* height: 32px !important; */
     min-width: 1px;
     border: 2px solid #52c783;
     display: flex;
@@ -54,11 +56,16 @@ img {
     justify-content: center;
     background-color: beige;
     visibility: visible;
-    -webkit-transition: visible 2s ease-in-out 5s;
-    -moz-transition: visible 2s ease-in-out 5s;
-    -o-transition: visible 2s ease-in-out 5s;
-    -ms-transition: visible 2s ease-in-out 5s;
-    transition: visible 2s ease-in-out 5s;
+}
+
+.toolbarVbox{
+    display: block;    
+    padding-inline: 5px;
+    margin: 5px 5px;
+}
+
+.buttonVHBox{
+    padding-inline: 5px;
 }
 
 .imageToolButton {
@@ -69,7 +76,8 @@ img {
 }
 
 .imageToolbox {
-    margin-right: 10;
+    margin-right: 10px;
+    padding: 5px;
     min-width: 10px;
     min-height: 32px;
     /* border: 1px solid #c75283; */

@@ -10,6 +10,7 @@ import { prepareReader } from "./prepareReader";
 import dragula from 'dragula';
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
+import { imageIdPrefix } from "../utils/imageConjfig";
 
 
 export const viewImgMenuArr = [
@@ -172,111 +173,44 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
             await dialogImgViewer.window.document.exitFullscreen();
         }
         switch (dialogImgViewer.windowState) {
-            case state.STATE_MAXIMIZED: break;
-            case state.STATE_MINIMIZED: break;
+            case state.STATE_MAXIMIZED: dialogImgViewer.window.maximize();
+                break;
+            case state.STATE_MINIMIZED: dialogImgViewer.window.restore();
+                break;
             case state.STATE_NORMAL:
-                dialogImgViewer.window.sizeToContent();
+                //dialogImgViewer.window.sizeToContent();
                 await windowFitSize(dialogImgViewer.window);
                 break;
             case state.STATE_FULLSCREEN: break;
         }
         scrollToCollection(collectionId);
     }
-    async function maxOrFullDialog() {
+    async function maxOrFullDialog(e: any) {
+        //const viewer = e.target.viewer;
         dialogImgViewer.windowState = dialogImgViewer.window.windowState;
         const windowSizeOnViewImage = getPref('windowSizeOnViewImage') || "full";
         if (windowSizeOnViewImage !== "origin") {
             windowSizeOnViewImage == "full" ? await dialogImgViewer.window.document.documentElement.requestFullscreen() : dialogImgViewer.window.maximize();
         }
     }
-
-    const viewers: any[] = [];
-    dialogImgViewer.viewers = viewers;
-
-    //doc.querySelectorAll("[id^='viewer'].viewer-container")
-    //doc.querySelector(".viewer-canvas img").parentElement.parentElement.id 
-    function setStyleTop() {
-        const doc = dialogImgViewer.window.document;
-        const currentImg = doc.querySelector(".viewer-canvas img");
-        currentImg.style.margin = "0px auto 0px auto";
-        const test = "test";
-    }
+    //const viewers: any[] = [];
+    //dialogImgViewer.viewers = viewers;
     function setStyleBody(e: any) {
-        const doc = dialogImgViewer.window.document;
-        const dialogWindow = dialogImgViewer.window;
-        const currentImg = doc.querySelector(".viewer-canvas img");
-        const imgRatio = currentImg.naturalWidth / currentImg.naturalHeight;
-        //viewer 给 body添加了style.paddingRight,予以纠正令图片墙居中
-        //doc.body.style.paddingRight = "";
-        //设置显示图片的style
-        //const currentImg = doc.querySelector(".viewer-canvas img");
-        /* let condition: any = "fillWidth";
-        condition = "fillHeight";
-        if (condition) {
-            currentImg.style = "";
-        } */
-
-        //viewer 给 body添加了style.paddingRight,予以纠正令图片墙居中
-        if (!addon.data.globalObjs?.dialogImgViewer.fill) return;
-
-        if (addon.data.globalObjs?.dialogImgViewer.fill == "fillWidth") {
-            const width = Math.min(dialogImgViewer.window.innerWidth, currentImg.naturalWidth);
-            const height = Math.round(width / imgRatio);
-            currentImg.style.width = "".concat(`${width}px`);
-            currentImg.style.height = "".concat(`${height}px`);
-            //currentImg.style.margin = "auto";
-            currentImg.style.marginInline = "auto";
-
+        const viewer = e.target.viewer;
+        const currentImg = e.detail.image;
+        if (!addon.data.globalObjs?.dialogImgViewer.fit || !viewer) return;
+        if (addon.data.globalObjs?.dialogImgViewer.fit == "fitWidth") {
+            const scale = dialogImgViewer.window.innerWidth / currentImg.width;
+            viewer.scale(scale);
         }
-        if (addon.data.globalObjs?.dialogImgViewer.fill == "fillHeight") {
-            const height = Math.min(dialogImgViewer.window.innerHeight, currentImg.naturalHeight);
-            const width = Math.round(height * imgRatio);
-            currentImg.style.width = "".concat(`${width}px`);
-            currentImg.style.height = "".concat(`${height}px`);
-            //currentImg.style.margin = "auto";
-            currentImg.style.marginInline = "auto";
+        if (addon.data.globalObjs?.dialogImgViewer.fit == "fitHeight") {
+            const scale = dialogImgViewer.window.innerHeight / currentImg.height;
+            viewer.scale(scale);
         }
-        if (addon.data.globalObjs?.dialogImgViewer.fill == "fillDefault") {
-            getViewerCurrent(doc, viewers)?.reset();
+        if (addon.data.globalObjs?.dialogImgViewer.fit == "fitDefault") {
+            viewer.reset();
         }
-
-
-
-        //const option = { zoom: 2 };
-        //if (!option) return;
-        //const viewerCurrent = getViewerCurrent(doc, viewers)
-
-        //for (const key in option) {
-        //    viewerCurrent[key](option[key as keyof typeof option]);
-        //}
-        /*         switch (condition) {
-                    case "fillWidth":
-                        currentImg.style.width = "100%";
-                        break;
-                    case "fillHeight":
-                        currentImg.style.height = "100%";
-                        break;
-                    default: currentImg.style = condition;
-                }
-                const option = { zoom: 2 };
-                if (!option) return;
-                const viewerIdCurrent = doc.querySelector(".viewer-canvas img").parentElement.parentElement.id;
-                const viewerCurrent = viewers.find((e: any) =>
-                    e.viewer?.id == viewerIdCurrent
-                );
-                if (!viewerCurrent) return;
-                for (const key in option) {
-                    viewerCurrent[key](option[key as keyof typeof option]);
-                } */
-        //currentImg.style.margin = "0px auto auto auto";
-
-
     }
-    /* viewerCurrent[key](option[key as keyof typeof option],
-                {
-                    x: doc.documentElement.clientWidth / 2,
-                    y: doc.documentElement.clientHeight / 2,
-                }); */
 
     dialogData = {
         loadCallback: async () => {
@@ -297,14 +231,16 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
                     initialCoverage: 1,
 
                 });
-                viewers.push(viewer);
+                //viewers.push(viewer);
                 batchAddEventListener(
                     [
                         [images,
                             [
                                 ['hidden', restoreDialogSize],
-                                ['view', maxOrFullDialog],
+                                ["show", maxOrFullDialog],
+                                //['view', maxOrFullDialog],
                                 ["viewed", setStyleBody],
+
                                 //["zoomed", setStyleTop],
 
                             ],
@@ -349,15 +285,7 @@ function getViewerCurrent(doc: Document, viewers: any[]) {
 
 function styleGlobalVar() {
     const backgroundColor = getPref("backgroundColorDialogImgViewer") as string || "#b90f0f";
-    const thumbnailSize = getPref('thumbnailSize') as string || "small";
-    let sizeStyle: number = 0;
-    switch (thumbnailSize) {
-        case "small": sizeStyle = 100;
-            break;
-        case "medium": sizeStyle = 300;
-            break;
-        case "large": sizeStyle = 600;
-    }
+    const sizeStyle = getThumbnailSize();
     const columns = calColumns(sizeStyle);
     return [
         ["--bgColor", backgroundColor],
@@ -367,7 +295,21 @@ function styleGlobalVar() {
     ];
 }
 
+export function getThumbnailSize() {
+    const thumbnailSize = getPref('thumbnailSize') as string || "small";
+    let sizeStyle: number = 0;
+    switch (thumbnailSize) {
+        case "small": sizeStyle = 100;
+            break;
+        case "medium": sizeStyle = 300;
+            break;
+        case "large": sizeStyle = 600;
+    }
+    return sizeStyle;
+}
+
 export function calColumns(sizeStyle: number) {
+
     let maxColumns;
     const maxColumnsPC = 10;
     const maxColumnsMobileH = 5;
@@ -451,7 +393,7 @@ function makeImgTagsFilePath(srcData: {
             children: [{
                 tag: "img",
                 namespace: "html",
-                id: "showImg-" + obj.key,
+                id: imageIdPrefix + obj.key,
                 attributes: {
                     src: obj.src,
                     alt: obj.alt,
@@ -762,4 +704,13 @@ function getParentCollection(item: Zotero.Item) {
     }
     if (attachment.itemType == "attachment") {                
     } */
+}
+
+export function getParentItem(item: Zotero.Item | undefined) {
+    if (!item?.parentItem) return;
+    if ((item?.parentItem as Zotero.Item).isRegularItem()) {
+        return item.parentItem;
+    } else {
+        return getParentItem(item.parentItem);
+    }
 }

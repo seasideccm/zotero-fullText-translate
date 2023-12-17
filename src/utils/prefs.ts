@@ -1,4 +1,5 @@
 
+
 import { config } from "../../package.json";
 import { fullTextTranslateService } from "../modules/serviceManage";
 import { fileNameLegal } from "../utils/fileNameLegal";
@@ -251,27 +252,75 @@ export async function saveImage(dataURL: string, outputPath: string) {
   };
 }
 
-
-export const onSaveImageAs = async (dataURL: string, window?: Window) => {
-
+export const onSaveImageAs = async (dataURL: string, filename?: string, window?: Window) => {
+  let imgPath, outputPath;
   try {
     const FilePicker = ztoolkit.getGlobal("require")("zotero/modules/filePicker").default;
     const fp = new FilePicker();
     fp.init(window || ztoolkit.getGlobal("window"), Zotero.getString('pdfReader.saveImageAs'), fp.modeSave);
     fp.appendFilter("PNG", "*.png");
+    let defaultString;
+    if (dataURL.startsWith("file:///")) {
+      imgPath = dataURL.replace("file:///", "");
+      if (filename) {
+        defaultString = filename.toLowerCase() + '.png';
+      } else {
+        defaultString = OS.Path.basename(imgPath);
+      }
+    } else {
+      defaultString = Zotero.getString('fileTypes.image').toLowerCase() + '.png';
+    }
+    fp.defaultString = defaultString;
+    const rv = await fp.show();
+    if (rv === fp.returnOK || rv === fp.returnReplace) {
+      outputPath = fp.file;
+    }
+  }
+  catch (e) {
+    ztoolkit.log(e);
+    throw e;
+  }
+  if (dataURL.startsWith("file:///")) {
+    await OS.File.copy(imgPath, outputPath);
+    //await IOUtils.copy(imgPath, outputPath);
+
+  } else {
+    const parts = dataURL.split(',');
+    if (parts[0].includes('base64')) {
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      await OS.File.writeAtomic(outputPath, u8arr);
+    }
+  }
+};
+
+/* export const onSaveImageAs = async (dataURL: string, filename?: string, window?: Window) => {
+  let imgPath, outputPath;
+  try {
+    const FilePicker = ztoolkit.getGlobal("require")("zotero/modules/filePicker").default;
+    const fp = new FilePicker();
+    fp.init(window || ztoolkit.getGlobal("window"), Zotero.getString('pdfReader.saveImageAs'), fp.modeSave);
+    let imgPath;
+    if (dataURL.startsWith("file:///")) {
+      imgPath = dataURL.replace("file:///", "");
+      fpMode = fp.modeGetFolder;
+    } else {
+      fpMode = fp.modeSave;
+    }
+    
+    fp.appendFilter("PNG", "*.png");
     fp.defaultString = Zotero.getString('fileTypes.image').toLowerCase() + '.png';
     const rv = await fp.show();
     if (rv === fp.returnOK || rv === fp.returnReplace) {
-      const outputPath = fp.file;
-      const parts = dataURL.split(',');
-      if (parts[0].includes('base64')) {
-        const bstr = atob(parts[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
-        }
-        await OS.File.writeAtomic(outputPath, u8arr);
+      outputPath = fp.file;
+      OS.Path.basename(outputPath).includes('.')?(filename?)
+      if (filename) {
+        //PathUtils.split(file).pop()
+        outputPath = OS.Path.join(OS.Path.dirname(outputPath), filename);
       }
     }
   }
@@ -279,7 +328,26 @@ export const onSaveImageAs = async (dataURL: string, window?: Window) => {
     ztoolkit.log(e);
     throw e;
   }
+  if (dataURL.startsWith("file:///")) {
+    await OS.File.copy(imgPath, outputPath);
+    //await IOUtils.copy(imgPath, outputPath);
+
+  } else {
+    const parts = dataURL.split(',');
+    if (parts[0].includes('base64')) {
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      await OS.File.writeAtomic(outputPath, u8arr);
+    }
+  }
+
 };
+ */
+
 
 /**
  * 

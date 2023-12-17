@@ -1,4 +1,126 @@
 
+
+/**
+ * 对象工厂
+ * @param keys 数组或嵌套数组
+ * @param arrs 数组或嵌套数组
+ * @returns 
+ * @example
+ * ```
+ * keys:["id","name",["attributes",["age","height"]]]
+ * values:["1","jhon",["18","170cm"]]
+ * or
+ * values：[["1","jhon",["18","170cm"]],["2","mike",["22","168cm"]]]
+ * ```
+ */
+export function objFactory(keys: any[], valures: any[]) {
+	const objArr: any[] = [];
+	if (!Array.isArray(valures[0])) {
+		valures = [valures];
+	}
+	valures.forEach((arr) => {
+		objArr.push(_objFactory(keys, arr));
+	});
+	function _objFactory(ks: any[], vs: any[]) {
+		if (typeof vs == "string") {
+			vs = [vs];
+		}
+		const obj: any = {};
+		ks.forEach((key, i: number) => {
+			if (typeof key !== "string") {
+				const k = key[0];
+				const subKeys = key[1];
+
+				const subobj = _objFactory(subKeys, vs[i]);
+				Object.assign(obj, { [k]: subobj });
+				;
+			} else {
+				Object.assign(obj, { [key]: vs[i] });
+			}
+		});
+		return obj;
+	}
+	return objArr;
+}
+
+
+
+/* const keys = ["id", "name", ["attributes", ["age", "height"]]];
+
+const vals = [["1", "jhon", ["18", "170cm"]], ["2", "mike", ["22", "168cm"]]];
+
+const ooo = objFactory(keys, vals);
+console.log(ooo); */
+
+/**
+ * 给定数据，返回其类型的小写名称
+ * @param obj 
+ * @returns type name string in lowerCase
+ */
+export function typeReal(obj: any) {
+	return Object.prototype.toString.call(obj).match(/(\b.+?\b)/g)!.slice(-1)[0].toLowerCase();
+};
+
+export function objsAddKVFactory(option: {
+	commonProps: any;
+	privatePropsArr: any[];
+}) {
+	const result: any[] = [];
+	option.privatePropsArr.filter((obj: any) => {
+		result.push(objectDeepMerge(obj, option.commonProps));
+	});
+	return result;
+
+}
+
+export function objectDeepMerge(target: any, ...sources: any[]) {
+	function compareType(a: any, b: any) {
+		return Object.prototype.toString.call(a) === Object.prototype.toString.call(b);
+	}
+	sources.forEach(source => {
+		Object.keys(source).forEach(key => {
+			if (!target[key] || !compareType(target[key], source[key])) {
+				//目标对象无此键，添加此键值，或目标和来源对象有同名键，但值类型不同时，后者覆盖前者
+				Object.assign(target, { [key]: source[key] });
+			} else {
+				if (Array.isArray(source[key])) {
+					//值为数组（包括对象构成的数组）
+					target[key] = target[key].concat(source[key]);
+				} else if (source[key] instanceof Object) {
+					if (target[key] !== source[key]) {
+						objectDeepMerge(target[key], source[key]);
+					}
+				} else {
+					Object.assign(target, { [key]: source[key] });
+				}
+			}
+		});
+	});
+	return target;
+}
+
+export function deepClone(value: any) {
+	const cache = new WeakMap();
+	function _deepClone(value: any) {
+		if (value === null || typeof value !== "object") {
+			return value;
+		}
+		if (cache.has(value)) {
+			return cache.get(value);
+		}
+		const result: any = Array.isArray(value) ? [] : {};
+		cache.set(value, result);
+		for (const key in value) {
+			if ((value.hasOwnProperty(key))) {
+				result[key] = _deepClone(value[key]);
+			}
+		}
+		return result;
+	}
+	return _deepClone(value);
+}
+
+
 //Reflect.ownKeys 返回正常的属性名，也返回不可枚举属性以及Symbol属性
 export const isEmptyObj = (obj: any) => Reflect.ownKeys(obj).length === 0;
 
@@ -25,14 +147,7 @@ export function typeJudge(
 
 
 //函数，接口，重载
-/**
- * 给定数据，返回其类型的小写名称
- * @param obj 
- * @returns type name string in lowerCase
- */
-export function typeReal(obj: any) {
-	return Object.prototype.toString.call(obj).match(/(\b.+?\b)/g)!.slice(-1)[0].toLowerCase();
-};
+
 
 declare type Func = (...argsFn: any[]) => any | void;
 interface AddImpl {
