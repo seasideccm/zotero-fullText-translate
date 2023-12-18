@@ -27,7 +27,8 @@ async function viewImg() {
 };
 
 async function makeDialogElementProps() {
-    const items = getItems() || [];
+    let items = getItems() || [];
+    if (!Array.isArray(items)) items = [items];
     const imageItems: Zotero.Item[] = [];
     for (const item of items) {
         imageItems.push(...(await findImageItems(item)));
@@ -60,30 +61,29 @@ async function makeDialogElementProps() {
         await renderPDFs(imageItems);
         const imageInfoArr = [];
         for (const imgItem of imageItems) {
-            //const imageInfo = await getImageInfo(imgItem);
-            const imageInfo = imageDataFromFile(imgItem);
+            const imageInfo = imageDataFromFile(imgItem);//old makeImgTags(imageInfoArr);
             if (!imageInfo) continue;
             imageInfoArr.push(imageInfo);
         }
-        //const imgsProps = makeImgTags(imageInfoArr);
         const imgsProps = makeImgTagsFilePath(imageInfoArr);
         if (!container) {
             //容器之上套一层DIV，否则页面过高，对话框有两层vbox
-            const container = makeTagElementProps({
+            const containerProps = makeTagElementProps({
                 tag: "div",
                 namespace: "html",
                 id: "firstDiv",
                 children: []
             });
             dialogImgViewer.addCell(0, 0,
-                container
+                containerProps
             );
         }
-        const collectionName =
+        //显示分类名称
+        const collectionNameDivProps =
         {
             tag: "div",
             namespace: "html",
-            //currentCollection.name含有空格时导致 id 无效
+            //currentCollection.name含有空格时导致 id 无效, ztoolkit 创建元素失败
             id: `collection-${currentCollection.id}`,
             properties: {
                 innerText: `${getString("info-collection")}-${currentCollection.name}`
@@ -95,21 +95,14 @@ async function makeDialogElementProps() {
                 tag: "div",
                 namespace: "html",
                 id: `images-collection-${currentCollection.id}`,
-                children: [collectionName, ...imgsProps],
-            }
-        );
-        //防止 margin 塌陷
-        const blankDiv = makeTagElementProps(
-            {
-                tag: "div",
-                namespace: "html",
+                children: [collectionNameDivProps, ...imgsProps],
             }
         );
         container = (dialogImgViewer as any).elementProps.children[0].children[0].children[0];
-        //container.children.push(collectionName, imagesContainer);
-        container.children.push(imagesContainer, blankDiv);
+        container.children.push(imagesContainer);
 
     } else {
+        //添加新图片
         const imgContainerDivs = container.children.find((imgContainerDiv: TagElementProps) => imgContainerDiv.id == `images-collection-${currentCollection.id}`).children;
         const imgIds = imgContainerDivs.map((imgContainerDiv: TagElementProps) => imgContainerDiv.children ? imgContainerDiv.children[0].id : false).filter((e: any) => e);
         const imgIdsString = imgIds.join("");
@@ -117,18 +110,16 @@ async function makeDialogElementProps() {
         for (const imgItem of imageItems) {
             if (!imgIdsString.includes(imgItem.key)) {
                 newImgItems.push(imgItem);
-                hasNewContent = true;
             }
         }
+        if (newImgItems.length) hasNewContent = true;
         renderPDFs(newImgItems);
         const imageInfoArr = [];
         for (const imgItem of newImgItems) {
-            //const imageInfo = await getImageInfo(imgItem);
             const imageInfo = imageDataFromFile(imgItem);
             if (!imageInfo) continue;
             imageInfoArr.push(imageInfo);
         }
-        //const imgsProps = makeImgTags(imageInfoArr);
         const imgsProps = makeImgTagsFilePath(imageInfoArr);
         imgContainerDivs.push(...imgsProps);
     }
@@ -151,7 +142,7 @@ async function makeDialogElementProps() {
  * 
  * 参数的类型{ hasNewContent: boolean, collectionId: string; }
  */
-export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boolean, collectionId: string; }, dialogData?: any,) {
+export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boolean, collectionId: string; }, dialogData?: any) {
     const args = {
         title: `${config.addonRef}`,
         windowFeatures: {
@@ -162,6 +153,59 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
         }
     };
     const dialogImgViewer = addon.data.globalObjs?.dialogImgViewer;
+
+    dialogData = {
+        loadCallback: async () => {
+            const doc = dialogImgViewer.window.document as Document;
+            const firstDiv = doc.getElementById('firstDiv')! as Element;
+            addToolBar(doc, firstDiv);
+            const imagesArr = doc.querySelectorAll('[id^="images"]');
+            setGlobalCssVar(doc)(styleGlobalVar());
+            loadCss(doc, cssfilesURL);
+            addContextMenu(firstDiv);
+            const viewerContainer = ztoolkit.UI.appendElement({ tag: "div", namespace: "html" }, doc.body) as HTMLElement;
+            for (const images of imagesArr) {
+                const viewer = new Viewer(images as HTMLElement, {
+                    title: [1, () => "自定义"],
+                    backdrop: "static",
+                    container: viewerContainer,
+                    zoomRatio: 0.2,
+                    initialCoverage: 1,
+                });
+                batchAddEventListener(
+                    images,
+                    [
+                        ['hidden', restoreDialogSize],
+                        ["show", maxOrFullDialog],
+                        ["viewed", scale],
+                    ],
+                );
+            }
+            const containers = Array.from(doc.getElementsByClassName('containerImg'));
+            Zotero.dragDoc = doc;
+            const foo = dragula(containers);
+            await windowFitSize(dialogImgViewer.window);
+            scrollToCollection(collectionId);
+        }
+    };
+    if (dialogData) {
+        dialogImgViewer.setDialogData(dialogData);
+    }
+    const open = (obj: any) => { return dialogImgViewer.open(obj.title, obj.windowFeatures); };
+    const closeOpen = (obj: any) => {
+        dialogImgViewer.window.close();
+        return open(args);
+    };
+    const focus = () => {
+        scrollToCollection(collectionId);
+        dialogImgViewer.window.focus();
+    };
+    dialogImgViewer.window ? (dialogImgViewer.window.closed ? open(args) : (hasNewContent ? closeOpen(args) : focus())) : open(args);
+
+    function scrollToCollection(collectionId: string) {
+        const collection = dialogImgViewer.window.document?.querySelector(`#${collectionId}`);
+        collection?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
     async function restoreDialogSize() {
         const state = {
             STATE_MAXIMIZED: 1,
@@ -193,86 +237,25 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
             windowSizeOnViewImage == "full" ? await dialogImgViewer.window.document.documentElement.requestFullscreen() : dialogImgViewer.window.maximize();
         }
     }
-    //const viewers: any[] = [];
-    //dialogImgViewer.viewers = viewers;
-    function setStyleBody(e: any) {
+    function scale(e: any) {
         const viewer = e.target.viewer;
         const currentImg = e.detail.image;
         if (!addon.data.globalObjs?.dialogImgViewer.fit || !viewer) return;
-        if (addon.data.globalObjs?.dialogImgViewer.fit == "fitWidth") {
-            const scale = dialogImgViewer.window.innerWidth / currentImg.width;
-            viewer.scale(scale);
+        switch (addon.data.globalObjs?.dialogImgViewer.fit) {
+            case "fitWidth":
+                viewer.scale(dialogImgViewer.window.innerWidth / currentImg.width);
+                break;
+            case "fitHeight":
+                viewer.scale(dialogImgViewer.window.innerHeight / currentImg.height);
+                break;
+            case "fitDefault":
+                viewer.reset();
+                break;
         }
-        if (addon.data.globalObjs?.dialogImgViewer.fit == "fitHeight") {
-            const scale = dialogImgViewer.window.innerHeight / currentImg.height;
-            viewer.scale(scale);
-        }
-        if (addon.data.globalObjs?.dialogImgViewer.fit == "fitDefault") {
-            viewer.reset();
-        }
-    }
-
-    dialogData = {
-        loadCallback: async () => {
-            const doc = dialogImgViewer.window.document as Document;
-            const firstDiv = doc.getElementById('firstDiv')! as Element;
-            addToolBar(doc, firstDiv);
-            const imagesArr = doc.querySelectorAll('[id^="images"]');
-            setGlobalCssVar(doc)(styleGlobalVar());
-            loadCss(doc, cssfilesURL);
-            addContextMenu(firstDiv);
-            const viewerContainer = ztoolkit.UI.appendElement({ tag: "div", namespace: "html" }, doc.body) as HTMLElement;
-            for (const images of imagesArr) {
-                const viewer = new Viewer(images as HTMLElement, {
-                    title: [1, () => "自定义"],
-                    backdrop: "static",
-                    container: viewerContainer,
-                    zoomRatio: 0.2,
-                    initialCoverage: 1,
-
-                });
-                //viewers.push(viewer);
-                batchAddEventListener(
-                    [
-                        [images,
-                            [
-                                ['hidden', restoreDialogSize],
-                                ["show", maxOrFullDialog],
-                                //['view', maxOrFullDialog],
-                                ["viewed", setStyleBody],
-
-                                //["zoomed", setStyleTop],
-
-                            ],
-                        ],
-                    ]);
-            }
-            const containers = Array.from(doc.getElementsByClassName('containerImg'));
-            Zotero.dragDoc = doc;
-            const foo = dragula(containers);
-            await windowFitSize(dialogImgViewer.window);
-            scrollToCollection(collectionId);
-        }
-    };
-    if (dialogData) {
-        dialogImgViewer.setDialogData(dialogData);
-    }
-    const open = (obj: any) => { return dialogImgViewer.open(obj.title, obj.windowFeatures); };
-    const closeOpen = (obj: any) => {
-        dialogImgViewer.window.close();
-        return open(args);
-    };
-    const focus = () => {
-        scrollToCollection(collectionId);
-        dialogImgViewer.window.focus();
-    };
-    dialogImgViewer.window ? (dialogImgViewer.window.closed ? open(args) : (hasNewContent ? closeOpen(args) : focus())) : open(args);
-
-    function scrollToCollection(collectionId: string) {
-        const collection = dialogImgViewer.window.document?.querySelector(`#${collectionId}`);
-        collection?.scrollIntoView({ block: "start", behavior: "smooth" });
     }
 }
+
+
 
 function getViewerCurrent(doc: Document, viewers: any[]) {
     const viewerIdCurrent = doc.querySelector(".viewer-canvas img")?.parentElement?.parentElement?.id;
@@ -486,35 +469,17 @@ async function getImageInfo(item: Zotero.Item) {
             return await srcBase64ImageFile(item);
     }
 }
-
-function getItems(itemID?: number | number[]) {
-    let items: Zotero.Item[];
-    if (itemID) {
-        if (typeof itemID == "number") {
-            items = [Zotero.Items.get(itemID)];
-        } else {
-            items = [];
-            for (const id of itemID) {
-                items.push(Zotero.Items.get(id));
-            }
-
-        }
-    } else {
-        items = Zotero.getActiveZoteroPane().getSelectedItems();
-        if (!items.length && Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.type === 'reader') {
-            itemID = Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data.itemID;
-            if (!itemID) return;
-            items = [Zotero.Items.get(itemID as number)];
-        }
-        if (!items.length) {
-            const collectionSelected = Zotero.getActiveZoteroPane().getSelectedCollection();
-            if (collectionSelected) {
-                items = collectionSelected.getChildItems();
-            }
-        }
+export const noIt = (items: any) => items === void 0 || (Array.isArray(items) && !items.length);
+function getItems(itemIDs?: number | number[]) {
+    let items;
+    if (itemIDs !== void 0) items = Zotero.Items.get(itemIDs);
+    if (noIt(items)) items = Zotero.getActiveZoteroPane().getSelectedItems();
+    if (noIt(items)) items = Zotero.getActiveZoteroPane().getSelectedCollection()?.getChildItems();
+    if (noIt(items)) {
+        itemIDs = Zotero_Tabs._tabs.filter(tab => tab.type.includes("reader")).map(tab => tab.data.itemID);
+        items = Zotero.Items.get(itemIDs);
     }
     return items;
-
 }
 
 async function findImageItems(item: Zotero.Item, imageItems?: Zotero.Item[]) {

@@ -184,20 +184,32 @@ export class contextMenu {
 
     }
     showOnPage(target: Element) {
-        Zotero_Tabs.select("zotero-pane");
+        //Zotero_Tabs.select("zotero-pane");
+        const zp = Zotero.getActiveZoteroPane();
         const attachmentKey = target.id.replace(imageIdPrefix, "");
         const libraryID = Zotero.Libraries.userLibraryID;
         const attachment = Zotero.Items.getByLibraryAndKey(libraryID, attachmentKey) as Zotero.Item;
         const parentItem = attachment.parentItem;
         if (parentItem?.isPDFAttachment() && attachment.itemType as string == "annotation") {
-            const zp = Zotero.getActiveZoteroPane();
             if (zp) {
                 const position = JSON.parse(attachment.annotationPosition);
                 zp.viewPDF(parentItem.id, { position });
             }
         }
         if (parentItem?.isNote()) {
-            () => { };
+            zp.selectItem(parentItem!.id);
+            await window.document.getElementById('zotero-note-editor').focus();
+            const noteEditor = window.document.getElementById('zotero-note-editor');
+            const win = window.document.getElementById('zotero-note-editor')._editorInstance._iframeWindow;
+            //HTMLDocument resource://zotero/note-editor/editor.html
+            const doc = window.document.getElementById('zotero-note-editor')._editorInstance._iframeWindow.document;
+            doc.querySelector("img").parentElement.style.border = "5px solid red";
+            doc.querySelector("img").parentElement.scrollIntoView({ block: "start", behavior: "smooth" });
+
+            const editorInstance = noteEditor?.getCurrentInstance();
+
+
+
         }
 
     };
@@ -294,10 +306,8 @@ export class contextMenu {
                 break;
             case `${getString("info-showLibraryItem")}`: await this.showLibraryItem(target);
                 break;
-            case `${getString("info-showOnPage")}`: await this.showOnPage(target);
+            case `${getString("info-showOnPage")}`: this.showOnPage(target);
                 break;
-
-
         }
     }
 
@@ -725,12 +735,20 @@ function eventDelegation(element: Element, eventType: string, tagNameTarget: str
 }
 
 
-export function batchAddEventListener(args: [element: Element, [eventName: string, callBack: any][]][]) {
+/* export function batchAddEventListener(args: [element: Element, [eventName: string, callBack: any][]][]) {
     for (const arg of args) {
         for (const paras of arg[1]) {
             arg[0].addEventListener(paras[0], paras[1]);
         }
     }
+}
+ */
+export function batchAddEventListener(element: Element, args: [eventName: string, callBack: any][]) {
+
+    for (const paras of args) {
+        element.addEventListener(paras[0], paras[1]);
+    }
+
 }
 
 /**
