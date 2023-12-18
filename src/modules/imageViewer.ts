@@ -33,13 +33,29 @@ async function makeDialogElementProps() {
     for (const item of items) {
         imageItems.push(...(await findImageItems(item)));
     }
-    const currentCollection = ZoteroPane.collectionsView.selectedTreeRow.ref;
+    const gallaryGroup: any = {};
+    gallaryGroup.title = window.document.title;
+    gallaryGroup.treeRowRef = ZoteroPane.collectionsView.selectedTreeRow.ref;
+    gallaryGroup.libraryId = gallaryGroup.treeRowRef.libraryID || gallaryGroup.treeRowRef._libraryID;
+    gallaryGroup.currentCollectionId = gallaryGroup.treeRowRef.id && "collection-" + gallaryGroup.treeRowRef.id;
+    gallaryGroup.tabSelectedID = "tab-" + Zotero_Tabs.selectedID;
+    gallaryGroup.tabType = Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.type;
+    gallaryGroup.getId = function getId() {
+        return this.currentCollectionId || this.tabSelectedID || this.libraryId;
+    };
+    gallaryGroup.id = gallaryGroup.getId();
+
+
+    //const selectedIndexs = ZoteroPane.itemsView.selection.selected;
+    //const selectedItems = selectedIndexs.map((index: any) => ZoteroPane.itemsView.getRow(index).ref);
+
+
     let hasNewContent = false;
     if (!imageItems.length) {
         fullTextTranslate.showInfo(getString("info-selectedItemsNoImage"), 3000);
         return {
             hasNewContent: hasNewContent,
-            collectionId: `collection-${currentCollection.id}`
+            gallaryGroupId: `gallaryGroup-${gallaryGroup.id}`
         };
     }
 
@@ -54,7 +70,7 @@ async function makeDialogElementProps() {
     if (!container) {
         creatCollectionGallery = true;
     } else {
-        creatCollectionGallery = !container.children?.some((imgContainerDiv: TagElementProps) => imgContainerDiv.id == `images-collection-${currentCollection.id}`);
+        creatCollectionGallery = !container.children?.some((imgContainerDiv: TagElementProps) => imgContainerDiv.id == `images-gallaryGroup-${gallaryGroup.id}`);
     }
     if (creatCollectionGallery) {
         hasNewContent = true;
@@ -84,9 +100,9 @@ async function makeDialogElementProps() {
             tag: "div",
             namespace: "html",
             //currentCollection.name含有空格时导致 id 无效, ztoolkit 创建元素失败
-            id: `collection-${currentCollection.id}`,
+            id: `gallaryGroup-${gallaryGroup.id}`,
             properties: {
-                innerText: `${getString("info-collection")}-${currentCollection.name}`
+                innerText: `${getString("info-collection")}-${gallaryGroup.title}`
             },
         };
 
@@ -94,7 +110,7 @@ async function makeDialogElementProps() {
             {
                 tag: "div",
                 namespace: "html",
-                id: `images-collection-${currentCollection.id}`,
+                id: `images-gallaryGroup-${gallaryGroup.id}`,
                 children: [collectionNameDivProps, ...imgsProps],
             }
         );
@@ -103,7 +119,7 @@ async function makeDialogElementProps() {
 
     } else {
         //添加新图片
-        const imgContainerDivs = container.children.find((imgContainerDiv: TagElementProps) => imgContainerDiv.id == `images-collection-${currentCollection.id}`).children;
+        const imgContainerDivs = container.children.find((imgContainerDiv: TagElementProps) => imgContainerDiv.id == `images-gallaryGroup-${gallaryGroup.id}`).children;
         const imgIds = imgContainerDivs.map((imgContainerDiv: TagElementProps) => imgContainerDiv.children ? imgContainerDiv.children[0].id : false).filter((e: any) => e);
         const imgIdsString = imgIds.join("");
         const newImgItems = [];
@@ -125,7 +141,7 @@ async function makeDialogElementProps() {
     }
     return {
         hasNewContent: hasNewContent,
-        collectionId: `collection-${currentCollection.id}`
+        gallaryGroupId: `gallaryGroup-${gallaryGroup.id}`
     };
 }
 
@@ -136,13 +152,13 @@ async function makeDialogElementProps() {
  * @remarks
  * 解构传入的对象给参数赋值
  * 
- * { hasNewContent, collectionId }: { hasNewContent: boolean, collectionId: string; }
+ * { hasNewContent, gallaryGroupId }: { hasNewContent: boolean, gallaryGroupId: string; }
  * 
- * 要解构的参数{ hasNewContent, collectionId }
+ * 要解构的参数{ hasNewContent, gallaryGroupId }
  * 
- * 参数的类型{ hasNewContent: boolean, collectionId: string; }
+ * 参数的类型{ hasNewContent: boolean, gallaryGroupId: string; }
  */
-export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boolean, collectionId: string; }, dialogData?: any) {
+export function showDialog({ hasNewContent, gallaryGroupId }: { hasNewContent: boolean, gallaryGroupId: string; }, dialogData?: any) {
     const args = {
         title: `${config.addonRef}`,
         windowFeatures: {
@@ -185,7 +201,7 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
             Zotero.dragDoc = doc;
             const foo = dragula(containers);
             await windowFitSize(dialogImgViewer.window);
-            scrollToCollection(collectionId);
+            scrollToCollection(gallaryGroupId);
         }
     };
     if (dialogData) {
@@ -197,13 +213,13 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
         return open(args);
     };
     const focus = () => {
-        scrollToCollection(collectionId);
+        scrollToCollection(gallaryGroupId);
         dialogImgViewer.window.focus();
     };
     dialogImgViewer.window ? (dialogImgViewer.window.closed ? open(args) : (hasNewContent ? closeOpen(args) : focus())) : open(args);
 
-    function scrollToCollection(collectionId: string) {
-        const collection = dialogImgViewer.window.document?.querySelector(`#${collectionId}`);
+    function scrollToCollection(gallaryGroupId: string) {
+        const collection = dialogImgViewer.window.document?.querySelector(`#${gallaryGroupId}`);
         collection?.scrollIntoView({ block: "start", behavior: "smooth" });
     }
     async function restoreDialogSize() {
@@ -227,7 +243,7 @@ export function showDialog({ hasNewContent, collectionId }: { hasNewContent: boo
                 break;
             case state.STATE_FULLSCREEN: break;
         }
-        scrollToCollection(collectionId);
+        scrollToCollection(gallaryGroupId);
     }
     async function maxOrFullDialog(e: any) {
         //const viewer = e.target.viewer;
@@ -469,10 +485,13 @@ async function getImageInfo(item: Zotero.Item) {
             return await srcBase64ImageFile(item);
     }
 }
-export const noIt = (items: any) => items === void 0 || (Array.isArray(items) && !items.length);
+export const noIt = (items: any) => items === void 0 || (Array.isArray(items) && !items.length) || items === false;
 function getItems(itemIDs?: number | number[]) {
     let items;
-    if (itemIDs !== void 0) items = Zotero.Items.get(itemIDs);
+    if (itemIDs !== void 0) {
+        items = Zotero.Items.get(itemIDs);
+    }
+    if (noIt(items)) items = Zotero.Items.get(Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data?.itemID);
     if (noIt(items)) items = Zotero.getActiveZoteroPane().getSelectedItems();
     if (noIt(items)) items = Zotero.getActiveZoteroPane().getSelectedCollection()?.getChildItems();
     if (noIt(items)) {
@@ -501,6 +520,14 @@ async function findImageItems(item: Zotero.Item, imageItems?: Zotero.Item[]) {
     }
     if (item.attachmentContentType?.includes("image")) {
         imageItems.push(item);
+    }
+    if (item.attachmentContentType === "text/html") {
+        const type = 'snapshot';
+        fullTextTranslate.showInfo("type = " + type);
+    }
+    if (item.attachmentContentType === "application/epub+zip") {
+        const type = 'epub';
+        fullTextTranslate.showInfo("type = " + type);
     }
     return imageItems;
 }

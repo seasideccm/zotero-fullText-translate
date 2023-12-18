@@ -5,7 +5,7 @@ div[id^="container-"] {
     /*  position: absolute; */
 }
 
-[id^="collection-"] {
+[id^="gallaryGroup-"] {
     --fontColor:#d2b199
 
     margin: 2px;

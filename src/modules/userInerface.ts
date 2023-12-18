@@ -197,8 +197,11 @@ export class contextMenu {
             }
         }
         if (parentItem?.isNote()) {
-            zp.selectItem(parentItem!.id);
-            const noteEditor = window.document.getElementById('zotero-note-editor');
+            //zp.selectItem(parentItem!.id);
+            //const noteEditor = window.document.getElementById('zotero-note-editor');
+            const noteEditor = window.ZoteroContextPane && window.ZoteroContextPane.getActiveEditor();
+            const editorInstance = noteEditor.getCurrentInstance();
+            const editorCore = editorInstance._editorCore;
             noteEditor?.focus();
             const win = window.document.getElementById('zotero-note-editor')._editorInstance._iframeWindow;
             window.focus();
@@ -216,6 +219,9 @@ export class contextMenu {
                 n -= 1;
             }
             border = "";
+            //reader._window 或 window
+
+
             const test = "test";
             //const editorInstance = noteEditor?.getCurrentInstance();
 
@@ -1096,7 +1102,7 @@ background-color: var(--bgColor);
 grid-template-columns: repeat(var(--columns), 1fr);
 min-width: calc(var(--thumbnailSize) * var(--columns));
 }
-[id^="collection-"]{
+[id^="gallaryGroup-"]{
 margin: 2px;
 grid-column-start: span var(--columns);
 place-self: center center;
