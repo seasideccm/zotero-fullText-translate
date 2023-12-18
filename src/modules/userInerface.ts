@@ -183,7 +183,7 @@ export class contextMenu {
         zp.selectItem(parentItem!.id);
 
     }
-    showOnPage(target: Element) {
+    async showOnPage(target: Element) {
         //Zotero_Tabs.select("zotero-pane");
         const zp = Zotero.getActiveZoteroPane();
         const attachmentKey = target.id.replace(imageIdPrefix, "");
@@ -198,15 +198,26 @@ export class contextMenu {
         }
         if (parentItem?.isNote()) {
             zp.selectItem(parentItem!.id);
-            await window.document.getElementById('zotero-note-editor').focus();
             const noteEditor = window.document.getElementById('zotero-note-editor');
+            noteEditor?.focus();
             const win = window.document.getElementById('zotero-note-editor')._editorInstance._iframeWindow;
+            window.focus();
+            win.focus();
             //HTMLDocument resource://zotero/note-editor/editor.html
-            const doc = window.document.getElementById('zotero-note-editor')._editorInstance._iframeWindow.document;
-            doc.querySelector("img").parentElement.style.border = "5px solid red";
+            const doc = win.document;
+            let border = doc.querySelector("img").parentElement.style.border; border = "5px solid red";
             doc.querySelector("img").parentElement.scrollIntoView({ block: "start", behavior: "smooth" });
 
-            const editorInstance = noteEditor?.getCurrentInstance();
+            let n = 5;
+            while (n) {
+                border = "";
+                await Zotero.Promise.delay(1000);
+                border = "5px solid red";
+                n -= 1;
+            }
+            border = "";
+            const test = "test";
+            //const editorInstance = noteEditor?.getCurrentInstance();
 
 
 
@@ -306,7 +317,7 @@ export class contextMenu {
                 break;
             case `${getString("info-showLibraryItem")}`: await this.showLibraryItem(target);
                 break;
-            case `${getString("info-showOnPage")}`: this.showOnPage(target);
+            case `${getString("info-showOnPage")}`: await this.showOnPage(target);
                 break;
         }
     }
