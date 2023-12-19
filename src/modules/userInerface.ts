@@ -197,11 +197,14 @@ export class contextMenu {
             }
         }
         if (parentItem?.isNote()) {
+            await zp.selectItem(parentItem.id);
             //zp.selectItem(parentItem!.id);
-            //const noteEditor = window.document.getElementById('zotero-note-editor');
-            const noteEditor = window.ZoteroContextPane && window.ZoteroContextPane.getActiveEditor();
+            const noteEditor = window.document.getElementById('zotero-note-editor');
+            //const noteEditor = window.ZoteroContextPane && window.ZoteroContextPane.getActiveEditor();
             const editorInstance = noteEditor.getCurrentInstance();
-            const editorCore = editorInstance._editorCore;
+            await editorInstanceok();
+            const editorCore = editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance._editorCore;
+            const editorCore2 = editorInstance._editorCore;
             noteEditor?.focus();
             const win = window.document.getElementById('zotero-note-editor')._editorInstance._iframeWindow;
             window.focus();

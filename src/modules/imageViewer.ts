@@ -198,20 +198,28 @@ export function showDialog({ hasNewContent, gallaryGroupId }: { hasNewContent: b
                     };
                 };
             }
-            const showBibliography = doc.querySelector(".imageBibliography")?.checked;
-            const getBib = showBibliography && getBibliography();
-            const viewerTitleCallBack = (images: any) => {
-                if (!Array.isArray(images)) images = [images];
-                ztoolkit.log(images);
+
+            const getBib = getBibliography();
+            const viewerTitleCallBack = (img: any) => {
+                const showBibliography = doc.querySelector(".imageBibliography")?.checked;
+                if (showBibliography) {
+                    const item = Zotero.Items.get(Number(img.getAttribute("data-parentid")));
+                    return getBib(item)("txt");
+
+                } else {
+                    return img.alt;
+                }
             };
-            const titleOption = showBibliography ? viewerTitleCallBack : 1;
+
+            const inheritedAttributes = ['crossOrigin', 'decoding', 'isMap', 'loading', 'referrerPolicy', 'sizes', 'srcset', 'useMap', 'data-key', 'data-parentid'];
             for (const images of imagesArr) {
                 const viewer = new Viewer(images as HTMLElement, {
-                    title: titleOption,
+                    title: viewerTitleCallBack,
                     backdrop: "static",
                     container: viewerContainer,
                     zoomRatio: 0.2,
                     initialCoverage: 1,
+                    inheritedAttributes: inheritedAttributes,
                 });
                 batchAddEventListener(
                     images,
@@ -400,7 +408,7 @@ async function renderAnnotationImage(imageAnnotations: Zotero.Item[]) {
 
 function makeImgTagsFilePath(srcData: {
     key: string;
-    parentKey: number;
+    parentId: number;
     src: string;
     alt: string;
 }[]) {
@@ -423,8 +431,8 @@ function makeImgTagsFilePath(srcData: {
                     alt: obj.alt,
                     loading: "lazy",
                     decoding: "async",
-                    datakey: obj.key,
-                    dataParentKey: obj.parentKey,
+                    "data-key": obj.key,
+                    "data-parentid": obj.parentId,
 
                 }
             },]
@@ -586,42 +594,25 @@ async function srcBase64Annotation(imageAnnotation: Zotero.Item, title: string) 
 function imageDataFromFile(attachment: Zotero.Item) {
     let srcPath: string | undefined, title: string | undefined;
     const itemType = attachment.itemType as string;
+    const parentItem = getParentItem(attachment);
     switch (itemType) {
         case "annotation":
             if (attachment.annotationType != "image") { break; };
             srcPath = Zotero.Annotations.getCacheImagePath(attachment);
-            title = attachment.parentItem?.getField("title") + "-annotation";
+            title = parentItem?.getField("title") + "-annotation";
             break;
 
         case "attachment":
             if (!attachment.attachmentContentType.includes("image")) { break; };
             srcPath = attachment.getFilePath() as string;
-            title = attachment.parentItem?.getField("title") + "-image";
+            title = parentItem?.getField("title") + "-image";
             break;
     }
     if (!srcPath) return;
     srcPath = "file:///" + srcPath!;
-
-    /* const srcBase64 = await readImage(srcPath);
-    if (!srcBase64) return;
-    let imgWidthHeight;
-    if (srcBase64?.width && srcBase64?.height) {
-        imgWidthHeight = {
-            width: srcBase64?.width,
-            height: srcBase64?.height
-        };
-    } else {
-        imgWidthHeight = {
-            width: window.screen.width,
-            height: window.screen.height,
-        };
-    } */
-
-    //const alt = title ? title + "-annotation" : srcBase64.fileName + srcBase64.fileType;
-    //const src = base64OrFilePath == "filePath" ? srcPath : srcBase64.base64;
     return {
         key: attachment.key,
-        parentKey: attachment.parentID! as number,
+        parentId: parentItem?.id,
         src: srcPath!,
         alt: title!,
     };
@@ -647,7 +638,7 @@ async function srcBase64ImageFile(attachment: Zotero.Item) {
     }
     return {
         key: attachment.key,
-        parentKey: attachment.parentID,
+        parentId: attachment.parentID,
         src: srcBase64.base64,
         alt: srcBase64.fileName + srcBase64.fileType,
         srcWidthHeight: imgWidthHeight,
