@@ -198,34 +198,48 @@ export class contextMenu {
         }
         if (parentItem?.isNote()) {
             await zp.selectItem(parentItem.id);
+            //const ZoteroContextPane = ztoolkit.getGlobal("ZoteroContextPane");
             //zp.selectItem(parentItem!.id);
-            const noteEditor = window.document.getElementById('zotero-note-editor');
+            //while (!(ZoteroContextPane?.getActiveEditor()?.getCurrentInstance())) {
+            //   await Zotero.Promise.delay(100);
+            //}
+
+            while (!(window.document.getElementById('zotero-note-editor') as any)?._editorInstance) {
+                await Zotero.Promise.delay(100);
+            }
+            const noteEditor = window.document.getElementById('zotero-note-editor')!;
+            const editorInstance = noteEditor._editorInstance;
+            while (!editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance) {
+                await Zotero.Promise.delay(100);
+            }
+            const currentEditorInstance = editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance;
             //const noteEditor = window.ZoteroContextPane && window.ZoteroContextPane.getActiveEditor();
-            const editorInstance = noteEditor.getCurrentInstance();
-            await editorInstanceok();
-            const editorCore = editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance._editorCore;
-            const editorCore2 = editorInstance._editorCore;
-            noteEditor?.focus();
-            const win = window.document.getElementById('zotero-note-editor')._editorInstance._iframeWindow;
-            window.focus();
-            win.focus();
+            //const editorInstance = ZoteroContextPane?.getActiveEditor()?.getCurrentInstance();
+            //const editorCore = editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance._editorCore;
+            const editorCore = currentEditorInstance._editorCore;
+            editorCore.provider.subscriptions.filter((e: any) => e.data.attachmentKey == attachmentKey);
+            //noteEditor?.focus();
+            const win = editorInstance._iframeWindow;
+            //window.focus();
+            //win.focus();
             //HTMLDocument resource://zotero/note-editor/editor.html
             const doc = win.document;
-            let border = doc.querySelector("img").parentElement.style.border; border = "5px solid red";
-            doc.querySelector("img").parentElement.scrollIntoView({ block: "start", behavior: "smooth" });
+            this.imageflicker(attachmentKey)(editorCore.view.state, editorCore.view.dispatch);
+            ////let border = doc.querySelector("img").parentElement.style.border; border = "5px solid red";
+            //doc.querySelector("img").parentElement.scrollIntoView({ block: "start", behavior: "smooth" });
 
-            let n = 5;
+            /* let n = 5;
             while (n) {
                 border = "";
                 await Zotero.Promise.delay(1000);
                 border = "5px solid red";
                 n -= 1;
             }
-            border = "";
+            border = ""; */
             //reader._window 或 window
 
 
-            const test = "test";
+            //const test = "test";
             //const editorInstance = noteEditor?.getCurrentInstance();
 
 
@@ -300,6 +314,34 @@ export class contextMenu {
         Zotero.Prefs.set("print.print_headerleft", "", true);
         Zotero.Prefs.set("print.print_headerright", "", true);
         return body.innerHTML;
+    }
+    imageflicker(attachmentKey: string) {
+        // @ts-ignore
+        return function (state, dispatch) {
+            const { tr } = state;
+            // @ts-ignore
+            state.doc.descendants((node, pos) => {
+                if (node.attrs.attachmentKey === attachmentKey) {
+                    //node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    let n = 5, timeout = 500;
+                    const border = "2px solid red";
+                    const width = node.attrs.width;
+                    while (n) {
+                        tr.setNodeMarkup(pos, null, { ...node.attrs, width: width + 10 });
+                        tr.setNodeMarkup(pos, null, { ...node.attrs, border: '' });
+                        dispatch(tr).scrollIntoView();
+                        setTimeout(() => {
+                            tr.setNodeMarkup(pos, null, { ...node.attrs, border: border });
+                            tr.setNodeMarkup(pos, null, { ...node.attrs, width: width });
+                            dispatch(tr);
+                        }, timeout);
+                        n -= 1;
+                    }
+
+                    return false;
+                }
+            });
+        };
     }
 
 
