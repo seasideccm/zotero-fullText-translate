@@ -2,7 +2,7 @@
 import { ElementProps, HTMLElementProps, TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { getString } from "../utils/locale";
 import { config } from "../../package.json";
-import { onSaveImageAs, readImage, setPref } from "../utils/prefs";
+import { getPref, onSaveImageAs, readImage, setPref } from "../utils/prefs";
 import { calColumns, getParentItem, getThumbnailSize } from "./imageViewer";
 import { objFactory, objsAddKVFactory } from "../utils/tools";
 import { listeners } from "process";
@@ -871,6 +871,18 @@ export function addToolBar(doc: Document, ref: Element) {
             }
         }]
     });
+    //getPref();
+    const bibliographyProps = makeTagElementProps({
+        tag: "input",
+        id: "imagesBibliography",
+        namespace: "html",
+        classList: ["imageBibliography"],
+        attributes: {
+            type: "checkbox",
+            name: "showBibliography",
+            checked: "true",
+        },
+    });
 
 
     const fitModeButtonProps = {
@@ -922,6 +934,12 @@ export function addToolBar(doc: Document, ref: Element) {
                 childBox: "hbox",
                 label: labelProps("info-thumbnailColumns")
             },
+            {
+                buttonParasArr: [bibliographyProps],
+                childBox: "hbox",
+                label: labelProps("info-showBibliography")
+            },
+
             {
                 buttonParasArr: fitModeButtonPropsArr,
                 childBox: "hbox",

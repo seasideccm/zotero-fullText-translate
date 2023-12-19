@@ -180,9 +180,34 @@ export function showDialog({ hasNewContent, gallaryGroupId }: { hasNewContent: b
             loadCss(doc, cssfilesURL);
             addContextMenu(firstDiv);
             const viewerContainer = ztoolkit.UI.appendElement({ tag: "div", namespace: "html" }, doc.body) as HTMLElement;
+            function getBibliography() {
+                const qc = Zotero.QuickCopy;
+                const format = Zotero.Prefs.get("export.quickCopy.setting") as string;
+                if (format?.split("=")[0] !== "bibliography") {
+                    fullTextTranslate.showInfo("No bibliography style is choosen in the settings for QuickCopy.");
+                }
+                return function get(items: Zotero.Item[] | Zotero.Item) {
+                    if (!Array.isArray(items)) items = [items];
+                    const biblio = qc.getContentFromItems(items, format);
+                    return function send(htmlOrTxt: "html" | "txt") {
+                        if (htmlOrTxt == "html") {
+                            return biblio.html;
+                        } else {
+                            return biblio.text;
+                        }
+                    };
+                };
+            }
+            const showBibliography = doc.querySelector(".imageBibliography")?.checked;
+            const getBib = showBibliography && getBibliography();
+            const viewerTitleCallBack = (images: any) => {
+                if (!Array.isArray(images)) images = [images];
+                ztoolkit.log(images);
+            };
+            const titleOption = showBibliography ? viewerTitleCallBack : 1;
             for (const images of imagesArr) {
                 const viewer = new Viewer(images as HTMLElement, {
-                    title: [1, () => "自定义"],
+                    title: titleOption,
                     backdrop: "static",
                     container: viewerContainer,
                     zoomRatio: 0.2,
@@ -398,6 +423,8 @@ function makeImgTagsFilePath(srcData: {
                     alt: obj.alt,
                     loading: "lazy",
                     decoding: "async",
+                    datakey: obj.key,
+                    dataParentKey: obj.parentKey,
 
                 }
             },]
@@ -557,7 +584,7 @@ async function srcBase64Annotation(imageAnnotation: Zotero.Item, title: string) 
 }
 
 function imageDataFromFile(attachment: Zotero.Item) {
-    let srcPath: string, title: string;
+    let srcPath: string | undefined, title: string | undefined;
     const itemType = attachment.itemType as string;
     switch (itemType) {
         case "annotation":
@@ -569,9 +596,10 @@ function imageDataFromFile(attachment: Zotero.Item) {
         case "attachment":
             if (!attachment.attachmentContentType.includes("image")) { break; };
             srcPath = attachment.getFilePath() as string;
-            title = attachment.getField("title") + "-image";
+            title = attachment.parentItem?.getField("title") + "-image";
             break;
     }
+    if (!srcPath) return;
     srcPath = "file:///" + srcPath!;
 
     /* const srcBase64 = await readImage(srcPath);

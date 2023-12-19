@@ -125,3 +125,4 @@ info-fitDefault = 默认缩放
 info-thumbnailSize = 图片大小：
 info-fitModel = 看图缩放方式：
 info-thumbnailColumns = 列数
+info-showBibliography = 显示参考文献

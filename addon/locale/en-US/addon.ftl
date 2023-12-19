@@ -129,3 +129,4 @@ info-fitDefault = default Scale
 info-thumbnailSize = thumbnail Size: 
 info-fitModel = view Image Scale Model: 
 info-thumbnailColumns = thumbnail Columns
+info-showBibliography = show Bibliography
