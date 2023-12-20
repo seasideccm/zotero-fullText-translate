@@ -26,13 +26,7 @@ async function viewImg() {
     await showDialog(hasNewContent);
 };
 
-async function makeDialogElementProps() {
-    let items = getItems() || [];
-    if (!Array.isArray(items)) items = [items];
-    const imageItems: Zotero.Item[] = [];
-    for (const item of items) {
-        imageItems.push(...(await findImageItems(item)));
-    }
+function getGallaryGroup() {
     const gallaryGroup: any = {};
     gallaryGroup.title = window.document.title;
     gallaryGroup.treeRowRef = ZoteroPane.collectionsView.selectedTreeRow.ref;
@@ -44,12 +38,16 @@ async function makeDialogElementProps() {
         return this.currentCollectionId || this.tabSelectedID || this.libraryId;
     };
     gallaryGroup.id = gallaryGroup.getId();
+    return gallaryGroup;
+}
 
-
-    //const selectedIndexs = ZoteroPane.itemsView.selection.selected;
-    //const selectedItems = selectedIndexs.map((index: any) => ZoteroPane.itemsView.getRow(index).ref);
-
-
+async function makeDialogElementProps() {
+    const items = getItems() || [];
+    const imageItems: Zotero.Item[] = [];
+    for (const item of items) {
+        imageItems.push(...(await findImageItems(item)));
+    }
+    const gallaryGroup = getGallaryGroup();
     let hasNewContent = false;
     if (!imageItems.length) {
         fullTextTranslate.showInfo(getString("info-selectedItemsNoImage"), 3000);
@@ -201,11 +199,16 @@ export function showDialog({ hasNewContent, gallaryGroupId }: { hasNewContent: b
 
             const getBib = getBibliography();
             const viewerTitleCallBack = (img: any) => {
+                //从设置读取是否显示参考文献
                 const showBibliography = doc.querySelector(".imageBibliography")?.checked;
                 if (showBibliography) {
                     const item = Zotero.Items.get(Number(img.getAttribute("data-parentid")));
-                    return getBib(item)("txt");
-
+                    //如果没有常规条目，则无参考文献
+                    if (!item || !item.isRegularItem()) {
+                        return img.alt;
+                    } else {
+                        return getBib(item)("txt");
+                    }
                 } else {
                     return img.alt;
                 }
@@ -408,7 +411,7 @@ async function renderAnnotationImage(imageAnnotations: Zotero.Item[]) {
 
 function makeImgTagsFilePath(srcData: {
     key: string;
-    parentId: number;
+    parentId: number | undefined;
     src: string;
     alt: string;
 }[]) {
@@ -432,7 +435,7 @@ function makeImgTagsFilePath(srcData: {
                     loading: "lazy",
                     decoding: "async",
                     "data-key": obj.key,
-                    "data-parentid": obj.parentId,
+                    "data-parentid": obj.parentId || '',
 
                 }
             },]
@@ -533,6 +536,7 @@ function getItems(itemIDs?: number | number[]) {
         itemIDs = Zotero_Tabs._tabs.filter(tab => tab.type.includes("reader")).map(tab => tab.data.itemID);
         items = Zotero.Items.get(itemIDs);
     }
+    if (items && !Array.isArray(items)) items = [items];
     return items;
 }
 
@@ -594,7 +598,8 @@ async function srcBase64Annotation(imageAnnotation: Zotero.Item, title: string) 
 function imageDataFromFile(attachment: Zotero.Item) {
     let srcPath: string | undefined, title: string | undefined;
     const itemType = attachment.itemType as string;
-    const parentItem = getParentItem(attachment);
+    let parentItem = getParentItem(attachment);
+    if (!parentItem) parentItem = attachment.parentItem;
     switch (itemType) {
         case "annotation":
             if (attachment.annotationType != "image") { break; };

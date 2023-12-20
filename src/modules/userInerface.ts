@@ -197,7 +197,10 @@ export class contextMenu {
             }
         }
         if (parentItem?.isNote()) {
+            //笔记实例打开时不做处理
+            await Zotero.Notes.deleteUnusedEmbeddedImages(parentItem);
             await zp.selectItem(parentItem.id);
+
             //const ZoteroContextPane = ztoolkit.getGlobal("ZoteroContextPane");
             //zp.selectItem(parentItem!.id);
             //while (!(ZoteroContextPane?.getActiveEditor()?.getCurrentInstance())) {
@@ -321,22 +324,27 @@ export class contextMenu {
             const { tr } = state;
             // @ts-ignore
             state.doc.descendants((node, pos) => {
-                if (node.attrs.attachmentKey === attachmentKey) {
+                if (node.type.name == "image" && node.attrs.attachmentKey === attachmentKey) {
                     //node.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    let n = 5, timeout = 500;
-                    const border = "2px solid red";
-                    const width = node.attrs.width;
-                    while (n) {
+                    const n = 5, timeout = 500;
+                    //const border = "2px solid red";
+                    const width = node.attrs.width + 20;
+                    tr.setNodeMarkup(pos, null, { ...node.attrs, width: width });
+                    if (dispatch) dispatch(tr);
+                    /* while (n) {
                         tr.setNodeMarkup(pos, null, { ...node.attrs, width: width + 10 });
-                        tr.setNodeMarkup(pos, null, { ...node.attrs, border: '' });
-                        dispatch(tr).scrollIntoView();
+                        if (dispatch) dispatch(tr);
                         setTimeout(() => {
-                            tr.setNodeMarkup(pos, null, { ...node.attrs, border: border });
                             tr.setNodeMarkup(pos, null, { ...node.attrs, width: width });
                             dispatch(tr);
                         }, timeout);
                         n -= 1;
-                    }
+                    } */
+                    // tr.setNodeMarkup(pos, null, { ...node.attrs, border: '' });
+                    //.scrollIntoView();
+                    //tr.setNodeMarkup(pos, null, { ...node.attrs, border: border });
+                    // tr.setNodeMarkup(pos, null, { ...node.attrs, border: '' });
+
 
                     return false;
                 }
