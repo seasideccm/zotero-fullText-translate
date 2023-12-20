@@ -197,20 +197,23 @@ export class contextMenu {
             }
         }
         if (parentItem?.isNote()) {
-            //笔记实例打开时不做处理
+            //笔记实例打开时不会删除废弃的图片，故在实例打开前执行清理动作
             await Zotero.Notes.deleteUnusedEmbeddedImages(parentItem);
             await zp.selectItem(parentItem.id);
 
-            //const ZoteroContextPane = ztoolkit.getGlobal("ZoteroContextPane");
-            //zp.selectItem(parentItem!.id);
-            //while (!(ZoteroContextPane?.getActiveEditor()?.getCurrentInstance())) {
-            //   await Zotero.Promise.delay(100);
-            //}
+            //reader 面板右侧面板打开笔记时获取实例
+            /* while (!ztoolkit.getGlobal("ZoteroContextPane")) {
+                await Zotero.Promise.delay(100);
+            }            
+            const ZoteroContextPane = ztoolkit.getGlobal("ZoteroContextPane"); */
+
 
             while (!(window.document.getElementById('zotero-note-editor') as any)?._editorInstance) {
                 await Zotero.Promise.delay(100);
             }
             const noteEditor = window.document.getElementById('zotero-note-editor')!;
+            noteEditor.focus();
+            editorCore.view.scrollToSelection();
             const editorInstance = noteEditor._editorInstance;
             while (!editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance) {
                 await Zotero.Promise.delay(100);
@@ -220,14 +223,13 @@ export class contextMenu {
             //const editorInstance = ZoteroContextPane?.getActiveEditor()?.getCurrentInstance();
             //const editorCore = editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance._editorCore;
             const editorCore = currentEditorInstance._editorCore;
-            editorCore.provider.subscriptions.filter((e: any) => e.data.attachmentKey == attachmentKey);
-            //noteEditor?.focus();
-            const win = editorInstance._iframeWindow;
+
+            //const win = editorInstance._iframeWindow;
             //window.focus();
             //win.focus();
             //HTMLDocument resource://zotero/note-editor/editor.html
-            const doc = win.document;
-            this.imageflicker(attachmentKey)(editorCore.view.state, editorCore.view.dispatch);
+            //const doc = win.document;
+            this.imageflicker(attachmentKey)(editorCore);
             ////let border = doc.querySelector("img").parentElement.style.border; border = "5px solid red";
             //doc.querySelector("img").parentElement.scrollIntoView({ block: "start", behavior: "smooth" });
 
@@ -318,34 +320,51 @@ export class contextMenu {
         Zotero.Prefs.set("print.print_headerright", "", true);
         return body.innerHTML;
     }
+    /**
+     * 定位图片，闪烁提醒
+     * @param attachmentKey 
+     * @returns 
+     */
     imageflicker(attachmentKey: string) {
-        // @ts-ignore
-        return function (state, dispatch) {
+        return function (editorCore: any) {
+            const state = editorCore.view.state;
+            const dispatch = editorCore.view.dispatch;
+            const children = editorCore.view.docView.children;
+
             const { tr } = state;
-            // @ts-ignore
-            state.doc.descendants((node, pos) => {
+            state.doc.descendants((node: any, pos: number) => {
                 if (node.type.name == "image" && node.attrs.attachmentKey === attachmentKey) {
                     //node.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    const n = 5, timeout = 500;
+                    //const n = 5, timeout = 500;
                     //const border = "2px solid red";
+                    const nodeID = node.attrs.nodeID;
+                    for (let i = 0; i < children.length; i++) {
+                        const allChildren = children[i].children.flat(Infinity);
+                        if (allChildren.find((e: any) => {
+                            e.node.attrs.nodeID == nodeID;
+                        })) {
+                            children[i].dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+
+                    }
+                    /* children.filter((e:any)=>{
+                        const allChildren=e.children.flat(Infinity)
+                        allChildren.find((e:any)=>{
+                            e.node.attrs.nodeID==nodeID
+                        })
+                    }) */
+
+
                     const width = node.attrs.width + 120;
-                    tr.setNodeMarkup(pos, node.type, { ...node.attrs, width }, node.marks);
+                    const height = node.attrs.height;
+                    const nodeAttrs = JSON.parse(JSON.stringify({ ...node.attrs, width, height }));
+
+                    const test = nodeAttrs;
+                    // 参数无法传递 无属性
+                    //tr.setNodeMarkup(pos, node.type, width,);
+
                     if (dispatch) dispatch(tr);
-                    /* while (n) {
-                        tr.setNodeMarkup(pos, null, { ...node.attrs, width: width + 10 });
-                        if (dispatch) dispatch(tr);
-                        setTimeout(() => {
-                            tr.setNodeMarkup(pos, null, { ...node.attrs, width: width });
-                            dispatch(tr);
-                        }, timeout);
-                        n -= 1;
-                    } */
-                    // tr.setNodeMarkup(pos, null, { ...node.attrs, border: '' });
-                    //.scrollIntoView();
-                    //tr.setNodeMarkup(pos, null, { ...node.attrs, border: border });
-                    // tr.setNodeMarkup(pos, null, { ...node.attrs, border: '' });
-
-
+                    //任务完成，返回 false 代表不再进入下级节点
                     return false;
                 }
             });
