@@ -328,8 +328,8 @@ export class contextMenu {
                     //node.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     const n = 5, timeout = 500;
                     //const border = "2px solid red";
-                    const width = node.attrs.width + 20;
-                    tr.setNodeMarkup(pos, null, { ...node.attrs, width: width });
+                    const width = node.attrs.width + 120;
+                    tr.setNodeMarkup(pos, node.type, { ...node.attrs, width }, node.marks);
                     if (dispatch) dispatch(tr);
                     /* while (n) {
                         tr.setNodeMarkup(pos, null, { ...node.attrs, width: width + 10 });

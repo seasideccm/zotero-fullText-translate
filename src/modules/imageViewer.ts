@@ -171,6 +171,23 @@ export function showDialog({ hasNewContent, gallaryGroupId }: { hasNewContent: b
     dialogData = {
         loadCallback: async () => {
             const doc = dialogImgViewer.window.document as Document;
+            dialogImgViewer.window.addEventListener(
+                "error",
+                function (event: Event) {
+                    const target = event.target;
+                    if (target instanceof HTMLImageElement) {
+                        const imgPath = target.src.replace("file:///", "");
+                        if (!OS.File.exists(imgPath)) {
+                            const parentG = target.parentNode?.parentNode;
+                            const parent = target.parentNode;
+                            if (parent && parentG) {
+                                parentG.removeChild(parent);
+                            }
+                        }
+                    }
+                },
+                true
+            );
             const firstDiv = doc.getElementById('firstDiv')! as Element;
             addToolBar(doc, firstDiv);
             const imagesArr = doc.querySelectorAll('[id^="images"]');
@@ -437,6 +454,7 @@ function makeImgTagsFilePath(srcData: {
                     "data-key": obj.key,
                     "data-parentid": obj.parentId || '',
 
+
                 }
             },]
         });
@@ -614,6 +632,7 @@ function imageDataFromFile(attachment: Zotero.Item) {
             break;
     }
     if (!srcPath) return;
+    if (!OS.File.exists(srcPath)) return;
     srcPath = "file:///" + srcPath!;
     return {
         key: attachment.key,
@@ -722,9 +741,13 @@ function getParentCollection(item: Zotero.Item) {
     } */
 }
 
-export function getParentItem(item: Zotero.Item | undefined) {
-    if (!item?.parentItem) return;
-    if ((item?.parentItem as Zotero.Item).isRegularItem()) {
+//顶层父元素
+export function getParentItem(item: Zotero.Item) {
+    if (!item.parentItem) return;
+    if (item.parentItem.isRegularItem()) {
+        return item.parentItem;
+    }
+    if (!item.parentItem.parentItem) {
         return item.parentItem;
     } else {
         return getParentItem(item.parentItem);
