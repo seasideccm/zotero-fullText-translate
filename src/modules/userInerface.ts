@@ -183,7 +183,7 @@ export class contextMenu {
         zp.selectItem(parentItem!.id);
 
     }
-    async showOnPage(target: Element) {
+    async showArticleLocation(target: Element) {
         //Zotero_Tabs.select("zotero-pane");
         const zp = Zotero.getActiveZoteroPane();
         const attachmentKey = target.id.replace(imageIdPrefix, "");
@@ -212,8 +212,9 @@ export class contextMenu {
                 await Zotero.Promise.delay(100);
             }
             const noteEditor = window.document.getElementById('zotero-note-editor')!;
+            window.focus();
             noteEditor.focus();
-            editorCore.view.scrollToSelection();
+            //editorCore.view.scrollToSelection();
             const editorInstance = noteEditor._editorInstance;
             while (!editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance) {
                 await Zotero.Promise.delay(100);
@@ -330,21 +331,48 @@ export class contextMenu {
             const state = editorCore.view.state;
             const dispatch = editorCore.view.dispatch;
             const children = editorCore.view.docView.children;
-
             const { tr } = state;
             state.doc.descendants((node: any, pos: number) => {
                 if (node.type.name == "image" && node.attrs.attachmentKey === attachmentKey) {
                     //node.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     //const n = 5, timeout = 500;
                     //const border = "2px solid red";
+                    //tr.setSelection(NodeSelection.create(tr.doc, range.start));
                     const nodeID = node.attrs.nodeID;
                     for (let i = 0; i < children.length; i++) {
                         const allChildren = children[i].children.flat(Infinity);
-                        if (allChildren.find((e: any) => {
-                            e.node.attrs.nodeID == nodeID;
-                        })) {
+                        if (allChildren.find((e: any) =>
+                            e.node && e.node.attrs.nodeID && e.node.attrs.nodeID == nodeID
+                        )) {
                             children[i].dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            const element = children[i].dom.querySelector("img");
+
+                            const width = element.style.width;
+                            const border = element.style.border;
+                            const width2 = Math.floor(element.width * 1.1) + "px";
+                            const border2 = "2px solid red";
+
+                            for (let i = 0; i < 10; i++) {
+                                setTimeout(() => {
+                                    element.style.border = border2;
+                                    element.style.width = width2;
+                                }, 500);
+                                setTimeout(() => {
+                                    element.style.width = width;
+                                    element.style.border = border;
+                                    ztoolkit.log(border, width);
+
+                                }, 500);
+                            }
+                            /* const tiemer = setInterval(() => {
+                                element.style.width = width;
+                                element.style.border = border;
+                                ztoolkit.log(border, width);
+                            }, 500); */
+
+                            break;
                         }
+
 
                     }
                     /* children.filter((e:any)=>{
@@ -355,15 +383,15 @@ export class contextMenu {
                     }) */
 
 
-                    const width = node.attrs.width + 120;
-                    const height = node.attrs.height;
-                    const nodeAttrs = JSON.parse(JSON.stringify({ ...node.attrs, width, height }));
+                    //const width = node.attrs.width + 120;
+                    //const height = node.attrs.height;
+                    //const nodeAttrs = JSON.parse(JSON.stringify({ ...node.attrs, width, height }));
 
-                    const test = nodeAttrs;
+                    //const test = nodeAttrs;
                     // 参数无法传递 无属性
                     //tr.setNodeMarkup(pos, node.type, width,);
 
-                    if (dispatch) dispatch(tr);
+                    //if (dispatch) dispatch(tr);
                     //任务完成，返回 false 代表不再进入下级节点
                     return false;
                 }
@@ -395,7 +423,7 @@ export class contextMenu {
                 break;
             case `${getString("info-showLibraryItem")}`: await this.showLibraryItem(target);
                 break;
-            case `${getString("info-showOnPage")}`: await this.showOnPage(target);
+            case `${getString("info-showArticleLocation")}`: await this.showArticleLocation(target);
                 break;
         }
     }
@@ -1053,7 +1081,7 @@ export function addContextMenu(elementTriggerCTM: Element) {
         [
             ["info-showFolder"],
             ["info-showLibraryItem"],
-            ["info-showOnPage"],
+            ["info-showArticleLocation"],
             ["info-shareImage"],
             ["info-sendToPPT"],
             ["info-printImage"]
