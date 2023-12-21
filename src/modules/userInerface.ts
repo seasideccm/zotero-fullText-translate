@@ -214,45 +214,141 @@ export class contextMenu {
             const noteEditor = window.document.getElementById('zotero-note-editor')!;
             window.focus();
             noteEditor.focus();
-            //editorCore.view.scrollToSelection();
             const editorInstance = noteEditor._editorInstance;
             while (!editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance) {
                 await Zotero.Promise.delay(100);
             }
             const currentEditorInstance = editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance;
-            //const noteEditor = window.ZoteroContextPane && window.ZoteroContextPane.getActiveEditor();
-            //const editorInstance = ZoteroContextPane?.getActiveEditor()?.getCurrentInstance();
-            //const editorCore = editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance._editorCore;
             const editorCore = currentEditorInstance._editorCore;
-
-            //const win = editorInstance._iframeWindow;
-            //window.focus();
-            //win.focus();
-            //HTMLDocument resource://zotero/note-editor/editor.html
-            //const doc = win.document;
             this.imageflicker(attachmentKey)(editorCore);
-            ////let border = doc.querySelector("img").parentElement.style.border; border = "5px solid red";
-            //doc.querySelector("img").parentElement.scrollIntoView({ block: "start", behavior: "smooth" });
+        }
+    };
+    /**
+    * 定位图片，闪烁提醒
+    * @param attachmentKey 
+    * @returns 
+    */
+    imageflicker(attachmentKey: string) {
+        return function (editorCore: any) {
+            const state = editorCore.view.state;
+            //const dispatch = editorCore.view.dispatch;
+            const children = editorCore.view.docView.children;
+            //const { tr } = state;
+            state.doc.descendants((node: any, pos: number) => {
+                if (node.type.name == "image" && node.attrs.attachmentKey === attachmentKey) {
+                    const nodeID = node.attrs.nodeID;
+                    for (let i = 0; i < children.length; i++) {
+                        const allChildren = children[i].children.flat(Infinity);
+                        if (allChildren.find((e: any) =>
+                            e.node && e.node.attrs.nodeID && e.node.attrs.nodeID == nodeID
+                        )) {
+                            children[i].dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            const element = children[i].dom.querySelector("img");
+                            const width = element.style.width;
+                            const border = element.style.border;
+                            const width2 = Math.floor(element.width * 1.1) + "px";
+                            const border2 = "2px solid red";
+                            for (let i = 0; i < 10; i++) {
+                                if (i % 2 == 0) {
+                                    setTimeout(() => {
+                                        element.style.border = border2;
+                                        element.style.width = width2;
+                                    }, 200 * i);
+                                } else {
+                                    setTimeout(() => {
+                                        element.style.width = width;
+                                        element.style.border = border;
+                                    }, 200 * i);
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    // 参数无法传递 无属性
+                    //tr.setNodeMarkup(pos, node.type, { width: 200 });
+                    //if (dispatch) dispatch(tr);
+                    //任务完成，返回 false 代表不再进入下级节点
+                    return false;
+                }
+            });
+        };
+    }
 
-            /* let n = 5;
-            while (n) {
-                border = "";
-                await Zotero.Promise.delay(1000);
-                border = "5px solid red";
-                n -= 1;
+    imageflickerFailureXXX(attachmentKey: string, editorCore: any) {
+        const state = editorCore.view.state;
+        const dispatch = editorCore.view.dispatch;
+        const children = editorCore.view.docView.children;
+        const { tr } = state;
+        let nodeTarget: any, posTarget: number;
+        state.doc.descendants((node: any, pos: number) => {
+            if (node.type.name == "image" && node.attrs.attachmentKey === attachmentKey) {
+                //tr.setSelection(NodeSelection.create(tr.doc, range.start));
+                nodeTarget = node;
+                posTarget = pos;
+                //const nodeID = node.attrs.nodeID;
+
+                //tr.setNodeMarkup(pos, node.type, { ...node.attrs, width });
+                /* for (let i = 0; i < children.length; i++) {
+                    const allChildren = children[i].children.flat(Infinity);
+                    if (allChildren.find((e: any) =>
+                        e.node && e.node.attrs.nodeID && e.node.attrs.nodeID == nodeID
+                    )) {
+                        children[i].dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        const element = children[i].dom.querySelector("img");
+                        const width = element.style.width;
+                        const border = element.style.border;
+                        const width2 = Math.floor(element.width * 1.1) + "px";
+                        const border2 = "2px solid red";
+                        for (let i = 0; i < 10; i++) {
+                            if (i % 2 == 0) {
+                                setTimeout(() => {
+                                    element.style.border = border2;
+                                    element.style.width = width2;
+                                }, 200 * i);
+                            } else {
+                                setTimeout(() => {
+                                    element.style.width = width;
+                                    element.style.border = border;
+                                }, 200 * i);
+                            }
+                        }
+                        break;
+                    }
+                } */
+                // 参数无法传递 无属性
+                //tr.setNodeMarkup(pos, node.type, { width: 200 });
+                //if (dispatch) dispatch(tr);
+                //任务完成，返回 false 代表不再进入下级节点
+                return false;
             }
-            border = ""; */
-            //reader._window 或 window
+        });
+        if (!nodeTarget) return;
+        const width = nodeTarget.attrs.width + 100;
 
+        setNodeMarkupCustom(tr, posTarget!, { ...nodeTarget.attrs, width });
+        if (dispatch) dispatch(tr);
 
-            //const test = "test";
-            //const editorInstance = noteEditor?.getCurrentInstance();
-
-
-
+        function setNodeMarkupCustom(tr: any, pos: number, attrs: any, marks?: any) {
+            const node = tr.doc.nodeAt(pos);
+            if (!node)
+                throw new RangeError("No node at given position");
+            const type = node.type;
+            const newNode = JSON.parse(JSON.stringify(node));
+            newNode.attrs = attrs;
+            if (node.isLeaf)
+                return tr.replaceWith(pos, pos + node.nodeSize, newNode);
         }
 
-    };
+        /* function create(attrs = null, content, marks) {
+            if (this.isText)
+                throw new Error("NodeType.create can't construct text nodes");
+            return new dist_Node(this, this.computeAttrs(attrs), dist_Fragment.from(content), Mark.setFrom(marks));
+        } */
+
+        //tr.setNodeMarkup(posTarget, nodeTarget.type, { ...nodeTarget.attrs, width });
+
+
+    }
     editImage() { }
     convertImage() { }
     ocrImage() { }
@@ -321,57 +417,8 @@ export class contextMenu {
         Zotero.Prefs.set("print.print_headerright", "", true);
         return body.innerHTML;
     }
-    /**
-     * 定位图片，闪烁提醒
-     * @param attachmentKey 
-     * @returns 
-     */
-    imageflicker(attachmentKey: string) {
-        return function (editorCore: any) {
-            const state = editorCore.view.state;
-            const dispatch = editorCore.view.dispatch;
-            const children = editorCore.view.docView.children;
-            const { tr } = state;
-            state.doc.descendants((node: any, pos: number) => {
-                if (node.type.name == "image" && node.attrs.attachmentKey === attachmentKey) {
-                    //tr.setSelection(NodeSelection.create(tr.doc, range.start));
-                    const nodeID = node.attrs.nodeID;
-                    for (let i = 0; i < children.length; i++) {
-                        const allChildren = children[i].children.flat(Infinity);
-                        if (allChildren.find((e: any) =>
-                            e.node && e.node.attrs.nodeID && e.node.attrs.nodeID == nodeID
-                        )) {
-                            children[i].dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            const element = children[i].dom.querySelector("img");
-                            const width = element.style.width;
-                            const border = element.style.border;
-                            const width2 = Math.floor(element.width * 1.1) + "px";
-                            const border2 = "2px solid red";
-                            for (let i = 0; i < 10; i++) {
-                                if (i % 2 == 0) {
-                                    setTimeout(() => {
-                                        element.style.border = border2;
-                                        element.style.width = width2;
-                                    }, 200 * i);
-                                } else {
-                                    setTimeout(() => {
-                                        element.style.width = width;
-                                        element.style.border = border;
-                                    }, 200 * i);
-                                }
-                            }
-                            break;
-                        }
-                    }
-                    // 参数无法传递 无属性
-                    //tr.setNodeMarkup(pos, node.type, width,);
-                    //if (dispatch) dispatch(tr);
-                    //任务完成，返回 false 代表不再进入下级节点
-                    return false;
-                }
-            });
-        };
-    }
+
+
 
 
     async handleMenuItem(target: Element, menuPopupEvent: Event) {
