@@ -334,9 +334,6 @@ export class contextMenu {
             const { tr } = state;
             state.doc.descendants((node: any, pos: number) => {
                 if (node.type.name == "image" && node.attrs.attachmentKey === attachmentKey) {
-                    //node.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    //const n = 5, timeout = 500;
-                    //const border = "2px solid red";
                     //tr.setSelection(NodeSelection.create(tr.doc, range.start));
                     const nodeID = node.attrs.nodeID;
                     for (let i = 0; i < children.length; i++) {
@@ -346,51 +343,28 @@ export class contextMenu {
                         )) {
                             children[i].dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             const element = children[i].dom.querySelector("img");
-
                             const width = element.style.width;
                             const border = element.style.border;
                             const width2 = Math.floor(element.width * 1.1) + "px";
                             const border2 = "2px solid red";
-
                             for (let i = 0; i < 10; i++) {
-                                setTimeout(() => {
-                                    element.style.border = border2;
-                                    element.style.width = width2;
-                                }, 500);
-                                setTimeout(() => {
-                                    element.style.width = width;
-                                    element.style.border = border;
-                                    ztoolkit.log(border, width);
-
-                                }, 500);
+                                if (i % 2 == 0) {
+                                    setTimeout(() => {
+                                        element.style.border = border2;
+                                        element.style.width = width2;
+                                    }, 200 * i);
+                                } else {
+                                    setTimeout(() => {
+                                        element.style.width = width;
+                                        element.style.border = border;
+                                    }, 200 * i);
+                                }
                             }
-                            /* const tiemer = setInterval(() => {
-                                element.style.width = width;
-                                element.style.border = border;
-                                ztoolkit.log(border, width);
-                            }, 500); */
-
                             break;
                         }
-
-
                     }
-                    /* children.filter((e:any)=>{
-                        const allChildren=e.children.flat(Infinity)
-                        allChildren.find((e:any)=>{
-                            e.node.attrs.nodeID==nodeID
-                        })
-                    }) */
-
-
-                    //const width = node.attrs.width + 120;
-                    //const height = node.attrs.height;
-                    //const nodeAttrs = JSON.parse(JSON.stringify({ ...node.attrs, width, height }));
-
-                    //const test = nodeAttrs;
                     // 参数无法传递 无属性
                     //tr.setNodeMarkup(pos, node.type, width,);
-
                     //if (dispatch) dispatch(tr);
                     //任务完成，返回 false 代表不再进入下级节点
                     return false;
