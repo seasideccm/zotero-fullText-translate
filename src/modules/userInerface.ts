@@ -299,36 +299,28 @@ export class contextMenu {
     }
 
     getNoteDom(editorCore: any, attr: string, attrValue: string) {
-        let typeName: string, element: HTMLElement, posTarget;
-        if (attr == "attachmentKey") typeName = "image";
+        let nodeID: string, posTarget;
         const state = editorCore.view.state;
-        const children = editorCore.view.docView.children;
         state.doc.descendants((node: any, pos: number) => {
-            if (node.type.name == typeName && node.attrs[attr] === attrValue) {
-                const nodeID = node.attrs.nodeID;
+            if (node.attrs[attr] === attrValue) {
+                nodeID = node.attrs.nodeID;
                 posTarget = pos;
-                /* for (let i = 0; i < children.length; i++) {
-                    const allChildren = children[i].children.flat(Infinity);
-                    if (allChildren.find((e: any) =>
-                        e.node && e.node.attrs.nodeID && e.node.attrs.nodeID == nodeID
-                    )) {
-                        element = children[i].dom.querySelector("img");
-                        break;
-                    }
-                } */
                 return false;
             }
         });
-        const dom = editorCore.view.domAtPos(posTarget);
-        const test = dom;
-        return dom.node;
-
+        //const dom = editorCore.view.domAtPos(posTarget);
+        let nodeDom = editorCore.view.docView.descAt(posTarget).nodeDOM;
+        if (nodeDom.className.includes("image")) {
+            nodeDom = nodeDom.querySelector("img");
+        }
+        return nodeDom;
     }
 
     flicker(element: HTMLElement) {
+        const docWidth = element.ownerDocument.documentElement.clientWidth;
         const width = element.style.width;
         const border = element.style.border;
-        const width2 = Math.floor(element.width * 1.1) + "px";
+        const width2 = Math.floor(element.clientWidth * 1.1 >= docWidth ? docWidth * 0.9 : element.clientWidth * 1.1) + "px";
         const border2 = "2px solid red";
         for (let i = 0; i < 10; i++) {
             if (i % 2 == 0) {
