@@ -89,7 +89,26 @@ export declare type ToolbarOption = {
 };
 
 
+export async function waitNoteShown(editorInstance: Zotero.EditorInstance | _ZoteroTypes.Notes) {
+    if (editorInstance.itemType == "note") {
+        const temp = Zotero.Notes._editorInstances.find(x => x._item.id == editorInstance.id);
+        if (temp) {
+            editorInstance = temp;
+        }
+        else {
+            return;
+        }
+    }
 
+
+    let n = 1;
+    while (n) {
+
+        editorInstance.instanceID == editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance.instanceID ? n = 0 : await Zotero.Promise.delay(100);
+    }
+
+
+}
 
 export class contextMenu {
     contextMenu: XUL.MenuPopup;
@@ -198,31 +217,34 @@ export class contextMenu {
         }
         if (parentItem?.isNote()) {
             //笔记实例打开时不会删除废弃的图片，故在实例打开前执行清理动作
+            //const win=ztoolkit.getGlobal("window")
             await Zotero.Notes.deleteUnusedEmbeddedImages(parentItem);
-            await zp.selectItem(parentItem.id);
-
-            //reader 面板右侧面板打开笔记时获取实例
-            /* while (!ztoolkit.getGlobal("ZoteroContextPane")) {
-                await Zotero.Promise.delay(100);
-            }            
-            const ZoteroContextPane = ztoolkit.getGlobal("ZoteroContextPane"); */
-
-
-            while (!(window.document.getElementById('zotero-note-editor') as any)?._editorInstance) {
-                await Zotero.Promise.delay(100);
-            }
-            const noteEditor = window.document.getElementById('zotero-note-editor')!;
             window.focus();
-            noteEditor.focus();
-            const editorInstance = noteEditor._editorInstance;
-            while (!editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance) {
-                await Zotero.Promise.delay(100);
+            //无打开的笔记，则打开
+            while (!window.document.getElementById('zotero-note-editor')) {
+                await zp.selectItem(parentItem.id);
+                //await Zotero.Promise.delay(100);
             }
-            const currentEditorInstance = editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance;
-            const editorCore = currentEditorInstance._editorCore;
-            this.imageflicker(attachmentKey)(editorCore);
+            let editorInstance;
+            //const editorInstance = window.document.getElementById('zotero-note-editor')._editorInstance;//赋值后实例不随笔记切换而切换
+            //const noteEditor = window.document.getElementById('zotero-note-editor')!;
+            //等待目标笔记
+            while (!(editorInstance = Zotero.Notes._editorInstances.find(x => x._item.id == parentItem.id))) {
+                await zp.selectItem(parentItem.id);
+            }
+            if (!editorInstance) return;
+            editorInstance._iframeWindow.addEventListener('load', function infoShow() { ztoolkit.log("加载完成"); });
+            await waitNoteShown(editorInstance);
+            const editorCore = editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance._editorCore;
+            editorInstance.focus();
+            const testDom = this.getNoteDom(editorCore, "attachmentKey", attachmentKey);
+            testDom.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            this.flicker(testDom);
+            //this.imageflicker(attachmentKey)(editorCore);
         }
     };
+
+
     /**
     * 定位图片，闪烁提醒
     * @param attachmentKey 
@@ -230,6 +252,8 @@ export class contextMenu {
     */
     imageflicker(attachmentKey: string) {
         return function (editorCore: any) {
+
+
             const state = editorCore.view.state;
             //const dispatch = editorCore.view.dispatch;
             const children = editorCore.view.docView.children;
@@ -274,6 +298,52 @@ export class contextMenu {
         };
     }
 
+    getNoteDom(editorCore: any, attr: string, attrValue: string) {
+        let typeName: string, element: HTMLElement, posTarget;
+        if (attr == "attachmentKey") typeName = "image";
+        const state = editorCore.view.state;
+        const children = editorCore.view.docView.children;
+        state.doc.descendants((node: any, pos: number) => {
+            if (node.type.name == typeName && node.attrs[attr] === attrValue) {
+                const nodeID = node.attrs.nodeID;
+                posTarget = pos;
+                /* for (let i = 0; i < children.length; i++) {
+                    const allChildren = children[i].children.flat(Infinity);
+                    if (allChildren.find((e: any) =>
+                        e.node && e.node.attrs.nodeID && e.node.attrs.nodeID == nodeID
+                    )) {
+                        element = children[i].dom.querySelector("img");
+                        break;
+                    }
+                } */
+                return false;
+            }
+        });
+        const dom = editorCore.view.domAtPos(posTarget);
+        const test = dom;
+        return dom.node;
+
+    }
+
+    flicker(element: HTMLElement) {
+        const width = element.style.width;
+        const border = element.style.border;
+        const width2 = Math.floor(element.width * 1.1) + "px";
+        const border2 = "2px solid red";
+        for (let i = 0; i < 10; i++) {
+            if (i % 2 == 0) {
+                setTimeout(() => {
+                    element.style.border = border2;
+                    element.style.width = width2;
+                }, 200 * i);
+            } else {
+                setTimeout(() => {
+                    element.style.width = width;
+                    element.style.border = border;
+                }, 200 * i);
+            }
+        }
+    }
     imageflickerFailureXXX(attachmentKey: string, editorCore: any) {
         const state = editorCore.view.state;
         const dispatch = editorCore.view.dispatch;
@@ -282,43 +352,8 @@ export class contextMenu {
         let nodeTarget: any, posTarget: number;
         state.doc.descendants((node: any, pos: number) => {
             if (node.type.name == "image" && node.attrs.attachmentKey === attachmentKey) {
-                //tr.setSelection(NodeSelection.create(tr.doc, range.start));
                 nodeTarget = node;
                 posTarget = pos;
-                //const nodeID = node.attrs.nodeID;
-
-                //tr.setNodeMarkup(pos, node.type, { ...node.attrs, width });
-                /* for (let i = 0; i < children.length; i++) {
-                    const allChildren = children[i].children.flat(Infinity);
-                    if (allChildren.find((e: any) =>
-                        e.node && e.node.attrs.nodeID && e.node.attrs.nodeID == nodeID
-                    )) {
-                        children[i].dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        const element = children[i].dom.querySelector("img");
-                        const width = element.style.width;
-                        const border = element.style.border;
-                        const width2 = Math.floor(element.width * 1.1) + "px";
-                        const border2 = "2px solid red";
-                        for (let i = 0; i < 10; i++) {
-                            if (i % 2 == 0) {
-                                setTimeout(() => {
-                                    element.style.border = border2;
-                                    element.style.width = width2;
-                                }, 200 * i);
-                            } else {
-                                setTimeout(() => {
-                                    element.style.width = width;
-                                    element.style.border = border;
-                                }, 200 * i);
-                            }
-                        }
-                        break;
-                    }
-                } */
-                // 参数无法传递 无属性
-                //tr.setNodeMarkup(pos, node.type, { width: 200 });
-                //if (dispatch) dispatch(tr);
-                //任务完成，返回 false 代表不再进入下级节点
                 return false;
             }
         });
@@ -338,16 +373,6 @@ export class contextMenu {
             if (node.isLeaf)
                 return tr.replaceWith(pos, pos + node.nodeSize, newNode);
         }
-
-        /* function create(attrs = null, content, marks) {
-            if (this.isText)
-                throw new Error("NodeType.create can't construct text nodes");
-            return new dist_Node(this, this.computeAttrs(attrs), dist_Fragment.from(content), Mark.setFrom(marks));
-        } */
-
-        //tr.setNodeMarkup(posTarget, nodeTarget.type, { ...nodeTarget.attrs, width });
-
-
     }
     editImage() { }
     convertImage() { }
