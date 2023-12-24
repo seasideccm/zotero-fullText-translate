@@ -212,7 +212,12 @@ export class contextMenu {
         if (parentItem?.isPDFAttachment() && attachment.itemType as string == "annotation") {
             if (zp) {
                 const position = JSON.parse(attachment.annotationPosition);
-                zp.viewPDF(parentItem.id, { position });
+                const handler = Zotero.Prefs.get('fileHandler.' + "pdf") as string;
+                if (handler) {
+                    Zotero.Prefs.set('fileHandler.' + "pdf", '');
+                }
+                await zp.viewPDF(parentItem.id, { position });
+                Zotero.Prefs.set('fileHandler.' + "pdf", handler);
             }
         }
         if (parentItem?.isNote()) {
@@ -237,66 +242,11 @@ export class contextMenu {
             await waitNoteShown(editorInstance);
             const editorCore = editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance._editorCore;
             editorInstance.focus();
-            const testDom = this.getNoteDom(editorCore, "attachmentKey", attachmentKey);
-            testDom.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            this.flicker(testDom);
-            //this.imageflicker(attachmentKey)(editorCore);
+            const dom = this.getNoteDom(editorCore, "attachmentKey", attachmentKey);
+            dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            this.flicker(dom);
         }
     };
-
-
-    /**
-    * 定位图片，闪烁提醒
-    * @param attachmentKey 
-    * @returns 
-    */
-    imageflicker(attachmentKey: string) {
-        return function (editorCore: any) {
-
-
-            const state = editorCore.view.state;
-            //const dispatch = editorCore.view.dispatch;
-            const children = editorCore.view.docView.children;
-            //const { tr } = state;
-            state.doc.descendants((node: any, pos: number) => {
-                if (node.type.name == "image" && node.attrs.attachmentKey === attachmentKey) {
-                    const nodeID = node.attrs.nodeID;
-                    for (let i = 0; i < children.length; i++) {
-                        const allChildren = children[i].children.flat(Infinity);
-                        if (allChildren.find((e: any) =>
-                            e.node && e.node.attrs.nodeID && e.node.attrs.nodeID == nodeID
-                        )) {
-                            children[i].dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            const element = children[i].dom.querySelector("img");
-                            const width = element.style.width;
-                            const border = element.style.border;
-                            const width2 = Math.floor(element.width * 1.1) + "px";
-                            const border2 = "2px solid red";
-                            for (let i = 0; i < 10; i++) {
-                                if (i % 2 == 0) {
-                                    setTimeout(() => {
-                                        element.style.border = border2;
-                                        element.style.width = width2;
-                                    }, 200 * i);
-                                } else {
-                                    setTimeout(() => {
-                                        element.style.width = width;
-                                        element.style.border = border;
-                                    }, 200 * i);
-                                }
-                            }
-                            break;
-                        }
-                    }
-                    // 参数无法传递 无属性
-                    //tr.setNodeMarkup(pos, node.type, { width: 200 });
-                    //if (dispatch) dispatch(tr);
-                    //任务完成，返回 false 代表不再进入下级节点
-                    return false;
-                }
-            });
-        };
-    }
 
     getNoteDom(editorCore: any, attr: string, attrValue: string) {
         let nodeID: string, posTarget;
@@ -336,36 +286,7 @@ export class contextMenu {
             }
         }
     }
-    imageflickerFailureXXX(attachmentKey: string, editorCore: any) {
-        const state = editorCore.view.state;
-        const dispatch = editorCore.view.dispatch;
-        const children = editorCore.view.docView.children;
-        const { tr } = state;
-        let nodeTarget: any, posTarget: number;
-        state.doc.descendants((node: any, pos: number) => {
-            if (node.type.name == "image" && node.attrs.attachmentKey === attachmentKey) {
-                nodeTarget = node;
-                posTarget = pos;
-                return false;
-            }
-        });
-        if (!nodeTarget) return;
-        const width = nodeTarget.attrs.width + 100;
 
-        setNodeMarkupCustom(tr, posTarget!, { ...nodeTarget.attrs, width });
-        if (dispatch) dispatch(tr);
-
-        function setNodeMarkupCustom(tr: any, pos: number, attrs: any, marks?: any) {
-            const node = tr.doc.nodeAt(pos);
-            if (!node)
-                throw new RangeError("No node at given position");
-            const type = node.type;
-            const newNode = JSON.parse(JSON.stringify(node));
-            newNode.attrs = attrs;
-            if (node.isLeaf)
-                return tr.replaceWith(pos, pos + node.nodeSize, newNode);
-        }
-    }
     async editImage(target: Element) {
         const type = "image";
         let defaultPath;
@@ -374,12 +295,21 @@ export class contextMenu {
         }
         const pref = this.getFileHandlerPref(type);
         let handler = getPref(pref) as string;
-        if (!await IOUtils.exists(handler!)) {
+        if (!handler || !await IOUtils.exists(handler)) {
             handler = await this.chooseFileHandler(type, defaultPath);
         }
         if (!handler) return;
-        const filePath = target.src.replace("file:///", "");
+        const filePath = OS.Path.normalize(target.src.replace("file:///", ""));
+        const imageStat = await IOUtils.stat(filePath);
         Zotero.launchFileWithApplication(filePath, handler);
+        const timestamp = new Date().getTime();
+        target.ownerGlobal.addEventListener('focus', updateImage);
+        async function updateImage() {
+            const imageStatLast = await IOUtils.stat(filePath);
+            if (imageStatLast != imageStat) {
+                target.src = target.src + "?t=" + timestamp;
+            }
+        }
     }
     async chooseFileHandler(type: string, defaultPath: string | undefined) {
         const FilePicker = ztoolkit.getGlobal("require")("zotero/modules/filePicker").default;
@@ -490,7 +420,7 @@ export class contextMenu {
                 break;
             case `${getString("info-saveImage")}`: this.saveImage(target);
                 break;
-            case `${getString("info-editImage")}`: this.editImage();
+            case `${getString("info-editImage")}`: this.editImage(target);
                 break;
             case `${getString("info-convertImage")}`: this.convertImage();
                 break;
