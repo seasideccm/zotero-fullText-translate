@@ -366,7 +366,52 @@ export class contextMenu {
                 return tr.replaceWith(pos, pos + node.nodeSize, newNode);
         }
     }
-    editImage() { }
+    async editImage(target: Element) {
+        const type = "image";
+        let defaultPath;
+        if (Zotero.isWin) {
+            defaultPath = "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs";
+        }
+        const pref = this.getFileHandlerPref(type);
+        let handler = getPref(pref) as string;
+        if (!await IOUtils.exists(handler!)) {
+            handler = await this.chooseFileHandler(type, defaultPath);
+        }
+        if (!handler) return;
+        const filePath = target.src.replace("file:///", "");
+        Zotero.launchFileWithApplication(filePath, handler);
+    }
+    async chooseFileHandler(type: string, defaultPath: string | undefined) {
+        const FilePicker = ztoolkit.getGlobal("require")("zotero/modules/filePicker").default;
+        const fp = new FilePicker();
+        defaultPath = defaultPath || this.getDefaultPath();
+        fp.displayDirectory = defaultPath;
+        fp.init(
+            window,
+            Zotero.getString('zotero.preferences.chooseApplication'),
+            fp.modeOpen
+        );
+        fp.appendFilters(fp.filterApps);
+        if (await fp.show() != fp.returnOK) {
+            return false;
+        }
+        this.setFileHandler(type, fp.file);
+        return fp.file;
+    }
+    getDefaultPath() {
+        if (Zotero.isWin) {
+            return "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs";
+        } else {
+            return "";
+        }
+    }
+    setFileHandler(type: string, handler: string) {
+        const pref = this.getFileHandlerPref(type);
+        setPref(pref, handler);
+    }
+    getFileHandlerPref(type: string) {
+        return 'fileHandler.' + type;
+    }
     convertImage() { }
     ocrImage() { }
     shareImage() { }
