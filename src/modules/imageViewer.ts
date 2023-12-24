@@ -174,14 +174,15 @@ export function showDialog({ hasNewContent, gallaryGroupId }: { hasNewContent: b
             dialogImgViewer.window.addEventListener(
                 "error",
                 function (event: Event) {
-                    const target = event.target;
-                    if (target instanceof HTMLImageElement) {
+                    const target = event.target as HTMLImageElement;
+                    const tagName = target?.tagName?.toLowerCase();
+                    if (target && tagName === "img") {
                         const imgPath = target.src.replace("file:///", "");
                         if (!OS.File.exists(imgPath)) {
-                            const parentG = target.parentNode?.parentNode;
+                            const parentGrandpa = target.parentNode?.parentNode;
                             const parent = target.parentNode;
-                            if (parent && parentG) {
-                                parentG.removeChild(parent);
+                            if (parent && parentGrandpa) {
+                                parentGrandpa.removeChild(parent);
                             }
                         }
                     }
