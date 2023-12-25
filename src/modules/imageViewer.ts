@@ -1,7 +1,7 @@
 import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { config } from "../../package.json";
 import { resolution } from "../utils/imageDimension";
-import { getPref, readImage } from "../utils/prefs";
+import { getPref, readImage, getFileInfo, getImageBase64, getPathDir } from '../utils/prefs';
 import { makeTagElementProps } from "./toolbarButton";
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
@@ -23,7 +23,10 @@ export const viewImgMenuArr = [
 ];
 
 async function viewImg() {
-    const imagePath = "d:\\devZnote\\zotero-fullText-translate\\src\\modules\\netAPI\\test.png";
+    //const stat = await IOUtils.stat("./test.png");
+    const imagePath = "F:\\zotero-fullText-translate\\src\\modules\\netAPI\\test.png";
+
+    //const imagePath = "d:\\devZnote\\zotero-fullText-translate\\src\\modules\\netAPI\\test.png";
     const srcBase64 = await readImage(imagePath);
     const base64 = srcBase64?.base64;
     const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;

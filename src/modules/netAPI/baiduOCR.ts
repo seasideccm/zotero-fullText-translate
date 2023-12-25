@@ -7,32 +7,26 @@ export async function baiduOCR(base64: string, secretKey: string, language: stri
     const appid = params[0];
     const key = params[1];
     //const url = 'https://fanyi-api.baidu.com/api/trans/sdk/picture';
-    const url = 'https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic';
-    const token_url = 'https://aip.baidubce.com/oauth/2.0/token';
-    const tokenOption = {
-        query: {
-            grant_type: 'client_credentials',
-            appid,
-            key,
-        },
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-        },
+    let url = 'https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic';
+    let token_url = 'https://aip.baidubce.com/oauth/2.0/token';
+    token_url = token_url + `?grant_type=client_credentials&client_id=${appid}&client_secret=${key}`;
+    const headersToken = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
     };
 
+    const tokenXhr = await Zotero.HTTP.request('POST', token_url, headersToken);
 
-    const tokenXhr = await Zotero.HTTP.request('POST', token_url, tokenOption.headers, tokenOption.query);
-
-    let token;
-    if (tokenXhr.ok) {
-        if (tokenXhr.data.access_token) {
-            token = tokenXhr.data.access_token;
+    let access_token;
+    if (tokenXhr.statusText == "OK") {
+        const temp = JSON.parse(tokenXhr.response).access_token;
+        if (temp) {
+            access_token = temp;
         } else {
             throw 'Get Access Token Failed!';
         }
     } else {
-        throw `Http Request Error\nHttp Status: ${tokenXhr.status}\n${JSON.stringify(tokenXhr.data)}`;
+        throw `Http Request Error\nHttp Status: ${tokenXhr.status}\n${JSON.stringify(tokenXhr.response)}`;
     }
 
     const bodyProps = {
@@ -45,11 +39,12 @@ export async function baiduOCR(base64: string, secretKey: string, language: stri
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v as string)}`)
         .join('&');
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-    const query = { access_token: token };
-    const options = { body, headers, query, timeout: 30000 };
+
+    url = url + `?access_token=${access_token}`;
+    const options = { body, headers, timeout: 30000 };
     const res = await Zotero.HTTP.request('POST', url, options);
-    if (res.ok) {
-        const result = res.data;
+    if (res.statusText == "OK") {
+        const result = JSON.parse(res.response);
         if (result['words_result']) {
             let target = '';
             for (const i of result['words_result']) {
