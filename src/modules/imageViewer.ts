@@ -11,6 +11,7 @@ import dragula from 'dragula';
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { imageIdPrefix } from "../utils/imageConjfig";
+import { baiduOCR } from "./netAPI/baiduOCR";
 
 
 export const viewImgMenuArr = [
@@ -22,6 +23,13 @@ export const viewImgMenuArr = [
 ];
 
 async function viewImg() {
+    const imagePath = "d:\\devZnote\\zotero-fullText-translate\\src\\modules\\netAPI\\test.png";
+    const srcBase64 = await readImage(imagePath);
+    const base64 = srcBase64?.base64;
+    const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;
+    const re = await baiduOCR(base64!, secretKey, "zh");
+    ztoolkit.log(re);
+    return;
     const hasNewContent = await makeDialogElementProps();
     await showDialog(hasNewContent);
 };

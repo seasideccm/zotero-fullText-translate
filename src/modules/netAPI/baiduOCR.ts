@@ -1,78 +1,61 @@
 
-
-export async function baiduOCR(imagePath: string, language: string, secretKey: string) {
+//const imagePath = path.resolve(__dirname, 'test.png');
+//console.log(imagePath)
+import md5 from "md5";
+export async function baiduOCR(base64: string, secretKey: string, language: string) {
     const params = secretKey.split("#");
     const appid = params[0];
     const key = params[1];
-    const url = 'https://fanyi-api.baidu.com/api/trans/sdk/picture';
-    const sourceLang = "auto";
-    targetLang = language === 'auto' ? 'zh' : language;
-
-    const salt = new Date().getTime();
-    if (appid === '' || key === '') {
-        throw 'Please configure appid and secret';
-    }
-
-    const file = await IOUtils.read(imagePath);
-    const str = appid + Zotero.Utilities.Internal.md5(file) + salt + 'APICUIDmac' + key;
-    const sign = Zotero.Utilities.Internal.md5(str);
-
-    const xhr = await Zotero.HTTP.request("GET",
-        `${url}?rom=${sourceLang}&to=${targetLang
-        }q=${encodeURIComponent(
-            sourceText
-        )}&appid=${appid}&from=${sourceLang}&to=${targetLang
-        }&domain=${domain}&salt=${salt}&sign=${sign}`,
-        {
-            responseType: "json",
-        }
-    );
-    if (xhr?.status !== 200) {
-        throw `Request error: ${xhr?.status}`;
-    }
-    // Parse
-    if (xhr.response.error_code) {
-        throw `Service error: ${xhr.response.error_code}:${xhr.response.error_msg}`;
-    }
-    let tgt = "";
-    for (let i = 0; i < xhr.response.trans_result.length; i++) {
-        tgt += xhr.response.trans_result[i].dst + "\n";
-    }
-    const data = {
-        "result": tgt,
-        "error": `${xhr.response.error_code}`
+    //const url = 'https://fanyi-api.baidu.com/api/trans/sdk/picture';
+    const url = 'https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic';
+    const token_url = 'https://aip.baidubce.com/oauth/2.0/token';
+    const tokenOption = {
+        query: {
+            grant_type: 'client_credentials',
+            appid,
+            key,
+        },
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+        },
     };
 
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'multipart/form-data',
-        },
-        body: Body.form({
-            image: {
-                file: file,
-                mime: 'image/png',
-                fileName: 'pot_screenshot_cut.png',
-            },
-            from: 'auto',
-            to: language === 'auto' ? 'zh' : language,
-            appid: appid,
-            salt: salt,
-            cuid: 'APICUID',
-            mac: 'mac',
-            version: '3',
-            sign: sign,
-        }),
-    });
 
+    const tokenXhr = await Zotero.HTTP.request('POST', token_url, tokenOption.headers, tokenOption.query);
+
+    let token;
+    if (tokenXhr.ok) {
+        if (tokenXhr.data.access_token) {
+            token = tokenXhr.data.access_token;
+        } else {
+            throw 'Get Access Token Failed!';
+        }
+    } else {
+        throw `Http Request Error\nHttp Status: ${tokenXhr.status}\n${JSON.stringify(tokenXhr.data)}`;
+    }
+
+    const bodyProps = {
+        language_type: language,
+        detect_direction: 'false',
+        image: base64,
+    };
+
+    const body = Object.entries(bodyProps)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v as string)}`)
+        .join('&');
+    const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    const query = { access_token: token };
+    const options = { body, headers, query, timeout: 30000 };
+    const res = await Zotero.HTTP.request('POST', url, options);
     if (res.ok) {
         const result = res.data;
-        if (result['data'] && result['data']['sumSrc'] && result['data']['sumDst']) {
-            if (language === 'auto') {
-                return result['data']['sumSrc'].trim();
-            } else {
-                return result['data']['sumDst'].trim();
+        if (result['words_result']) {
+            let target = '';
+            for (const i of result['words_result']) {
+                target += i['words'] + '\n';
             }
+            return target.trim();
         } else {
             throw JSON.stringify(result);
         }
@@ -81,5 +64,5 @@ export async function baiduOCR(imagePath: string, language: string, secretKey: s
     }
 }
 
-export * from './Config';
-export * from './info';
+
+
