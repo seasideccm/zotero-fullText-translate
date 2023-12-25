@@ -3,9 +3,9 @@ import { getPref, getSingleServiceUnderUse, saveJsonToDisk } from "../utils/pref
 import { getString } from "../utils/locale";
 import { pdf2document, frequency } from './getPdfFullText';
 import { serviceManage, updatecharConsum, recoverDefaultLimit, services } from "./serviceManage";
-import { tencentTransmart } from "./tencentTransmart";
-import { baiduModify } from "./baiduModify";
-import { baidufieldModify } from "./baidufieldModify";
+import { tencentTransmart } from "./netAPI/tencentTransmart";
+import { baiduModify } from "./netAPI/baiduModify";
+import { baidufieldModify } from "./netAPI/baidufieldModify";
 import { franc } from "franc-min";
 import { langCode_francVsZotero, langCodeNameSpeakers } from "../utils/config";
 import { html2md, md2html } from "./mdHtmlConvert";

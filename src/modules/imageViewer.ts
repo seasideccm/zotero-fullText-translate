@@ -11,7 +11,9 @@ import dragula from 'dragula';
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { imageIdPrefix } from "../utils/imageConjfig";
-import { BaiduOCRAccurateOption, baiduOCR, fileBase64 } from "./netAPI/baiduOCR";
+import { baiduPictureTranslate } from "./OCR/baiduOCR";
+
+
 
 
 export const viewImgMenuArr = [
@@ -23,25 +25,7 @@ export const viewImgMenuArr = [
 ];
 
 async function viewImg() {
-    const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;
-    const pdf = "C:\\Users\\VULCAN\\Desktop\\testpdf.pdf";
-    const pdfBase64 = await fileBase64(pdf);
-    const option: BaiduOCRAccurateOption = {
-        pdf_file: pdfBase64,
-        pdf_file_num: "1",
-
-    };
-    const res = await baiduOCR(option, secretKey);
-
-    //const stat = await IOUtils.stat("./test.png");
-    //const imagePath = "F:\\zotero-fullText-translate\\src\\modules\\netAPI\\test.png";
-
-    //const imagePath = "d:\\devZnote\\zotero-fullText-translate\\src\\modules\\netAPI\\test.png";
-    /* const srcBase64 = await readImage(imagePath);
-    const base64 = srcBase64?.base64;
-   
-    const re = await baiduOCR(base64!, secretKey, "zh"); */
-    ztoolkit.log(res);
+    baiduPictureTranslate();
     return;
     const hasNewContent = await makeDialogElementProps();
     await showDialog(hasNewContent);
