@@ -80,6 +80,24 @@ export async function saveJsonToDisk(obj: any, filename: string, dir?: string, e
 }
 
 
+
+// 将 blob 或 file 转成 DataURL（base64） 形式
+/* fileReader(someFile).then(base64 => {
+  console.log('base64: ', base64);
+}); */
+
+export async function blobToBase64(blob: any) {
+  const response = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      resolve(e.target.result);
+    };
+    reader.readAsDataURL(blob);
+  });
+  return response as string;
+}
+
+
 /**
  * 
  * @param filename 文件名,伴或不伴完整路径
@@ -92,9 +110,14 @@ export async function readJsonFromDisk(filename: string, dir?: string, ext?: str
   if (!await OS.File.exists(path)) { return; }
   const buf = await OS.File.read(path, {});
   const blob = new Blob([buf]);
-  const reader = new FileReader();
-  reader.readAsText(blob);
-  return JSON.parse(reader.result as string);
+  const response = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      resolve(e.target.result);
+    };
+    reader.readAsText(blob);
+  });
+  return JSON.parse(response as string);
   //特殊符号出乱码return JSON.parse(arrayBufferToString(buf));
 }
 
