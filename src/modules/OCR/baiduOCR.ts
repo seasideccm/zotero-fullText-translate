@@ -1,7 +1,20 @@
 
+import { getString } from "../../utils/locale";
 import { blobTo, fileTo, fileToblob, fileTypeTo } from "../../utils/prefs";
 import md5 from "md5";
+/* import * as buffer from "buffer";
+import fs from "fs";
 
+if (typeof (window as any).global === "undefined") {
+    (window as any).global = window;
+}
+
+if (typeof (window as any).Buffer === "undefined") {
+    (window as any).Buffer = buffer.Buffer;
+}
+if (typeof (window as any).fs === "undefined") {
+    (window as any).fs = fs;
+} */
 
 export async function testOcr() {
     const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;
@@ -104,49 +117,47 @@ export async function baiduOCRAccurate(access_token: string, option: BaiduOCRAcc
  */
 export async function baiduPictureTranslate(option?: any, secretKey?: string) {
 
-    const url = 'https://fanyi-api.baidu.com/api/trans/sdk/picture';
-    const body = new window.FormData();
+
+
 
 
     /* const params = secretKey.split("#");
     const appid = params[0] ;
     const key = params[1] ;
     const domain = params[2]; */
+
+    function getRandomInt(min: number, max: number) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min)) + min; //不含最大值，含最小值
+    }
+
     const appid = '20201001000577901';
     const key = 'jQMdyV80ouaYBnjHXNKs';
-    const salt = new Date().getTime();
+    //const salt = new Date().getTime();
+    const salt = getRandomInt(1000001, 10000000).toString();
     const cuid = 'APICUID';
     const mac = 'mac';
     const from = 'zh';
     const to = 'en';
-    const pathTest = "D:\\devZnote\\zotero-fullText-translate\\src\\modules\\OCR\\test.png";
-    const file = await IOUtils.read(pathTest);
-    /* function toArrayBuffer(buf: any) {
-        const ab = new ArrayBuffer(buf.length);
-        const view = new Uint8Array(ab);
-        for (let i = 0; i < buf.length; ++i) {
-            view[i] = buf[i];
-        }
-        return ab;
-    }
-
-    ztoolkit.log(toArrayBuffer(uint8array));
-    ztoolkit.log(uint8array);
- */
-
-
-
-    const sign = md5(`${appid}${md5(file)}${salt}${cuid}${mac}${key}`);
-    const urlTail = `?from = ${from} & to=${to} & appid=${appid} & salt=${salt} & sign=${sign} & cuid=${cuid} & mac=${mac} & version=3`;
-
-    url = ulr + urlTail;
-    //const body = new window.FormData();
-    //const uuid = 'binary-' + Zotero.Utilities.randomString();
-
-    //payload = { 'from': from_lang, 'to': to_lang, 'appid': app_id, 'salt': salt, 'sign': sign, 'cuid': cuid, 'mac': mac };
-    // image = {
-    //'image': (os.path.basename(file_name), open(file_name, 'rb'), "multipart/form-data")
-    const payload = {
+    //const pathTest = "D:\\devZnote\\zotero-fullText-translate\\src\\modules\\OCR\\test.png";
+    const pathf = 'F:\\zotero-fullText-translate\\src\\modules\\OCR\\test2.png';
+    //const file = await IOUtils.read(pathf);
+    //const file = Zotero.File.getBinaryContentsAsync(pathf);
+    //文件格式读取为 blob，
+    //估计百度将 blob 转为 nodejs 的 buffer类型,
+    //然后计算出文件 md5，进而计算 sign 的值，
+    //然后和传入的 sign 比对，完成鉴权。
+    const file = await fileToblob(pathf);
+    // 浏览器没有 node 环境下的 buffer 类型
+    // 需要在 node 环境下计算文件的 md5 值
+    const fileMD5 = await Zotero.Utilities.Internal.md5Async(pathf);
+    const sign = md5(`${appid}${fileMD5}${salt}${cuid}${mac}${key}`);
+    const urlTail = `?from=${from}&to=${to}&appid=${appid}&salt=${salt}&sign=${sign}&cuid=${cuid}&mac=${mac}&version=3`;
+    let url = 'https://fanyi-api.baidu.com/api/trans/sdk/picture';
+    url = url + urlTail;
+    const body = new window.FormData();
+    /* const payload = {
         from,
         to,
         appid,
@@ -154,31 +165,34 @@ export async function baiduPictureTranslate(option?: any, secretKey?: string) {
         cuid,
         mac,
         sign,
-    };
-
-    const files = {
-        image: file
-    };
-
-    const body2 = JSON.stringify(payload);
+    }; */
 
 
+    body.append("image", file);
+    //payload 即为查询参数
+    //body.append("payload", JSON.stringify(payload));
     const headers = { 'Content-Type': 'multipart/form-data' };
-
     const options = { body, headers, timeout: 30000, responseType: "json" };
-
     const res = await Zotero.HTTP.request('POST', url, options);
     if (res.statusText == "OK") {
-        const result = JSON.parse(res.response);
-        if (result['words_result']) {
-            let target = '';
-            for (const i of result['words_result']) {
-                target += i['words'] + '\n';
+        if (res.response.error_msg == "success") {
+            const result = res.response.data;
+            if (result['content']) {
+                let target = '';
+                for (const i of result['content']) {
+                    target += i['src'] + '\n';
+                    target += i['dst'] + '\n';
+                    target += i['rect'] + '\n\n';
+                }
+                target += `${getString("info-baiduOCRPositon")}:left、top、width、height\n`;
+                return target.trim();
+            } else {
+                throw JSON.stringify(result);
             }
-            return target.trim();
         } else {
-            throw JSON.stringify(result);
+            throw `error_msg: ${res.response.error_msg}`;
         }
+
     } else {
         throw `Http Request Error\nHttp Status: ${res.status}\n${JSON.stringify(res.data)}`;
     }
