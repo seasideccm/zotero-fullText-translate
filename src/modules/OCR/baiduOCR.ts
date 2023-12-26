@@ -1,12 +1,12 @@
 
-import { blobToBase64 } from "../../utils/prefs";
-import { md5 } from "md5";
+import { blobTo, fileTo, fileToblob, fileTypeTo } from "../../utils/prefs";
+import md5 from "md5";
 
 
 export async function testOcr() {
     const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;
     const pdf = "C:\\Users\\VULCAN\\Desktop\\testpdf.pdf";
-    const pdfBase64 = await fileToBase64(pdf);
+    const pdfBase64 = await fileTo(pdf, "DataURL");
     const option: BaiduOCRAccurateOption = {
         pdf_file: pdfBase64,
         pdf_file_num: "1",
@@ -25,12 +25,7 @@ export async function testOcr() {
     ztoolkit.log(res);
     return;
 }
-export async function fileToBase64(path: string) {
-    const buf = await IOUtils.read(path);
-    const blob = new Blob([buf]);
-    return await blobToBase64(blob);
-    //Zotero.Utilities.Internal.Base64.encode();
-}
+
 
 /**
  * -请使用百度 OCR 账号
@@ -108,46 +103,70 @@ export async function baiduOCRAccurate(access_token: string, option: BaiduOCRAcc
  * @param option 
  */
 export async function baiduPictureTranslate(option?: any, secretKey?: string) {
+
     const url = 'https://fanyi-api.baidu.com/api/trans/sdk/picture';
+    const body = new window.FormData();
+
+
     /* const params = secretKey.split("#");
     const appid = params[0] ;
     const key = params[1] ;
     const domain = params[2]; */
-    const appid = '20220918001346432';
-    const key = 'XRnCt_zi4uwNtzuPjcJz';
+    const appid = '20201001000577901';
+    const key = 'jQMdyV80ouaYBnjHXNKs';
     const salt = new Date().getTime();
     const cuid = 'APICUID';
     const mac = 'mac';
     const from = 'zh';
     const to = 'en';
-    const pathTest = "F:\\zotero-fullText-translate\\src\\modules\\OCR\\test.png";
-    const uint8array = await IOUtils.read(pathTest);
-    const file = uint8array.buffer;
-    const sign = md5(`${appid}${md5(file)}${salt}${cuid}${mac}${key}`);
-    const body = new FormData();
-    const uuid = 'binary-' + Zotero.Utilities.randomString();
-    const payload = {
+    const pathTest = "D:\\devZnote\\zotero-fullText-translate\\src\\modules\\OCR\\test.png";
+    const file = await IOUtils.read(pathTest);
+    /* function toArrayBuffer(buf: any) {
+        const ab = new ArrayBuffer(buf.length);
+        const view = new Uint8Array(ab);
+        for (let i = 0; i < buf.length; ++i) {
+            view[i] = buf[i];
+        }
+        return ab;
+    }
 
-        data:
-        {
-            from,
-            to,
-            appid,
-            salt,
-            cuid,
-            mac,
-            sign,
-        },
-        files: {
-            image: file
-        },
+    ztoolkit.log(toArrayBuffer(uint8array));
+    ztoolkit.log(uint8array);
+ */
+
+
+
+    const sign = md5(`${appid}${md5(file)}${salt}${cuid}${mac}${key}`);
+    const urlTail = `?from = ${from} & to=${to} & appid=${appid} & salt=${salt} & sign=${sign} & cuid=${cuid} & mac=${mac} & version=3`;
+
+    url = ulr + urlTail;
+    //const body = new window.FormData();
+    //const uuid = 'binary-' + Zotero.Utilities.randomString();
+
+    //payload = { 'from': from_lang, 'to': to_lang, 'appid': app_id, 'salt': salt, 'sign': sign, 'cuid': cuid, 'mac': mac };
+    // image = {
+    //'image': (os.path.basename(file_name), open(file_name, 'rb'), "multipart/form-data")
+    const payload = {
+        from,
+        to,
+        appid,
+        salt,
+        cuid,
+        mac,
+        sign,
     };
-    body.append("payload", JSON.stringify(payload));
+
+    const files = {
+        image: file
+    };
+
+    const body2 = JSON.stringify(payload);
 
 
     const headers = { 'Content-Type': 'multipart/form-data' };
 
-    const options = { body, headers, timeout: 30000 };
+    const options = { body, headers, timeout: 30000, responseType: "json" };
+
     const res = await Zotero.HTTP.request('POST', url, options);
     if (res.statusText == "OK") {
         const result = JSON.parse(res.response);

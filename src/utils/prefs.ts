@@ -80,19 +80,66 @@ export async function saveJsonToDisk(obj: any, filename: string, dir?: string, e
 }
 
 
+export async function fileTo(path: string, readAs: "BinaryString" | "DataURL" | "ArrayBuffer" | "Text") {
+  const blob = await fileToblob(path);
+  return await blobTo(blob, readAs);
+
+}
+
+export async function fileToblob(path: string) {
+  const buf = await IOUtils.read(path);
+  return new Blob([buf]);
+}
 
 // 将 blob 或 file 转成 DataURL（base64） 形式
 /* fileReader(someFile).then(base64 => {
   console.log('base64: ', base64);
 }); */
 
-export async function blobToBase64(blob: any) {
+export async function blobTo(blob: any, readAs: "BinaryString" | "DataURL" | "ArrayBuffer" | "Text") {
   const response = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      resolve(e.target.result);
+      resolve(e.target?.result);
     };
-    reader.readAsDataURL(blob);
+    switch (readAs) {
+      case "BinaryString": reader.readAsBinaryString(blob);
+        break;
+      case "ArrayBuffer": reader.readAsArrayBuffer(blob);
+        break;
+      case "Text": reader.readAsText(blob);
+        break;
+      case "DataURL": reader.readAsDataURL(blob);
+        break;
+    }
+
+  });
+  return response as string;
+}
+
+/**
+ * 
+ * @param file 通过input读取的file
+ * @param readAs 
+ * @returns 
+ */
+export async function fileTypeTo(file: any, readAs: "BinaryString" | "DataURL" | "ArrayBuffer" | "Text") {
+  const response = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      resolve(e.target?.result);
+    };
+    switch (readAs) {
+      case "BinaryString": reader.readAsBinaryString(file);
+        break;
+      case "ArrayBuffer": reader.readAsArrayBuffer(file);
+        break;
+      case "Text": reader.readAsText(file);
+        break;
+      case "DataURL": reader.readAsDataURL(file);
+        break;
+    }
+
   });
   return response as string;
 }
@@ -113,7 +160,7 @@ export async function readJsonFromDisk(filename: string, dir?: string, ext?: str
   const response = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      resolve(e.target.result);
+      resolve(e.target?.result);
     };
     reader.readAsText(blob);
   });
