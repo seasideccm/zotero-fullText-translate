@@ -115,16 +115,11 @@ export async function baiduOCRAccurate(access_token: string, option: BaiduOCRAcc
  * 请使用百度翻译账号
  * @param option 
  */
-export async function baiduPictureTranslate(option?: any, secretKey?: string) {
-
-
-
-
-
-    /* const params = secretKey.split("#");
-    const appid = params[0] ;
-    const key = params[1] ;
-    const domain = params[2]; */
+export async function baiduPictureTranslate(option: any, secretKey: string) {
+    const params = secretKey.split("#");
+    const appid = params[0];
+    const key = params[1];
+    const domain = params[2];
 
     function getRandomInt(min: number, max: number) {
         min = Math.ceil(min);
@@ -132,10 +127,10 @@ export async function baiduPictureTranslate(option?: any, secretKey?: string) {
         return Math.floor(Math.random() * (max - min)) + min; //不含最大值，含最小值
     }
 
-    const appid = '20201001000577901';
-    const key = 'jQMdyV80ouaYBnjHXNKs';
-    //const salt = new Date().getTime();
-    const salt = getRandomInt(1000001, 10000000).toString();
+    //const appid = '20201001000577901';
+    //const key = 'jQMdyV80ouaYBnjHXNKs';
+    const salt = new Date().getTime();
+    //const salt = getRandomInt(1000001, 10000000).toString();
     const cuid = 'APICUID';
     const mac = 'mac';
     const from = 'zh';

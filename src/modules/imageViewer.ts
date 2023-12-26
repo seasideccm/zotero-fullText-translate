@@ -12,6 +12,7 @@ import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { imageIdPrefix } from "../utils/imageConjfig";
 import { baiduPictureTranslate } from "./OCR/baiduOCR";
+import { langIdentify } from "./netAPI/baiduLangIdentify";
 
 
 
@@ -25,7 +26,8 @@ export const viewImgMenuArr = [
 ];
 
 async function viewImg() {
-    baiduPictureTranslate();
+    langIdentify("中华", "123");
+    //baiduPictureTranslate();
     return;
     const hasNewContent = await makeDialogElementProps();
     await showDialog(hasNewContent);
