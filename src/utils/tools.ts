@@ -853,7 +853,7 @@ export function utf8Encode(string: string) {
 	return utftext;
 }
 
-export function utf8Dncode(utftext: string) {
+export function utf8Decode(utftext: string) {
 	let string = "";
 	let i = 0;
 	let c = 0;

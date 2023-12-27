@@ -57,6 +57,7 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   fullTextTranslate.getHtmlMdInterconvert();
 
   popupWin.startCloseTimer(3000);
+  observeImageItem();
 
 }
 

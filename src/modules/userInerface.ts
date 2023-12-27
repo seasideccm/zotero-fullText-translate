@@ -308,6 +308,7 @@ export class contextMenu {
             const imageStatLast = await IOUtils.stat(filePath);
             if (imageStatLast != imageStat) {
                 target.src = target.src + "?t=" + timestamp;
+
             }
         }
     }

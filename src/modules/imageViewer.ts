@@ -26,9 +26,7 @@ export const viewImgMenuArr = [
 ];
 
 async function viewImg() {
-    langIdentify("中华", "123");
-    //baiduPictureTranslate();
-    return;
+
     const hasNewContent = await makeDialogElementProps();
     await showDialog(hasNewContent);
 };
