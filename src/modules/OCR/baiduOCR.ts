@@ -1,6 +1,6 @@
 
 import { getString } from "../../utils/locale";
-import { blobTo, fileTo, fileToblob, fileTypeTo } from "../../utils/prefs";
+import { addonStorageDir, base64ToBlob, blobTo, fileTo, fileToblob, fileTypeTo, saveImage } from "../../utils/prefs";
 import md5 from "md5";
 /* import * as buffer from "buffer";
 import fs from "fs";
@@ -51,6 +51,7 @@ export async function testOcr() {
  * @returns 
  */
 export async function baiduOCR(option: BaiduOCRAccurateOption, secretKey: string) {
+    baiduPictureTranslate;
 
     const access_token = await baiduOauth(secretKey);
     if (!access_token) return;
@@ -115,18 +116,18 @@ export async function baiduOCRAccurate(access_token: string, option: BaiduOCRAcc
  * 请使用百度翻译账号
  * @param option 
  */
-export async function baiduPictureTranslate(option: any, secretKey: string) {
+export async function baiduPictureTranslate(imgSrc: string, secretKey: string) {
     const params = secretKey.split("#");
     const appid = params[0];
     const key = params[1];
     const domain = params[2];
 
-    function getRandomInt(min: number, max: number) {
-        min = Math.ceil(min);
-        max = Math.floor(max);
-        return Math.floor(Math.random() * (max - min)) + min; //不含最大值，含最小值
-    }
-
+    /*     function getRandomInt(min: number, max: number) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min)) + min; //不含最大值，含最小值
+        }
+     */
     //const appid = '20201001000577901';
     //const key = 'jQMdyV80ouaYBnjHXNKs';
     const salt = new Date().getTime();
@@ -135,18 +136,30 @@ export async function baiduPictureTranslate(option: any, secretKey: string) {
     const mac = 'mac';
     const from = 'zh';
     const to = 'en';
-    //const pathTest = "D:\\devZnote\\zotero-fullText-translate\\src\\modules\\OCR\\test.png";
-    const pathf = 'F:\\zotero-fullText-translate\\src\\modules\\OCR\\test2.png';
+    let file, imgPath;
+    if (imgSrc.startsWith("file:///")) {
+        imgPath = imgSrc.replace("file:///", "");
+        file = await fileToblob(imgPath);
+    }
+    if (imgSrc.startsWith("data:")) {
+        const parts = imgSrc.split(',');
+        if (!parts) return;
+        const ext = parts[0].match(/:(.*?);/)![1].split("/").pop();
+        file = base64ToBlob(imgSrc);
+        imgPath = addonStorageDir + "tempImage." + ext;
+        await saveImage(imgSrc, imgPath);
+    }
+    if (!file || !imgPath) return;
     //const file = await IOUtils.read(pathf);
     //const file = Zotero.File.getBinaryContentsAsync(pathf);
     //文件格式读取为 blob，
     //估计百度将 blob 转为 nodejs 的 buffer类型,
     //然后计算出文件 md5，进而计算 sign 的值，
     //然后和传入的 sign 比对，完成鉴权。
-    const file = await fileToblob(pathf);
+
     // 浏览器没有 node 环境下的 buffer 类型
     // 需要在 node 环境下计算文件的 md5 值
-    const fileMD5 = await Zotero.Utilities.Internal.md5Async(pathf);
+    const fileMD5 = await Zotero.Utilities.Internal.md5Async(imgPath);
     const sign = md5(`${appid}${fileMD5}${salt}${cuid}${mac}${key}`);
     const urlTail = `?from=${from}&to=${to}&appid=${appid}&salt=${salt}&sign=${sign}&cuid=${cuid}&mac=${mac}&version=3`;
     let url = 'https://fanyi-api.baidu.com/api/trans/sdk/picture';

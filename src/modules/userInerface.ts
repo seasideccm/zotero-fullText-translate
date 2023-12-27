@@ -7,6 +7,7 @@ import { calColumns, getParentItem, getThumbnailSize } from "./imageViewer";
 import { objFactory, objsAddKVFactory } from "../utils/tools";
 import { listeners } from "process";
 import { imageIdPrefix } from "../utils/imageConjfig";
+import { BaiduOCRAccurateOption, baiduOCR } from "./OCR/baiduOCR";
 
 
 
@@ -343,8 +344,57 @@ export class contextMenu {
     getFileHandlerPref(type: string) {
         return 'fileHandler.' + type;
     }
-    convertImage() { }
-    ocrImage() { }
+    //convertImage() { }
+    async ocrImage(target: Element) {
+        let imgSrc = (target as HTMLImageElement).src;
+        if (!imgSrc) return;
+        if (imgSrc.startsWith("file:///")) {
+            const imgPath = imgSrc.replace("file:///", "");
+            const imgData = await readImage(imgPath);
+            if (imgData) {
+                imgSrc = imgData.base64 as string;
+            } else {
+                return;
+            }
+        }
+        if (!imgSrc.startsWith("data:")) return;
+        const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;
+        const option: BaiduOCRAccurateOption = {
+            image: imgSrc,
+        };
+        const res = await baiduOCR(option, secretKey);
+        ztoolkit.log(res);
+        if (!res) return;
+        const textArr = res?.split("\n");
+        let spanArr = "";
+        textArr.forEach((p: string) => {
+            const str = "<p>" + p + "</p>";
+            spanArr += str;
+        });
+        const style = `font-size: "1.2rem"; float: "right";justifyContent: "center";max-width: "50%";z-index: 3`;
+        const props: TagElementProps = {
+            tag: "div",
+            namespace: "html",
+            id: "popupOCR",
+            attributes: {
+                style: style,
+            },
+            properties: {
+                innerHTML: spanArr
+            }
+        };
+        //const p = target.getBoundingClientRect();
+        //const left = p.right + 20;
+        //const top = p.bottom + 20;
+        const ocrDialog = new ztoolkit.Dialog(1, 1)
+            .addCell(0, 0, props)
+            .open('', {
+                resizable: true,
+                fitContent: true,
+                noDialogMode: true,
+                centerscreen: true,
+            });
+    }
     shareImage() { }
     sendToPPT() { }
     async printImage(target: Element) {
@@ -423,9 +473,9 @@ export class contextMenu {
                 break;
             case `${getString("info-editImage")}`: this.editImage(target);
                 break;
-            case `${getString("info-convertImage")}`: this.convertImage();
-                break;
-            case `${getString("info-ocrImage")}`: this.ocrImage();
+            //case `${getString("info-convertImage")}`: this.convertImage();
+            //break;
+            case `${getString("info-ocrImage")}`: await this.ocrImage(target);
                 break;
             case `${getString("info-shareImage")}`: this.shareImage();
                 break;
@@ -915,7 +965,7 @@ export function batchAddEventListener(element: Element, args: [eventName: string
      * @param option 
      * @returns TagElementProps
      */
-function makeTagElementProps(option: ElementProps | TagElementProps): ElementProps | TagElementProps {
+export function makeTagElementProps(option: ElementProps | TagElementProps): ElementProps | TagElementProps {
     const preDefined = {
         enableElementRecord: false,
         enableElementDOMLog: false,
@@ -1089,7 +1139,7 @@ export function addContextMenu(elementTriggerCTM: Element) {
             ["info-copyImage"],
             ["info-saveImage"],
             ["info-editImage"],
-            ["info-convertImage"],
+            //["info-convertImage"],
             ["info-ocrImage"]
         ],
         [
@@ -1146,24 +1196,6 @@ function makeButtonProperties(imageSize: string) {
         innerHTML: getString(imageSize),
     };
 } */
-
-
-/* const menuPropsGroupsArrWithFunction = [
-    [
-        ["info-copyImage", copyImage, []],
-        ["info-saveImage", saveImage, []],
-        ["info-editImage", editImage, []],
-        ["info-convertImage", convertImage, []],
-        ["info-ocrImage", ocrImage, []]
-    ],
-    [
-        ["info-shareImage", shareImage, []],
-        ["info-sendToPPT", sendToPPT, []],
-        ["info-printImage", printImage, []]
-    ],
-]; */
-
-
 
 /* creatToolBars(option: any) {
     option.toolbuttonParasArr.filter((buttonParasArr: any[]) => {

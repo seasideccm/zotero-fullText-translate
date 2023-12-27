@@ -7,6 +7,7 @@ import { serviceInit } from "./modules/serviceManage";
 import { registerNotifier } from "./modules/notify";
 import { zoteroMenubarButton } from "./modules/toolbarButton";
 import { enableMasonry } from "./utils/prefs";
+import { observeImageItem } from "./modules/observeImageItem";
 
 
 async function onStartup() {
