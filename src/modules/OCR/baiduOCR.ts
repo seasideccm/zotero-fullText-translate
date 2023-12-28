@@ -3,41 +3,19 @@ import { getString } from "../../utils/locale";
 import { addonStorageDir, base64ToBlob, blobTo, fileTo, fileToblob, fileTypeTo, readImage, saveImage } from "../../utils/prefs";
 import md5 from "md5";
 export {
-    testOcr,
-    selectBaiduOCRAPI,
+    baiduOcr,
     baiduOauth,
-    baiduOCRAccurate,
+    baiduOcrAccurate,
     baiduPictureTranslate,
     LanguageType,
-    BaiduOCRAccurateOption,
+    BaiduOcrPictureTr,
+    BaiduOcrAccurateBasic,
 };
 
-async function testOcr() {
-    const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;
-    const pdf = "C:\\Users\\VULCAN\\Desktop\\testpdf.pdf";
-    const pdfBase64 = await fileTo(pdf, "DataURL");
-    const option: BaiduOCRAccurateOption = {
-        pdf_file: pdfBase64,
-        pdf_file_num: "1",
-
-    };
-    const res = await baiduOCR(option, secretKey);
-
-    //const stat = await IOUtils.stat("./test.png");
-    //const imagePath = "F:\\zotero-fullText-translate\\src\\modules\\netAPI\\test.png";
-
-    //const imagePath = "d:\\devZnote\\zotero-fullText-translate\\src\\modules\\netAPI\\test.png";
-    /* const srcBase64 = await readImage(imagePath);
-    const base64 = srcBase64?.base64;
-   
-    const re = await baiduOCR(base64!, secretKey, "zh"); */
-    ztoolkit.log(res);
-    return;
-}
 
 
 /**
- * -请使用百度 OCR 账号
+ * -请使用百度 Ocr 账号
  * -image, url, pdf_file, ofd_file 四选一
  * -url 网络地址
  * -image为 base64 编码
@@ -46,11 +24,11 @@ async function testOcr() {
  * @param option image, url, pdf_file, ofd_file 四选一
  * @returns 
  */
-async function selectBaiduOCRAPI(secretKey: string) {
+async function baiduOcr(secretKey: string, option: BaiduOcrAccurateBasic | BaiduOcrPictureTr) {
     if (secretKey.length > 50) {
-        return baiduOCRAccurate(secretKey);
+        return await baiduOcrAccurate(secretKey)(option as BaiduOcrAccurateBasic);
     } else {
-        return baiduPictureTranslate(secretKey);
+        return await baiduPictureTranslate(secretKey)(option as BaiduOcrPictureTr);
     }
 };
 
@@ -77,8 +55,8 @@ async function baiduOauth(secretKey: string) {
 }
 
 
-async function baiduOCRAccurate(secretKey: string) {
-    return async function doit(option: BaiduOCRAccurateOption) {
+function baiduOcrAccurate(secretKey: string) {
+    return async function doit(option: BaiduOcrAccurateBasic) {
         const access_token = await baiduOauth(secretKey);
         if (!access_token) return;
         let imgSrc = option.image;
@@ -96,7 +74,7 @@ async function baiduOCRAccurate(secretKey: string) {
             .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v as string)}`)
             .join('&');
         const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-        let url = 'https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic';
+        let url = 'https://aip.baidubce.com/rest/2.0/Ocr/v1/accurate_basic';
         url = url + `?access_token=${access_token}`;
         const options = { body, headers, timeout: 30000 };
         const res = await Zotero.HTTP.request('POST', url, options);
@@ -122,13 +100,9 @@ async function baiduOCRAccurate(secretKey: string) {
  * 请使用百度翻译账号
  * @param option 
  */
-async function baiduPictureTranslate(secretKey: string) {
+function baiduPictureTranslate(secretKey: string) {
 
-    return async function doit({ image, translate, position }: {
-        image: string;
-        translate?: boolean;
-        position?: boolean;
-    }) {
+    return async function doit({ image, translate, position, sourceLang, targetLang }: BaiduOcrPictureTr) {
         if (!translate) translate = true;
         if (!position) position = false;
         const params = secretKey.split("#");
@@ -137,8 +111,8 @@ async function baiduPictureTranslate(secretKey: string) {
         const salt = new Date().getTime();
         const cuid = 'APICUID';
         const mac = 'mac';
-        const from = 'zh';
-        const to = 'en';
+        const from: SourceLangPicturTr = sourceLang || 'auto';
+        const to: TargetLangPicturTr = targetLang || 'zh';
         let file, imgPath;
         if (image.startsWith("data:")) {
             const parts = image.split(',');
@@ -149,11 +123,11 @@ async function baiduPictureTranslate(secretKey: string) {
             await saveImage(image, imgPath);
         } else {
             if (image.startsWith("file:///")) {
-                image = image.replace("file:///", "");
+                image = image.replace("file:///", "").replace(/\//g, "\\");
             }
+            if (!image) return;
+            file = await fileToblob(image);
             imgPath = image;
-            if (!imgPath) return;
-            file = await fileToblob(imgPath);
         }
         if (!file || !imgPath) return;
         //const file = await IOUtils.read(pathf);
@@ -191,12 +165,59 @@ async function baiduPictureTranslate(secretKey: string) {
             if (position) target += i['rect'] + '\n';
             target += '\n';
         }
-        if (position) target += `${getString("info-baiduOCRPositon")}:left、top、width、height\n`;
+        if (position) target += `${getString("info-baiduOcrPositon")}:left、top、width、height\n`;
         return target.trim();
     };
 }
 
+/**
+ * auto:"自动检测 ",
+zh:"中文 ",
+en:"英语 ",
+jp:"日语 ",
+kor:"韩语 ",
+fra:"法语 ",
+spa:"西班牙语 ",
+ru:"俄语 ",
+pt:"葡萄牙语 ",
+de:"德语 ",
+it:"意大利语 ",
+dan:"丹麦语 ",
+nl:"荷兰语 ",
+may:"马来语 ",
+swe:"瑞典语 ",
+id:"印尼语 ",
+pl:"波兰语 ",
+rom:"罗马尼亚语 ",
+tr:"土耳其语 ",
+el:"希腊语 ",
+hu:"匈牙利语",
+ */
+declare type SourceLangPicturTr = "auto" | "zh" | "en" | "jp" | "kor" | "fra" | "spa" | "ru" | "pt" | "de" | "it" | "dan" | "nl" | "may" | "swe" | "id" | "pl" | "rom" | "tr" | "el" | "hu";
 
+/**
+ * - zh:"中文",
+- en:"英语",
+- jp:"日语",
+- kor:"韩语",
+- fra:"法语",
+- spa:"西班牙语",
+- ru:"俄语",
+- pt:"葡萄牙语",
+- de:"德语",
+- it:"意大利语",
+- dan:"丹麦语",
+- nl:"荷兰语",
+- may:"马来语",
+- swe:"瑞典语",
+- id:"印尼语",
+- pl:"波兰语",
+- rom:"罗马尼亚语",
+- tr:"土耳其语",
+- el:"希腊语",
+- hu:"匈牙利语",
+ */
+declare type TargetLangPicturTr = "zh" | "en" | "jp" | "kor" | "fra" | "spa" | "ru" | "pt" | "de" | "it" | "dan" | "nl" | "may" | "swe" | "id" | "pl" | "rom" | "tr" | "el" | "hu";
 
 
 /**
@@ -243,7 +264,7 @@ declare type LanguageType = "CHN_ENG" | "ENG" | "JAP" | "KOR" | "FRE" | "SPA" | 
 | paragraph        | 否   | string | true/false | 是否输出段落信息                                             |
 | probability      | 否   | string | true/false | 是否返回识别结果中每一行的置信度                             |
  */
-declare type BaiduOCRAccurateOption = {
+declare type BaiduOcrAccurateBasic = {
     image?: string;
     url?: string;
     pdf_file?: string;
@@ -254,7 +275,15 @@ declare type BaiduOCRAccurateOption = {
     pdf_file_num?: string;
     ofd_file_num?: string;
     probability?: string;
+
 };
+declare type BaiduOcrPictureTr = {
+    image: string;
+    translate?: boolean;
+    position?: boolean;
+    sourceLang?: SourceLangPicturTr;
+    targetLang?: TargetLangPicturTr;
+}
 
 /*     const bodyProps = {
         language_type: language,

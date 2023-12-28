@@ -130,4 +130,4 @@ info-thumbnailSize = thumbnail Size:
 info-fitModel = view Image Scale Model: 
 info-thumbnailColumns = thumbnail Columns
 info-showBibliography = show Bibliography
-info-baiduOCRPositon = The position of the recognized text are in order: 
+info-baiduOcrPositon = The position of the recognized text are in order: 

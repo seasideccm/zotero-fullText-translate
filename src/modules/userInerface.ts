@@ -5,11 +5,8 @@ import { config } from "../../package.json";
 import { getPref, onSaveImageAs, readImage, setPref } from "../utils/prefs";
 import { calColumns, getParentItem, getThumbnailSize } from "./imageViewer";
 import { objFactory, objsAddKVFactory } from "../utils/tools";
-import { listeners } from "process";
 import { imageIdPrefix } from "../utils/imageConjfig";
-import { BaiduOCRAccurateOption, baiduOCR, selectBaiduOCRAPI } from "./OCR/baiduOCR";
-
-
+import { BaiduOcrAccurateBasic, BaiduOcrPictureTr, baiduOcr } from "./OCR/baiduOCR";
 
 export declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
 export declare type ToolbarbuttonType = "menu" | "menu-button" | "checkbox" | "radio" | undefined;
@@ -241,7 +238,7 @@ export class contextMenu {
             if (!editorInstance) return;
             editorInstance._iframeWindow.addEventListener('load', function infoShow() { ztoolkit.log("加载完成"); });
             await waitNoteShown(editorInstance);
-            const editorCore = editorInstance._iframeWindow.wrappedJSObject._currentEditorInstance._editorCore;
+            const editorCore = (editorInstance._iframeWindow as any).wrappedJSObject._currentEditorInstance._editorCore;
             editorInstance.focus();
             const dom = this.getNoteDom(editorCore, "attachmentKey", attachmentKey);
             dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -288,7 +285,7 @@ export class contextMenu {
         }
     }
 
-    async editImage(target: Element) {
+    async editImage(target: HTMLImageElement) {
         const type = "image";
         let defaultPath;
         if (Zotero.isWin) {
@@ -304,6 +301,7 @@ export class contextMenu {
         const imageStat = await IOUtils.stat(filePath);
         Zotero.launchFileWithApplication(filePath, handler);
         const timestamp = new Date().getTime();
+        //@ts-ignore has ownerGlobal
         target.ownerGlobal.addEventListener('focus', updateImage);
         async function updateImage() {
             const imageStatLast = await IOUtils.stat(filePath);
@@ -348,18 +346,13 @@ export class contextMenu {
     async ocrImage(target: Element) {
         const secretKey = "20230302001582861#uXy0Gx8MaL8Wc46DIlvJ";
         //const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;
-        const baiduOCR = selectBaiduOCRAPI(secretKey);
+
         const imgSrc = (target as HTMLImageElement).src;
         if (!imgSrc) return;
-        /*         
-                }
-                if (!imgSrc.startsWith("data:")) return; */
-
-
-        const option: BaiduOCRAccurateOption = {
+        const option: BaiduOcrPictureTr | BaiduOcrAccurateBasic = {
             image: imgSrc,
         };
-        const res = await baiduOCR(option, secretKey);
+        const res = await baiduOcr(secretKey, option);
         ztoolkit.log(res);
         if (!res) return;
         const textArr = res?.split("\n");
@@ -368,11 +361,11 @@ export class contextMenu {
             const str = "<p>" + p + "</p>";
             spanArr += str;
         });
-        const style = `font-size: "1.2rem"; float: "right";justifyContent: "center";max-width: "50%";z-index: 3`;
+        const style = `font-size: "16px"; float: "right";justifyContent: "center";max-width: "50%";z-index: 3`;
         const props: TagElementProps = {
             tag: "div",
             namespace: "html",
-            id: "popupOCR",
+            id: "popupOcr",
             attributes: {
                 style: style,
             },
@@ -380,16 +373,14 @@ export class contextMenu {
                 innerHTML: spanArr
             }
         };
-        //const p = target.getBoundingClientRect();
-        //const left = p.right + 20;
-        //const top = p.bottom + 20;
         const ocrDialog = new ztoolkit.Dialog(1, 1)
             .addCell(0, 0, props)
             .open('', {
                 resizable: true,
-                fitContent: true,
                 noDialogMode: true,
                 centerscreen: true,
+                width: window.screen.width * 0.5,
+                height: window.screen.height * 0.5
             });
     }
     shareImage() { }
@@ -468,7 +459,7 @@ export class contextMenu {
                 break;
             case `${getString("info-saveImage")}`: this.saveImage(target);
                 break;
-            case `${getString("info-editImage")}`: this.editImage(target);
+            case `${getString("info-editImage")}`: this.editImage(target as HTMLImageElement);
                 break;
             //case `${getString("info-convertImage")}`: this.convertImage();
             //break;
@@ -548,6 +539,7 @@ export class contextMenu {
             const tagName = (e.target as any).tagName.toLowerCase();
             if (tagName === 'menuitem') {
                 // anchorNode 为操作的目标元素
+                //@ts-ignore has anchorNode
                 await this.handleMenuItem(menupopup.anchorNode, e);
             }
         });
@@ -795,6 +787,7 @@ export class Toolbar {
             setStyleVar(objTempArr)(targetElement);
             const imagesColumns = doc.querySelector("#".concat(idWithAddon("imagesColumns")));
             if (imagesColumns) {
+                //@ts-ignore has value
                 imagesColumns.value = String(columns);
             }
             //showDialog(true);
@@ -1027,6 +1020,7 @@ export function addToolBar(doc: Document, ref: Element) {
                 if (!doc) return;
                 setStyleVar({
                     varName: "--columns",
+                    //@ts-ignore has value
                     value: e.target!.value,
                 })(styleElement(doc)());
             }
@@ -1159,13 +1153,14 @@ export function addContextMenu(elementTriggerCTM: Element) {
             imgCtxObj.handleMenuItem(imgCtxObj.contextMenu.triggerNode, e);
         }
     }); */
-    //事件委托
+    //事件委托：事件监听设置在上级元素，判断事件由子元素触发则执行回调函数
     elementTriggerCTM.addEventListener('contextmenu', e => {
         const tagName = (e.target as any).tagName;
         if (tagName === 'IMG') {
             //如果传入了最后一个参数 triggerEvent （此处为 e ），contextMenu 才会有 triggerNode
-
+            //@ts-ignore has target
             imgCtxObj.contextMenu.openPopup(e.target, 'after_pointer', 0, 0, true, false, e);
+            //@ts-ignore has screenX
             imgCtxObj.contextMenu.moveTo(e.screenX, e.screenY);
 
         }

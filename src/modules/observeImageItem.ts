@@ -22,7 +22,7 @@ export async function observeImageItem() {
             //const item = Zotero.getActiveZoteroPane().itemsView._getRowData(index);
             const row = zp.itemsView.getRow(index);
             const itemByRow = Zotero.Items.get(row.id);
-            if (itemByRow && itemByRow.attachmentContentType.includes("image")) {
+            if (itemByRow && itemByRow.attachmentContentType?.includes("image")) {
                 let path = itemByRow.getFilePath() as string;
                 path = OS.Path.normalize(path!);
                 if (!OS.File.exists(path)) return;

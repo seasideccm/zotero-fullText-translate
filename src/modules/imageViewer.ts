@@ -1,7 +1,7 @@
 import { TagElementProps } from "zotero-plugin-toolkit/dist/tools/ui";
 import { config } from "../../package.json";
 import { resolution } from "../utils/imageDimension";
-import { getPref, readImage, getFileInfo, getImageBase64, getPathDir } from '../utils/prefs';
+import { getPref, readImage } from '../utils/prefs';
 import { makeTagElementProps } from "./toolbarButton";
 import Viewer from 'viewerjs';
 import { DialogHelper } from "zotero-plugin-toolkit/dist/helpers/dialog";
@@ -11,11 +11,6 @@ import dragula from 'dragula';
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { imageIdPrefix } from "../utils/imageConjfig";
-import { baiduPictureTranslate } from "./OCR/baiduOCR";
-import { langIdentify } from "./netAPI/baiduLangIdentify";
-
-
-
 
 export const viewImgMenuArr = [
     {
@@ -223,6 +218,7 @@ export function showDialog({ hasNewContent, gallaryGroupId }: { hasNewContent: b
             const getBib = getBibliography();
             const viewerTitleCallBack = (img: any) => {
                 //从设置读取是否显示参考文献
+                //@ts-ignore has checked
                 const showBibliography = doc.querySelector(".imageBibliography")?.checked;
                 if (showBibliography) {
                     const item = Zotero.Items.get(Number(img.getAttribute("data-parentid")));
@@ -550,7 +546,7 @@ async function getImageInfo(item: Zotero.Item) {
 export const noIt = (items: any) => items === void 0 || (Array.isArray(items) && !items.length) || items === false;
 function getItems(itemIDs?: number | number[]) {
     let items;
-    if (itemIDs !== void 0) {
+    if (itemIDs) {
         items = Zotero.Items.get(itemIDs);
     }
     if (noIt(items)) items = Zotero.Items.get(Zotero_Tabs._getTab(Zotero_Tabs.selectedID).tab.data?.itemID);
@@ -586,11 +582,11 @@ async function findImageItems(item: Zotero.Item, imageItems?: Zotero.Item[]) {
     }
     if (item.attachmentContentType === "text/html") {
         const type = 'snapshot';
-        fullTextTranslate.showInfo("type = " + type);
+        fullTextTranslate.showInfo("type = " + type, 2000);
     }
     if (item.attachmentContentType === "application/epub+zip") {
         const type = 'epub';
-        fullTextTranslate.showInfo("type = " + type);
+        fullTextTranslate.showInfo("type = " + type, 2000);
     }
     return imageItems;
 }
