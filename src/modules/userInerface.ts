@@ -7,7 +7,7 @@ import { calColumns, getParentItem, getThumbnailSize } from "./imageViewer";
 import { objFactory, objsAddKVFactory } from "../utils/tools";
 import { listeners } from "process";
 import { imageIdPrefix } from "../utils/imageConjfig";
-import { BaiduOCRAccurateOption, baiduOCR } from "./OCR/baiduOCR";
+import { BaiduOCRAccurateOption, baiduOCR, selectBaiduOCRAPI } from "./OCR/baiduOCR";
 
 
 
@@ -346,19 +346,16 @@ export class contextMenu {
     }
     //convertImage() { }
     async ocrImage(target: Element) {
-        let imgSrc = (target as HTMLImageElement).src;
+        const secretKey = "20230302001582861#uXy0Gx8MaL8Wc46DIlvJ";
+        //const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;
+        const baiduOCR = selectBaiduOCRAPI(secretKey);
+        const imgSrc = (target as HTMLImageElement).src;
         if (!imgSrc) return;
-        if (imgSrc.startsWith("file:///")) {
-            const imgPath = imgSrc.replace("file:///", "");
-            const imgData = await readImage(imgPath);
-            if (imgData) {
-                imgSrc = imgData.base64 as string;
-            } else {
-                return;
-            }
-        }
-        if (!imgSrc.startsWith("data:")) return;
-        const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;
+        /*         
+                }
+                if (!imgSrc.startsWith("data:")) return; */
+
+
         const option: BaiduOCRAccurateOption = {
             image: imgSrc,
         };
