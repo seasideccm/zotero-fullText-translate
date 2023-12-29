@@ -6,7 +6,7 @@ import { getPref, onSaveImageAs, readImage, setPref } from "../utils/prefs";
 import { calColumns, getParentItem, getThumbnailSize } from "./imageViewer";
 import { objFactory, objsAddKVFactory } from "../utils/tools";
 import { imageIdPrefix } from "../utils/imageConjfig";
-import { BaiduOcrAccurateBasic, BaiduOcrPictureTr, baiduOcr } from "./OCR/baiduOCR";
+import { BaiduOcrAccurateBasic, BaiduOcrPictureTr, baiduOcr } from "./OCR/baiduOcr";
 
 export declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
 export declare type ToolbarbuttonType = "menu" | "menu-button" | "checkbox" | "radio" | undefined;
