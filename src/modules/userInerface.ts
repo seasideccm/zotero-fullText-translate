@@ -6,8 +6,12 @@ import { getPref, onSaveImageAs, readImage, setPref } from "../utils/prefs";
 import { calColumns, getParentItem, getThumbnailSize } from "./imageViewer";
 import { objFactory, objsAddKVFactory } from "../utils/tools";
 import { imageIdPrefix } from "../utils/imageConjfig";
+<<<<<<< HEAD
 import { ApiName, BaiduOcrAccurateBasic, BaiduOcrPictureTr, baiduOcr, extractData } from "./OCR/baiduOCR";
 import { insertMyDB } from "./test/myDB";
+=======
+import { BaiduOcrAccurateBasic, BaiduOcrPictureTr, baiduOcr } from "./OCR/baiduOcr";
+>>>>>>> 5dd995f1672dc0dc73a076ca24ba0750d219c1fc
 
 export declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
 export declare type ToolbarbuttonType = "menu" | "menu-button" | "checkbox" | "radio" | undefined;
