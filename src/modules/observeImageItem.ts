@@ -1,4 +1,3 @@
-import { imageUtilties } from "./imageTool/utilities";
 
 export async function observeImageItem() {
     let itemsTree;
@@ -7,7 +6,7 @@ export async function observeImageItem() {
         await Zotero.Promise.delay(1000);
     };
     const zp = Zotero.getActiveZoteroPane();
-    //防抖
+    //防抖 达不到效果
     //const debounceCallBack3 = Zotero.Utilities.debounce(callBack, 300);
     //节流 , { leading: true, trailing: false }
     const debounceCallBack = Zotero.Utilities.throttle(callBack, 3000);
@@ -16,11 +15,13 @@ export async function observeImageItem() {
     });
 
     function callBack(e: MouseEvent) {
+        //@ts-ignore has id
         const id = e.target?.id;
         if (id && id.includes("-row-")) {
             const index = id.replace(/.+-row-/m, '');
             //const item = Zotero.getActiveZoteroPane().itemsView._getRowData(index);
             const row = zp.itemsView.getRow(index);
+            //@ts-ignore has id
             const itemByRow = Zotero.Items.get(row.id);
             if (itemByRow && itemByRow.attachmentContentType?.includes("image")) {
                 let path = itemByRow.getFilePath() as string;
@@ -44,7 +45,6 @@ export async function observeImageItem() {
 }
 
 function popupIamge(srcPath: string, position: any) {
-
     const style = `float: "right";justifyContent: "center";max-width: "50%";z-index: 3`;
     const props = {
         tag: "div",
@@ -66,7 +66,7 @@ function popupIamge(srcPath: string, position: any) {
     };
     const imagePop = new ztoolkit.Dialog(1, 1)
         .addCell(0, 0, props)
-        .open('', {
+        .open(`${srcPath.replace("file:///", '')}`, {
             resizable: true,
             fitContent: true,
             noDialogMode: true,

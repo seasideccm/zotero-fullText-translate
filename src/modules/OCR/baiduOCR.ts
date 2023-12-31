@@ -76,22 +76,15 @@ function baiduOcrAccurate(secretKey: string) {
         const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
         let url = 'https://aip.baidubce.com/rest/2.0/Ocr/v1/accurate_basic';
         url = url + `?access_token=${access_token}`;
-        const options = { body, headers, timeout: 30000 };
-        const res = await Zotero.HTTP.request('POST', url, options);
-        if (res.statusText == "OK") {
-            const result = JSON.parse(res.response);
-            if (result['words_result']) {
-                let target = '';
-                for (const i of result['words_result']) {
-                    target += i['words'] + '\n';
-                }
-                return target.trim();
-            } else {
-                throw JSON.stringify(result);
-            }
-        } else {
-            throw `Http Request Error\nHttp Status: ${res.status}\n${JSON.stringify(res.data)}`;
+        const options = { body, headers, timeout: 30000, responseType: "json" };
+        const request = await Zotero.HTTP.request('POST', url, options);
+        if (request.statusText != "OK") {
+            throw `Http Request Error\nHttp Status: ${request.status}\n${JSON.stringify(request.data)}`;
         }
+        if (!request.response['words_result']) {
+            throw JSON.stringify(request.response);
+        }
+        return request.response;
     };
 }
 
@@ -102,9 +95,8 @@ function baiduOcrAccurate(secretKey: string) {
  */
 function baiduPictureTranslate(secretKey: string) {
 
-    return async function doit({ image, translate, position, sourceLang, targetLang }: BaiduOcrPictureTr) {
-        if (!translate) translate = true;
-        if (!position) position = false;
+    return async function doit({ image, translate, sourceLang, targetLang }: BaiduOcrPictureTr) {
+
         const params = secretKey.split("#");
         const appid = params[0];
         const key = params[1];
@@ -147,29 +139,50 @@ function baiduPictureTranslate(secretKey: string) {
         body.append("image", file);
         const headers = { 'Content-Type': 'multipart/form-data' };
         const options = { body, headers, timeout: 30000, responseType: "json" };
-        const res = await Zotero.HTTP.request('POST', url, options);
-        if (res.statusText != "OK") {
-            throw `Http Request Error\nHttp Status: ${res.status}\n${JSON.stringify(res.data)}`;
+        const request = await Zotero.HTTP.request('POST', url, options);
+        if (request.statusText != "OK") {
+            throw `Http Request Error\nHttp Status: ${request.status}\n${JSON.stringify(request.data)}`;
         }
-        if (res.response.error_msg != "success") {
-            throw `error_msg: ${res.response.error_msg}`;
+        if (request.response.error_msg != "success") {
+            throw `error_msg: ${request.response.error_msg}`;
         }
-        const result = res.response.data;
-        if (!result['content']) {
-            throw JSON.stringify(result);
+        if (!request.response.data['content']) {
+            throw JSON.stringify(request.response.data);
         }
-        let target = '';
-        for (const i of result['content']) {
-            target += i['src'] + '\n';
-            if (translate) target += i['dst'] + '\n';
-            if (position) target += i['rect'] + '\n';
-            target += '\n';
-        }
-        if (position) target += `${getString("info-baiduOcrPositon")}:left、top、width、height\n`;
-        return target.trim();
+        return request.response;
     };
 }
 
+
+export function extractData(response: any, apiName: ApiName, option?: any) {
+    let result, target;
+    if (!option) option = {};
+    if (!option.translate) option.translate = true;
+    if (!option.position) option.position = false;
+    switch (apiName) {
+        case "baiduPictureTranslate":
+            result = response.data;
+            target = '';
+            for (const i of result['content']) {
+                target += i['src'] + '\n';
+                if (option.translate) target += i['dst'] + '\n';
+                if (option.translate) target += i['rect'] + '\n';
+                target += '\n';
+            }
+            if (option.translate) target += `${getString("info-baiduOcrPositon")}:left、top、width、height\n`;
+            return target.trim();
+        case "baiduOcrAccurate":
+            target = '';
+            result = response.data;
+            for (const i of result['words_result']) {
+                target += i['words'] + '\n';
+            }
+            return target.trim();
+    }
+
+}
+
+export declare type ApiName = "baiduPictureTranslate" | "baiduOcrAccurate";
 /**
  * auto:"自动检测 ",
 zh:"中文 ",
@@ -280,7 +293,6 @@ declare type BaiduOcrAccurateBasic = {
 declare type BaiduOcrPictureTr = {
     image: string;
     translate?: boolean;
-    position?: boolean;
     sourceLang?: SourceLangPicturTr;
     targetLang?: TargetLangPicturTr;
 }

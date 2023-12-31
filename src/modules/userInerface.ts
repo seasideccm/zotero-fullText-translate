@@ -6,7 +6,8 @@ import { getPref, onSaveImageAs, readImage, setPref } from "../utils/prefs";
 import { calColumns, getParentItem, getThumbnailSize } from "./imageViewer";
 import { objFactory, objsAddKVFactory } from "../utils/tools";
 import { imageIdPrefix } from "../utils/imageConjfig";
-import { BaiduOcrAccurateBasic, BaiduOcrPictureTr, baiduOcr } from "./OCR/baiduOCR";
+import { ApiName, BaiduOcrAccurateBasic, BaiduOcrPictureTr, baiduOcr, extractData } from "./OCR/baiduOCR";
+import { insertMyDB } from "./test/myDB";
 
 export declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
 export declare type ToolbarbuttonType = "menu" | "menu-button" | "checkbox" | "radio" | undefined;
@@ -346,16 +347,39 @@ export class contextMenu {
     async ocrImage(target: Element) {
         const secretKey = "20230302001582861#uXy0Gx8MaL8Wc46DIlvJ";
         //const secretKey = `3hZgZRDlgkZrumbdv7l3Rd0C#uMn7h7yhsMXC24KGG49uaerjxsz2QxhG`;
-
+        let apiName: ApiName;
+        if (secretKey.length > 50) {
+            apiName = "baiduOcrAccurate";
+        } else {
+            apiName = "baiduPictureTranslate";
+        }
         const imgSrc = (target as HTMLImageElement).src;
         if (!imgSrc) return;
         const option: BaiduOcrPictureTr | BaiduOcrAccurateBasic = {
             image: imgSrc,
         };
-        const res = await baiduOcr(secretKey, option);
+        let response;
+        try {
+            response = await baiduOcr(secretKey, option);
+        }
+        catch (e) {
+            ztoolkit.log(e);
+        }
+
+        const res = extractData(response, apiName);
         ztoolkit.log(res);
         if (!res) return;
+
+        await insertMyDB("myDBFirstTable", response);
+
+
         const textArr = res?.split("\n");
+
+        const recorderToDB = {
+            sourceText: "TEXT NOT NULL",
+            targetText: "TEXT NOT NULL",
+            score: "INTEGER"
+        };
         let spanArr = "";
         textArr.forEach((p: string) => {
             const str = "<p>" + p + "</p>";
@@ -439,6 +463,7 @@ export class contextMenu {
         const imgElment = ztoolkit.UI.createElement(document, "div", props);
         const body = ztoolkit.UI.createElement(document, "body");
         body.appendChild(imgElment);
+        //@ts-ignore has resetBranch
         Zotero.Prefs.resetBranch([], "print");
         Zotero.Prefs.set("print.print_footercenter", "", true);
         Zotero.Prefs.set("print.print_footerleft", "", true);

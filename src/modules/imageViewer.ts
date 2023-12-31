@@ -12,6 +12,7 @@ import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { imageIdPrefix } from "../utils/imageConjfig";
 
+
 export const viewImgMenuArr = [
     {
         label: "info-viewImg",
@@ -21,7 +22,6 @@ export const viewImgMenuArr = [
 ];
 
 async function viewImg() {
-
     const hasNewContent = await makeDialogElementProps();
     await showDialog(hasNewContent);
 };
@@ -755,3 +755,5 @@ export function getParentItem(item: Zotero.Item) {
         return getParentItem(item.parentItem);
     }
 }
+
+
