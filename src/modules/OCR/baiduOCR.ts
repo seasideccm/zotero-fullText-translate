@@ -111,7 +111,7 @@ function baiduPictureTranslate(secretKey: string) {
             if (!parts) return;
             const ext = parts[0].match(/:(.*?);/)![1].split("/").pop();
             file = base64ToBlob(image);
-            imgPath = addonStorageDir + "tempImage." + ext;
+            imgPath = PathUtils.join(addonStorageDir, "tempImage." + ext);
             await saveImage(image, imgPath);
         } else {
             if (image.startsWith("file:///")) {

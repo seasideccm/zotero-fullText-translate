@@ -1,4 +1,4 @@
-
+import { config } from "../../package.json";
 export interface IAnnotation {
 	type?: string;
 	color?: string;
@@ -31,8 +31,11 @@ export function saveAnnotationImage() {
 	const annotations: IAnnotation[] = (wr._reader._state.annotations).filter((ann: IAnnotation) => ann.type === "image");
 
 	annotations.filter(async ann => {
-		const outputPath = addonStorageDir + "/" + ann.key;
-		await wr._reader._onCopyImage(ann.image);
+		if (ann.key) {
+			const outputPath = PathUtils.join(addonStorageDir, ann.key);
+			await wr._reader._onCopyImage(ann.image);
+		}
+
 
 	});
 

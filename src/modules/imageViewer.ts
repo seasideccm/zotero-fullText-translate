@@ -11,6 +11,8 @@ import dragula from 'dragula';
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { imageIdPrefix } from "../utils/imageConjfig";
+import { upload } from "./sync/webDav";
+import { insertMyDB } from "./data/addonDatabase";
 
 
 export const viewImgMenuArr = [
@@ -22,6 +24,10 @@ export const viewImgMenuArr = [
 ];
 
 async function viewImg() {
+    insertMyDB("test");
+    /* const path = "C:\\Users\\Administrator\\AppData\\Local\\Temp\\000peng2006.zip";
+    await upload(path); */
+    return;
     const hasNewContent = await makeDialogElementProps();
     await showDialog(hasNewContent);
 };

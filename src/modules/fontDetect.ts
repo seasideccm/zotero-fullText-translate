@@ -84,7 +84,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
     //判断是否为斜体
     fontSimpleInfo.isItalic = judgeFontItalic(fontObj, charImgData);
     fontSimpleInfo.redPointNumbers = charImgData.data.filter((e: number, i: number) => i % 4 == 0).filter((e: number) => e > 0).length;
-    const charPath = getPathDir(fontName, addonStorageDir + "\\fontImg\\", ".png").path;
+    const charPath = getPathDir(fontName, PathUtils.join(addonStorageDir, "fontImg.png")).path;
     //图片不存在则绘制，已存在则读取
     if (!await OS.File.exists(charPath)) {
         //确定绘制的字符边界
@@ -114,7 +114,7 @@ export async function identifyRedPointAndItalic(fontObj: any, ctx: any, pdfItemI
         if (border) {
             //保存字体图片
             charsImgData = ctx.getImageData(border.x1, border.y1, border.widthBox, border.heightBox);
-            const charsPath = getPathDir(fontName + "_Chars", addonStorageDir + "\\fontImg\\", ".png").path;
+            const charsPath = getPathDir(fontName + "_Chars", PathUtils.join(addonStorageDir, "fontImg.png")).path;
             fontSimpleInfo.charsImg = {
                 width: charsImgData.width,
                 height: charsImgData.height,

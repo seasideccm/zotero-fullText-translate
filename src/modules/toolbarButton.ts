@@ -3,7 +3,7 @@ import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { addonStorageDir, getFileInfo, getPathDir, readJsonFromDisk } from "../utils/prefs";
 import { fileSizeFormat } from "../utils/tools";
-import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, identityFontStyle, redPointCollectToDisk, makeFontInfoNote } from "./fontDetect";
+import { fontStyleFileName, saveDiskFontSimpleInfo, getFontInfo, redPointCollectToDisk, makeFontInfoNote } from "./fontDetect";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { clearAnnotations } from "./imageToAnnotation";
 import { NoteMaker } from "./noteMakerHelp";
@@ -498,7 +498,7 @@ const fontCheckCallBack = async () => {
     if (fontsSimpleInfo) {
         thisPdfFonts = Object.values(fontsSimpleInfo).filter((fontSimpleInfo: any) => fontSimpleInfo.pdfItemID == pdfItemID);
         for (const obj of thisPdfFonts) {
-            const charPath = getPathDir(obj.fontName, addonStorageDir + "\\fontImg\\", ".png").path;
+            const charPath = getPathDir(obj.fontName, PathUtils.join(addonStorageDir, "fontImg.png")).path;
             if (await OS.File.exists(charPath)) {
                 fontsSimpleInfo.hasFontImg = true;
             } else {

@@ -4,8 +4,12 @@ import { config } from "../../package.json";
 import { fullTextTranslateService } from "../modules/serviceManage";
 import { fileNameLegal } from "../utils/fileNameLegal";
 
-
-export const addonStorageDir = Zotero.Prefs.get("extensions.zotero.dataDir", true) as string + "\\storage\\" + config.addonName + "\\";
+//Zotero.Prefs.get("extensions.zotero.dataDir", true) as string + "\\storage\\"
+/**
+ * PathUtils.join
+ * like "F:\\download\\zotero\\zotero7DataDirectory\\storage\\zotero FullText Translate" 
+ */
+export const addonStorageDir = PathUtils.join(Zotero.getStorageDirectory().path, config.addonName);
 export const { OS } = Components.utils.import("resource://gre/modules/osfile.jsm");
 
 
@@ -421,38 +425,28 @@ export const onSaveImageAs = async (dataURL: string, filename?: string, window?:
 
 /**
  * 
- * @param filename 文件名伴或不伴完整路径
- * @param dir 
- * @param ext 
+ * @param filename 单独文件名或伴扩展名或绝对路径
+ * @param dir 可选参数
+ * @param ext 可选参数 伴或不伴点，如 .png 或 png
  * @returns 
  */
 export const getPathDir = (filename: string, dir?: string, ext?: string) => {
   filename = fileNameLegal(filename);
-  //文件名是完整路径
-  if (filename.match(/\.[^/\\]+$/m) && filename.match(/[/\\]/g)) {
+  dir = dir || addonStorageDir;
+  ext = ext || ".json";
+  if (filename.match(/\.[^./\\]+$/m)) {
+    ext = filename.match(/\.[^./\\]+$/m)![0];
+  }
+  if (filename.match(/[/\\]/g)) {
+    //文件名是包括扩展名的完整路径
     dir = "";
     ext = '';
-  } else {
-    if (ext === undefined) {
-      ext = ".json";
-    }
-    if (!ext.startsWith(".")) {
-      ext = "." + ext;
-    }
-    if (dir === undefined) {
-      dir = addonStorageDir;
-    }
-    if (dir.includes("\\")) {
-      dir = (dir + "\\").replace(/\\+/mg, "\\");
-    }
-
-    if (dir.includes("/")) {
-      dir = (dir + "/").replace(/\/+/gm, "/");
-    }
   }
-
-
-  const path = dir + filename + ext;
+  if (!ext.startsWith(".")) {
+    ext = "." + ext;
+  }
+  dir = OS.Path.normalize(dir);
+  const path = OS.Path.normalize(dir + filename + ext);
   return {
     path: path,
     dir: dir
