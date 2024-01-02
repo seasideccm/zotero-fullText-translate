@@ -9,7 +9,7 @@ import { clearAnnotations } from "./imageToAnnotation";
 import { NoteMaker } from "./noteMakerHelp";
 import { prepareReader } from "./prepareReader";
 import { syncFontInfo } from "./syncInfo";
-import { viewImgMenuArr } from "./imageViewer";
+import { testArr, viewImgMenuArr } from "./imageViewer";
 
 
 //url(assets/icons/searchbar-dropmarker@2x.4ebeb64c.png) no-repeat 0 0/100%
@@ -48,6 +48,7 @@ const buttonBackground =
 
 
 export async function zoteroMenubarButton() {
+
     if (document.querySelector("#" + config.addonRef + "_imgTableTool")) { return; }
     const parent = document.querySelector("#toolbar-menubar")!;
     ztoolkit.UI.appendElement(
@@ -134,7 +135,8 @@ export async function zoteroMenubarButton() {
         fontMenuitemArr,
         syncFontInfoMenuitemArr,
         insertImgMenuitemArr,
-        viewImgMenuArr
+        viewImgMenuArr,
+        testArr,
     ];
     const toolbaritemProps = makeTagElementProps({
         tag: "toolbaritem",
@@ -634,7 +636,7 @@ export const makeMenuitem = (option: { label: string, func: (...args: any[]) => 
         tag: "menuitem",
         namespace: "xul",
         attributes: {
-            label: getString(option.label),
+            label: getString(option.label) || option.label,
         }
     }, menupopup);
     /* makeMenuitem.addEventListener("command", () => {

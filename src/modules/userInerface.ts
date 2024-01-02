@@ -7,7 +7,7 @@ import { calColumns, getParentItem, getThumbnailSize } from "./imageViewer";
 import { objFactory, objsAddKVFactory } from "../utils/tools";
 import { imageIdPrefix } from "../utils/imageConjfig";
 import { ApiName, BaiduOcrAccurateBasic, BaiduOcrPictureTr, baiduOcr, extractData } from "./OCR/baiduOCR";
-import { insertMyDB } from "./data/addonDatabase";
+
 
 export declare type MenuProps = [label: string, func?: (...args: any[]) => any | void, args?: any[]];
 export declare type ToolbarbuttonType = "menu" | "menu-button" | "checkbox" | "radio" | undefined;
@@ -370,7 +370,7 @@ export class contextMenu {
         ztoolkit.log(res);
         if (!res) return;
 
-        await insertMyDB("myDBFirstTable", response);
+        //await insertMyDB("myDBFirstTable", response);
 
 
         const textArr = res?.split("\n");
@@ -907,7 +907,7 @@ export function insertStyle(document: Document, style: string = '') {
     }
 }
 
-export function loadCss(document: Document, cssfilesURL: string[] = [`chrome://${config.addonRef}/content/viewer.css`]) {
+export function loadCss(document: Document, cssfilesURL: string[] = [`chrome://${config.addonRef}/content/css/viewer.css`]) {
     cssfilesURL.filter((hrefURL: string) => {
         document.head.appendChild(ztoolkit.UI.createElement(document, "link", {
             attributes: {
@@ -1000,8 +1000,8 @@ export function makeTagElementProps(option: ElementProps | TagElementProps): Ele
 }
 
 export const cssfilesURL = [
-    `chrome://${config.addonRef}/content/viewer.css`,
-    `chrome://${config.addonRef}/content/dragula.css`,
+    `chrome://${config.addonRef}/content/css/viewer.css`,
+    `chrome://${config.addonRef}/content/css/dragula.css`,
     `chrome://${config.addonRef}/content/css/imageDialog.css`,
 ];
 

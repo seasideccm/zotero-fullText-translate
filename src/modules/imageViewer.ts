@@ -11,23 +11,34 @@ import dragula from 'dragula';
 import { getString } from "../utils/locale";
 import { fullTextTranslate } from "./fullTextTranslate";
 import { imageIdPrefix } from "../utils/imageConjfig";
-import { upload } from "./sync/webDav";
-import { insertMyDB } from "./data/addonDatabase";
+import { getDB } from "./data/addonDatabase";
 
 
+export const testArr = [
+    {
+        label: "testNew",
+        func: test,
+        args: []
+    },
+];
+async function test() {
+    const db = await getDB();
+    /* const path = "C:\\Users\\Administrator\\AppData\\Local\\Temp\\000peng2006.zip";
+    await upload(path); */
+    //return;
+}
 export const viewImgMenuArr = [
     {
-        label: "info-viewImg",
+        label: getString("info-viewImg"),
         func: viewImg,
         args: []
     },
 ];
 
+
+
 async function viewImg() {
-    await insertMyDB("test");
-    /* const path = "C:\\Users\\Administrator\\AppData\\Local\\Temp\\000peng2006.zip";
-    await upload(path); */
-    return;
+
     const hasNewContent = await makeDialogElementProps();
     await showDialog(hasNewContent);
 };

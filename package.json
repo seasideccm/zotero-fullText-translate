@@ -5,7 +5,7 @@
     "config": {
         "addonName": "zotero FullText Translate",
         "addonID": "fullText_translate@sscc.org",
-        "addonRef": "FullTextTranslate",
+        "addonRef": "fullTextTranslate",
         "addonInstance": "FullTextTranslate",
         "prefsPrefix": "extensions.zotero.FullTextTranslate",
         "releasepage": "https://github.com/seasideccm/zotero-fullText-translate/releases/latest/download/zotero-fullText-translate.xpi",

@@ -2,15 +2,19 @@ import { config } from "../../../package.json";
 
 
 export async function getDB(dbName?: string) {
-    // "F:\\download\\zotero\\zotero7DataDirectory\\testMyDB.sqlite";
-    dbName = dbName || "testMyDB.sqlite";
-    let path = PathUtils.join(Zotero.DataDirectory.dir, dbName);
-    const testDB = new Zotero.DBConnection(path);
-    path = testDB._dbPath;
+    dbName = dbName || "addonDB.sqlite";
+    const dir = PathUtils.join(Zotero.DataDirectory.dir, config.addonRef);
+    if (!await IOUtils.exists(dir)) {
+        await IOUtils.makeDirectory(dir);
+    }
+    let path = PathUtils.join(dir, dbName);
+    // 创建数据库实例
+    const addonDB = new Zotero.DBConnection(path);
+    path = addonDB._dbPath;
     try {
         let msg;
         // Test read access, if failure throw error
-        await testDB.test();
+        await addonDB.test();
         // Test write access on path
         if (!Zotero.File.pathToFile(OS.Path.dirname(path)).isWritable()) {
             msg = 'Cannot write to ' + OS.Path.dirname(path) + '/';
@@ -50,8 +54,11 @@ export async function getDB(dbName?: string) {
         }
         ztoolkit.log(e);
     }
-    if (!testDB.dbInitialized) await initializeSchema(testDB);
-    return testDB;
+    //确保数据库已经初始化
+    //初始化执行一系列 queryAsync 命令。即 sqlite 语句。
+    // queryAsync 连接数据库，不存在则会创建
+    if (!addonDB.dbInitialized) await initializeSchema(addonDB);
+    return addonDB;
 
     async function initializeSchema(DB: any) {
         await DB.executeTransaction(async function () {
@@ -59,7 +66,7 @@ export async function getDB(dbName?: string) {
                 await DB.queryAsync("PRAGMA page_size = 4096");
                 await DB.queryAsync("PRAGMA encoding = 'UTF-8'");
                 await DB.queryAsync("PRAGMA auto_vacuum = 1");
-                let sql = await getSchemaSQL('addonSchema');
+                const sql = await getSchemaSQL('addonSchema');
                 await DB.executeSQLFile(sql);
                 DB.dbInitialized = true;
             }
@@ -110,7 +117,7 @@ export async function getDB(dbName?: string) {
     }
 }
 
-export async function insertMyDB(tableName: string, data?: any) {
+/* export async function insertMyDB(tableName: string, data?: any) {
 
 
 
@@ -137,8 +144,8 @@ export async function insertMyDB(tableName: string, data?: any) {
         //"INSERT INTO libraries (libraryID, type, editable, filesEditable) VALUES (4, 'publications', 1, 1)"
     }
 
-    await dataInsertIntoTable(data, tableName, testDB);
-    await testDB.closeDatabase();
+    await dataInsertIntoTable(data, tableName, addonDB);
+    await addonDB.closeDatabase();
     return;
 
 
@@ -146,32 +153,32 @@ export async function insertMyDB(tableName: string, data?: any) {
 
 
     //查询所有表的名称
-    const allTablesName = await testDB.queryAsync("select name from sqlite_master where type='table' order by name");
+    const allTablesName = await addonDB.queryAsync("select name from sqlite_master where type='table' order by name");
     for (const tableName of allTablesName) {
 
         ztoolkit.log(tableName.name);
         ztoolkit.log("==========================");
         //查询表的字段名        
-        const cols = await testDB.getColumns(tableName.name);
+        const cols = await addonDB.getColumns(tableName.name);
 
         ztoolkit.log(cols);
 
     }
 
-    /* const table = "myDBFirstTable";
-    const sourceText = "abnormal excelent";
-    const targetText = "相当卓越";
-    let sql = `CREATE TABLE ${table} (id INTEGER PRIMARY KEY,sourceText TEXT NOT NULL,targetText TEXT NOT NULL,score INTEGER)`;
-    await testDB.queryAsync(sql);
-    sql = `INSERT INTO ${table} (sourceText,targetText) VALUES (?,?)`;
-    await testDB.queryAsync(sql, [sourceText, targetText]);
-    sql = `SELECT * FROM ${table}`;
-    const row = await testDB.queryAsync(sql);
-    ztoolkit.log("sourceText", row[0].sourceText, "targetText", row[0].targetText); */
-    await testDB.closeDatabase();
-}
+   
+    await addonDB.closeDatabase();
+} */
 
-
+/* const table = "myDBFirstTable";
+   const sourceText = "abnormal excelent";
+   const targetText = "相当卓越";
+   let sql = `CREATE TABLE ${table} (id INTEGER PRIMARY KEY,sourceText TEXT NOT NULL,targetText TEXT NOT NULL,score INTEGER)`;
+   await addonDB.queryAsync(sql);
+   sql = `INSERT INTO ${table} (sourceText,targetText) VALUES (?,?)`;
+   await addonDB.queryAsync(sql, [sourceText, targetText]);
+   sql = `SELECT * FROM ${table}`;
+   const row = await addonDB.queryAsync(sql);
+   ztoolkit.log("sourceText", row[0].sourceText, "targetText", row[0].targetText); */
 
 /**
  * tableName: { fieldName:type }
@@ -189,12 +196,18 @@ function creatTable() {
 }
 
 
-
-function getSchemaSQL(schema: string) {
+/**
+ * 
+ * @param schema 
+ * @param dir option default:chrome://${config.addonRef}/content/
+ * @returns 
+ */
+function getSchemaSQL(schema: string, dir?: string) {
     if (!schema) {
         throw ('Schema type not provided to _getSchemaSQL()');
     }
-    const path = `chrome://${config.addonRef}/resource/schema/${schema}.sql`;
+    dir = dir || `chrome://${config.addonRef}/content/`;
+    const path = dir + `${schema}.sql`;
     return Zotero.File.getResourceAsync(path);
 }
 
@@ -202,51 +215,3 @@ function getSchemaSQL(schema: string) {
 
 
 
-//移除旧文件
-function removeAddonDBBackup(DB: any) {
-    const dir = PathUtils.parent(DB._dbPath);
-    const _dbName;
-    if (!dir) return;
-    var file = Zotero.File.pathToFile(dir);
-    var toDelete = [];
-    try {
-        var files = file.directoryEntries;
-        while (files.hasMoreElements()) {
-            var file = files.getNext() as nsIFile;
-            file.QueryInterface(Components.interfaces.nsIFile);
-            if (file.isDirectory()) {
-                continue;
-            }
-            var matches = file.leafName.match(/zotero\.sqlite\.([0-9]{2,})\.bak/);
-            if (!matches) {
-                continue;
-            }
-            if (matches[1] >= 28 && matches[1] <= maxPrevious) {
-                toDelete.push(file);
-            }
-        }
-        for (let file of toDelete) {
-            Zotero.debug('Removing previous backup file ' + file.leafName);
-            file.remove(false);
-        }
-    }
-    catch (e) {
-        Zotero.debug(e);
-    }
-}
-
-
-path: string;
-constructor(path: string) {
-    super(path);
-    this.path = path;
-}
-
-test() {
-    return this._getConnectionAsync().then(() => { });
-}
-    async insertMyDB(ableName: string){
-    this.test();
-}
-
-} * /;;;;

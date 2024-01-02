@@ -24,6 +24,7 @@ async function onStartup() {
   await onMainWindowLoad(window);
 
 
+
 }
 
 async function onMainWindowLoad(win: Window): Promise<void> {
@@ -59,6 +60,8 @@ async function onMainWindowLoad(win: Window): Promise<void> {
 
   popupWin.startCloseTimer(3000);
   observeImageItem();
+
+
 
 }
 

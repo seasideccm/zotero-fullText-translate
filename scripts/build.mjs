@@ -89,7 +89,7 @@ function dateFormat(fmt, date) {
   }
   return fmt;
 }
-
+//重命名 本地化文件夹 多国语言
 function renameLocaleFiles() {
   const localeDir = path.join(buildDir, "addon/locale");
   const localeFolders = readdirSync(localeDir, { withFileTypes: true })
@@ -124,7 +124,7 @@ function replaceString() {
     /__buildTime__/g,
   ];
   const replaceTo = [author, description, homepage, version, buildTime];
-
+  //package.json config => addonRef...
   replaceFrom.push(
     ...Object.keys(config).map((k) => new RegExp(`__${k}__`, "g")),
   );
@@ -147,7 +147,8 @@ function replaceString() {
   if (!isPreRelease) {
     optionsAddon.files.push("update.json");
   }
-
+  // 通过调用 replaceInFileSync 修改文件中的 __XXXXX__ 变量为对应的值，
+  // 实现项目中使用 package.json 中的各种定义
   const replaceResult = replaceInFileSync(optionsAddon);
 
   const localeMessage = new Set();

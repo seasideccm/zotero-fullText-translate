@@ -65,6 +65,7 @@ export function setPluginsPref(plugin: string, key: string, value: string | numb
 }
 
 
+
 /**
  * 将 js 对象转为json写入磁盘，默认为插件目录
  * @param obj 
@@ -280,12 +281,12 @@ export function enableMasonry() {
     Zotero.Prefs.set("layout.css.grid-template-masonry-value.enabled", true, true);
   }
 }
-export function base64ToBytes(imageDataURL: string)
-  : {
-    u8arr:
-    Uint8Array;
-    mime: string;
-  } | undefined {
+
+export function base64ToBytes(imageDataURL: string): {
+  u8arr:
+  Uint8Array;
+  mime: string;
+} | undefined {
   const parts = imageDataURL.split(',');
   if (!parts[0].includes('base64')) return;
   const mime = parts[0].match(/:(.*?);/)![1];
