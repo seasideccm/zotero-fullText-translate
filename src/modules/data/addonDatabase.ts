@@ -59,7 +59,7 @@ export async function getDB(dbName?: string) {
                 await DB.queryAsync("PRAGMA page_size = 4096");
                 await DB.queryAsync("PRAGMA encoding = 'UTF-8'");
                 await DB.queryAsync("PRAGMA auto_vacuum = 1");
-                let sql = await getSchemaSQL('addonSchema');
+                const sql = await getSchemaSQL('addonSchema');
                 await DB.executeSQLFile(sql);
                 DB.dbInitialized = true;
             }
@@ -113,29 +113,8 @@ export async function getDB(dbName?: string) {
 export async function insertMyDB(tableName: string, data?: any) {
 
 
+    const testDB = await getDB();
 
-    async function dataInsertIntoTable(data: any, tableName: string, DB: any) {
-        //let sql = `SELECT sql FROM sqlite_master WHERE type='table' AND name='${tableName}'`;
-        //获取主键
-        //const cols = await DB.queryAsync(`PRAGMA table_info(${tableName})`);
-        //const PrimaryKey = cols.filter((col: any) => col.pk)[0];
-        // const sqlColumns = cols.map((col: any) => col.name);
-        //const sqlColumnsExcludePK = sqlColumns.filter((col: any) => col != PrimaryKey);
-        let result = data.data?.['content'];
-        if (!result) result = data.data['words_result'];
-        if (!result) return;
-        await DB.executeTransaction(async function () {
-            for (const i of result) {
-                if (i['src'] == i['dst']) continue;
-                const sql = "INSERT INTO " + tableName + " (sourceText, targetText)"
-                    + "VALUES ( ?,?)";
-                const paras = [i['src'], i['dst']];
-                await DB.queryAsync(sql, paras);
-
-            }
-        });
-        //"INSERT INTO libraries (libraryID, type, editable, filesEditable) VALUES (4, 'publications', 1, 1)"
-    }
 
     await dataInsertIntoTable(data, tableName, testDB);
     await testDB.closeDatabase();
@@ -171,6 +150,29 @@ export async function insertMyDB(tableName: string, data?: any) {
     await testDB.closeDatabase();
 }
 
+async function dataInsertIntoTable(data: any, tableName: string, DB: any) {
+    //let sql = `SELECT sql FROM sqlite_master WHERE type='table' AND name='${tableName}'`;
+    //获取主键
+    //const cols = await DB.queryAsync(`PRAGMA table_info(${tableName})`);
+    //const PrimaryKey = cols.filter((col: any) => col.pk)[0];
+    // const sqlColumns = cols.map((col: any) => col.name);
+    //const sqlColumnsExcludePK = sqlColumns.filter((col: any) => col != PrimaryKey);
+    let result = data.data?.['content'];
+    if (!result) result = data.data['words_result'];
+    if (!result) return;
+    await DB.executeTransaction(async function () {
+        for (const i of result) {
+            if (i['src'] == i['dst']) continue;
+            const sql = "INSERT INTO " + tableName + " (sourceText, targetText)"
+                + "VALUES ( ?,?)";
+            const paras = [i['src'], i['dst']];
+            await DB.queryAsync(sql, paras);
+
+        }
+    });
+    //"INSERT INTO libraries (libraryID, type, editable, filesEditable) VALUES (4, 'publications', 1, 1)"
+}
+
 
 
 /**
@@ -202,51 +204,3 @@ function getSchemaSQL(schema: string) {
 
 
 
-//移除旧文件
-function removeAddonDBBackup(DB: any) {
-    const dir = PathUtils.parent(DB._dbPath);
-    const _dbName;
-    if (!dir) return;
-    var file = Zotero.File.pathToFile(dir);
-    var toDelete = [];
-    try {
-        var files = file.directoryEntries;
-        while (files.hasMoreElements()) {
-            var file = files.getNext() as nsIFile;
-            file.QueryInterface(Components.interfaces.nsIFile);
-            if (file.isDirectory()) {
-                continue;
-            }
-            var matches = file.leafName.match(/zotero\.sqlite\.([0-9]{2,})\.bak/);
-            if (!matches) {
-                continue;
-            }
-            if (matches[1] >= 28 && matches[1] <= maxPrevious) {
-                toDelete.push(file);
-            }
-        }
-        for (let file of toDelete) {
-            Zotero.debug('Removing previous backup file ' + file.leafName);
-            file.remove(false);
-        }
-    }
-    catch (e) {
-        Zotero.debug(e);
-    }
-}
-
-
-path: string;
-constructor(path: string) {
-    super(path);
-    this.path = path;
-}
-
-test() {
-    return this._getConnectionAsync().then(() => { });
-}
-    async insertMyDB(ableName: string){
-    this.test();
-}
-
-} * /;;;;
