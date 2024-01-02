@@ -24,7 +24,7 @@ export const viewImgMenuArr = [
 ];
 
 async function viewImg() {
-    insertMyDB("test");
+    await insertMyDB("test");
     /* const path = "C:\\Users\\Administrator\\AppData\\Local\\Temp\\000peng2006.zip";
     await upload(path); */
     return;
